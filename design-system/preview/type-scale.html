@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: oklch(11% 0.012 240); font-family: 'Inter', sans-serif; padding: 16px 20px; }
+  .row { display: flex; align-items: baseline; gap: 16px; padding: 7px 0; border-bottom: 1px solid oklch(26% 0.02 240); }
+  .row:last-child { border-bottom: none; }
+  .meta { width: 140px; flex-shrink: 0; display: flex; flex-direction: column; gap: 2px; }
+  .meta-role { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: oklch(44% 0.012 240); }
+  .meta-size { font-size: 10px; color: oklch(65% 0.012 240); font-family: monospace; }
+  .specimen { flex: 1; line-height: 1.2; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="meta"><span class="meta-role">h1 / Page title</span><span class="meta-size">28px · Space Grotesk 700</span></div>
+    <div class="specimen" style="font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:700;color:oklch(94% 0.005 240);letter-spacing:-0.02em">GOLDBOT7 — Optimizer Results</div>
+  </div>
+  <div class="row">
+    <div class="meta"><span class="meta-role">h2 / Section</span><span class="meta-size">22px · Space Grotesk 600</span></div>
+    <div class="specimen" style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:600;color:oklch(94% 0.005 240)">Configure &amp; Run</div>
+  </div>
+  <div class="row">
+    <div class="meta"><span class="meta-role">h3 / Subsection</span><span class="meta-size">18px · Space Grotesk 600</span></div>
+    <div class="specimen" style="font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:600;color:oklch(94% 0.005 240)">Parameter Groups</div>
+  </div>
+  <div class="row">
+    <div class="meta"><span class="meta-role">h4 / Label caps</span><span class="meta-size">14px · Inter 500 · wide</span></div>
+    <div class="specimen" style="font-family:'Inter',sans-serif;font-size:14px;font-weight:500;color:oklch(65% 0.012 240);letter-spacing:0.06em;text-transform:uppercase">In-Sample Results</div>
+  </div>
+  <div class="row">
+    <div class="meta"><span class="meta-role">body / Default</span><span class="meta-size">13px · Inter 400</span></div>
+    <div class="specimen" style="font-family:'Inter',sans-serif;font-size:13px;font-weight:400;color:oklch(94% 0.005 240)">Set the date range, enable parameter groups, configure ranges, then click Run.</div>
+  </div>
+  <div class="row">
+    <div class="meta"><span class="meta-role">caption / Help</span><span class="meta-size">12px · Inter 400</span></div>
+    <div class="specimen" style="font-family:'Inter',sans-serif;font-size:12px;font-weight:400;color:oklch(65% 0.012 240)">No results yet — use the ⚙️ Configure &amp; Run tab to run the optimizer.</div>
+  </div>
+  <div class="row">
+    <div class="meta"><span class="meta-role">tab label</span><span class="meta-size">14px · Inter 500</span></div>
+    <div class="specimen" style="font-family:'Inter',sans-serif;font-size:14px;font-weight:500;color:oklch(94% 0.005 240)">⚙️ Configure &amp; Run &nbsp;&nbsp; 📈 Results &nbsp;&nbsp; 🔬 Backtest &nbsp;&nbsp; 🔁 Autoresearch</div>
+  </div>
+</body>
+</html>

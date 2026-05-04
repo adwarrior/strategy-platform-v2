@@ -1,0 +1,66 @@
+Performance	All trades	Long trades	Short trades
+Total net profit	-$455.62	-$573.88	$118.26
+Gross profit	$1491.12	$261.02	$1230.10
+Gross loss	-$1946.74	-$834.90	-$1111.84
+Commission	$75.62	$23.88	$51.74
+Profit factor	0.77	0.31	1.11
+Max. drawdown	-$1070.82	-$675.92	-$461.94
+Sharpe ratio	-0.4	-0.44	0.4
+Sortino ratio	-1.33	-1.45	1
+Ulcer index	0	0	0
+Total Fees	$0.00	$0.00	$0.00
+Probability	72.06%	92.00%	41.96%
+			
+Start date	27/01/2026		
+Start time	12:00 AM		
+End date	27/02/2026		
+End time	12:00 AM		
+			
+Total # of trades	19	6	13
+Percent profitable	31.58%	16.67%	38.46%
+# of winning trades	6	1	5
+# of losing trades	13	5	8
+# of even trades	0	0	0
+			
+Avg. trade	-$23.98	-$95.65	$9.10
+Avg. winning trade	$248.52	$261.02	$246.02
+Avg. losing trade	-$149.75	-$166.98	-$138.98
+Ratio avg. win / avg. loss	1.66	1.56	1.77
+			
+Max. consec. winners	2	1	1
+Max. consec. losers	6	4	3
+Largest winning trade	$261.02	$261.02	$246.02
+Largest losing trade	-$178.98	-$178.98	-$178.98
+			
+Avg. # of trades per day	1.2	0.41	0.82
+Avg. time in market	0.30 min	0.36 min	0.27 min
+Profit per month	-$604.19	-$833.49	$156.82
+Max. time to recover	20.03 days	19.98 days	20.01 days
+Longest flat period	2.99 days	6.99 days	5.00 days
+			
+Avg. MAE	$138.95	$153.33	$132.31
+Avg. MFE	$136.58	$85.00	$160.38
+Avg. ETD	$160.56	$180.65	$151.29
+
+
+
+Trade number	Instrument	Account	Strategy	Market pos.	Qty	Entry price	Exit price	Entry time	Exit time	Entry name	Exit name	Profit	Cum. net profit	Commission
+1	NQ MAR26	Playback101	WickTest5M_FTFCv3	Short	1	25071.5	25079	04/02/2026 11:10:19	04/02/2026 11:11:40	EntryShort_1862	Stop loss	-$153.98	-$153.98	$3.98
+2	NQ MAR26	Playback101	WickTest5M_FTFCv3	Short	1	24641.5	24629	05/02/2026 10:16:12	05/02/2026 10:16:24	EntryShort_2127	Profit target	$246.02	$92.04	$3.98
+3	NQ MAR26	Playback101	WickTest5M_FTFCv3	Short	1	24557	24563.75	05/02/2026 11:15:01	05/02/2026 11:15:02	EntryShort_2139	Stop loss	-$138.98	-$46.94	$3.98
+4	NQ MAR26	Playback101	WickTest5M_FTFCv3	Short	1	24848.5	24836	06/02/2026 10:05:21	06/02/2026 10:05:24	EntryShort_2401	Profit target	$246.02	$199.08	$3.98
+5	NQ MAR26	Playback101	WickTest5M_FTFCv3	Long	1	24996	24987.5	06/02/2026 11:16:10	06/02/2026 11:16:35	EntryLong_2415	Stop loss	-$173.98	$25.10	$3.98
+6	NQ MAR26	Playback101	WickTest5M_FTFCv3	Long	1	25220.75	25212	09/02/2026 10:23:54	09/02/2026 10:24:02	EntryLong_2680	Stop loss	-$178.98	-$153.88	$3.98
+7	NQ MAR26	Playback101	WickTest5M_FTFCv3	Short	1	25291	25297.25	11/02/2026 10:05:57	11/02/2026 10:06:00	EntryShort_3229	Stop loss	-$128.98	-$282.86	$3.98
+8	NQ MAR26	Playback101	WickTest5M_FTFCv3	Short	1	25200.75	25209	11/02/2026 11:10:29	11/02/2026 11:10:34	EntryShort_3242	Stop loss	-$168.98	-$451.84	$3.98
+9	NQ MAR26	Playback101	WickTest5M_FTFCv3	Short	1	24767	24775	13/02/2026 10:51:05	13/02/2026 10:51:06	EntryShort_3790	Stop loss	-$163.98	-$615.82	$3.98
+10	NQ MAR26	Playback101	WickTest5M_FTFCv3	Long	1	24783.75	24775.5	16/02/2026 10:09:16	16/02/2026 10:09:32	EntryLong_4057	Stop loss	-$168.98	-$784.80	$3.98
+11	NQ MAR26	Playback101	WickTest5M_FTFCv3	Short	1	24720	24707.5	16/02/2026 10:30:51	16/02/2026 10:31:08	EntryShort_4062	Profit target	$246.02	-$538.78	$3.98
+12	NQ MAR26	Playback101	WickTest5M_FTFCv3	Long	1	24736.5	24729	16/02/2026 11:16:17	16/02/2026 11:17:14	EntryLong_4071	Stop loss	-$153.98	-$692.76	$3.98
+13	NQ MAR26	Playback101	WickTest5M_FTFCv3	Short	1	24523.25	24532	17/02/2026 10:01:50	17/02/2026 10:01:55	EntryShort_4284	Stop loss	-$178.98	-$871.74	$3.98
+14	NQ MAR26	Playback101	WickTest5M_FTFCv3	Short	1	24507.75	24495.25	17/02/2026 10:37:29	17/02/2026 10:37:38	EntryShort_4291	Profit target	$246.02	-$625.72	$3.98
+15	NQ MAR26	Playback101	WickTest5M_FTFCv3	Short	1	24905	24911.75	19/02/2026 10:56:05	19/02/2026 10:56:28	EntryShort_4847	Stop loss	-$138.98	-$764.70	$3.98
+16	NQ MAR26	Playback101	WickTest5M_FTFCv3	Long	1	25097.5	25110.75	20/02/2026 10:58:16	20/02/2026 10:58:25	EntryLong_5123	Profit target	$261.02	-$503.68	$3.98
+17	NQ MAR26	Playback101	WickTest5M_FTFCv3	Short	1	24866.5	24854	23/02/2026 10:37:28	23/02/2026 10:38:20	EntryShort_5395	Profit target	$246.02	-$257.66	$3.98
+18	NQ MAR26	Playback101	WickTest5M_FTFCv3	Short	1	24952.25	24954	26/02/2026 10:26:07	26/02/2026 10:26:07	EntryShort_6221	Stop loss	-$38.98	-$296.64	$3.98
+19	NQ MAR26	Playback101	WickTest5M_FTFCv3	Long	1	25001	24993.25	26/02/2026 10:50:08	26/02/2026 10:50:22	EntryLong_6226	Stop loss	-$158.98	-$455.62	$3.98

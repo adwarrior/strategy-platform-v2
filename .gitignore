@@ -1,0 +1,10 @@
+.env
+.history/
+__pycache__/
+*.pyc
+*.pyo
+.cache/
+reports/
+.dashboard_prefs.json
+venv/
+.venv/

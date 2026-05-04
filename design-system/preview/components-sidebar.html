@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: oklch(11% 0.012 240); font-family: 'Inter', sans-serif; display: flex; height: 150px; overflow: hidden; }
+  .sidebar { width: 220px; background: oklch(14% 0.014 240); border-right: 1px solid oklch(26% 0.02 240); padding: 14px; display: flex; flex-direction: column; gap: 12px; flex-shrink: 0; }
+  .sidebar-title { font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 700; color: oklch(94% 0.005 240); letter-spacing: -0.01em; display: flex; align-items: center; gap: 7px; }
+  .title-dot { width: 7px; height: 7px; border-radius: 50%; background: oklch(78% 0.18 75); flex-shrink: 0; }
+  .divider { height: 1px; background: oklch(26% 0.02 240); }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field-label { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: oklch(44% 0.012 240); }
+  .select { appearance: none; background: oklch(20% 0.018 240); border: 1px solid oklch(26% 0.02 240); border-radius: 4px; padding: 5px 22px 5px 8px; font-size: 12px; font-family: 'Inter', sans-serif; color: oklch(94% 0.005 240); width: 100%; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath fill='%238a929f' d='M0 0l4 5 4-5z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; }
+  .badge-row { display: flex; align-items: center; gap: 6px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: oklch(68% 0.19 145); flex-shrink: 0; }
+  .badge-text { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: oklch(94% 0.005 240); }
+  .caption { font-size: 10px; color: oklch(44% 0.012 240); }
+</style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="sidebar-title"><div class="title-dot"></div>Strategy Platform</div>
+    <div class="divider"></div>
+    <div class="field">
+      <div class="field-label">Strategy</div>
+      <select class="select"><option>goldbot7</option><option>mobobands</option><option>orb15m</option></select>
+    </div>
+    <div class="field">
+      <div class="field-label">Symbol &amp; bar type</div>
+      <div class="badge-row"><div class="dot"></div><span class="badge-text">GC=F · 5M</span></div>
+      <span class="caption">Grid: 1,296 combos</span>
+    </div>
+  </div>
+</body>
+</html>

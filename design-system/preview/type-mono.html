@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: oklch(11% 0.012 240); font-family: 'Inter', sans-serif; padding: 16px 20px; }
+  .row { display: flex; align-items: baseline; gap: 16px; padding: 8px 0; border-bottom: 1px solid oklch(26% 0.02 240); }
+  .row:last-child { border-bottom: none; }
+  .meta { width: 160px; flex-shrink: 0; }
+  .meta-role { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: oklch(44% 0.012 240); display: block; }
+  .meta-size { font-size: 10px; color: oklch(65% 0.012 240); font-family: monospace; display: block; margin-top: 2px; }
+  .specimen { flex: 1; }
+  .inline-label { font-size: 11px; color: oklch(44% 0.012 240); font-family: 'Inter', sans-serif; margin-right: 8px; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="meta"><span class="meta-role">KPI / Metric</span><span class="meta-size">36px · JetBrains Mono 600</span></div>
+    <div class="specimen" style="font-family:'JetBrains Mono',monospace;font-size:36px;font-weight:600;color:oklch(94% 0.005 240)">$18,240</div>
+  </div>
+  <div class="row">
+    <div class="meta"><span class="meta-role">Metric large</span><span class="meta-size">28px · JetBrains Mono 500</span></div>
+    <div class="specimen" style="display:flex;gap:32px;align-items:baseline">
+      <div><span class="inline-label">Net P&L</span><span style="font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:500;color:oklch(78% 0.17 145)">+$4,320</span></div>
+      <div><span class="inline-label">Drawdown</span><span style="font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:500;color:oklch(70% 0.2 25)">−$1,200</span></div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="meta"><span class="meta-role">Table cell</span><span class="meta-size">13px · JetBrains Mono 400</span></div>
+    <div class="specimen" style="display:flex;gap:24px">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:oklch(94% 0.005 240)">2.84</span>
+      <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:oklch(78% 0.17 145)">+$3,240</span>
+      <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:oklch(70% 0.2 25)">63.2%</span>
+      <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:oklch(94% 0.005 240)">1.94</span>
+    </div>
+  </div>
+  <div class="row">
+    <div class="meta"><span class="meta-role">Code / Param</span><span class="meta-size">12px · JetBrains Mono 400</span></div>
+    <div class="specimen">
+      <code style="font-family:'JetBrains Mono',monospace;font-size:12px;color:oklch(72% 0.145 195);background:oklch(20% 0.018 240);border-radius:3px;padding:2px 6px">stop_fib=0.85  take_profit_r=2.5  direction=Both</code>
+    </div>
+  </div>
+  <div class="row">
+    <div class="meta"><span class="meta-role">Timestamp</span><span class="meta-size">12px · JetBrains Mono 400</span></div>
+    <div class="specimen">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:oklch(65% 0.012 240)">OPT — Entry sweep — 2026-04-09  14:30</span>
+    </div>
+  </div>
+</body>
+</html>

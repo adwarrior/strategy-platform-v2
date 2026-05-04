@@ -1,0 +1,360 @@
+/**
+ * Strategy Platform — Design Tokens
+ * Dark trading terminal aesthetic. All tokens as CSS custom properties.
+ * Load this file first; UI kit components reference these vars.
+ *
+ * Google Fonts substitution (no font files in codebase):
+ *   Space Grotesk  → display / headings
+ *   Inter          → body / UI labels
+ *   JetBrains Mono → data / numbers / monospace
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+/* ─────────────────────────────────────────────
+   BASE COLORS
+   ───────────────────────────────────────────── */
+:root {
+  /* Backgrounds */
+  --bg-base:      oklch(11% 0.012 240);   /* #0c0e13 — page bg */
+  --bg-surface:   oklch(16% 0.016 240);   /* #161a22 — card / panel bg */
+  --bg-elevated:  oklch(20% 0.018 240);   /* #1d2130 — hover surface, input bg */
+  --bg-overlay:   oklch(24% 0.02 240);    /* #232736 — tooltip, dropdown, modal */
+  --bg-sidebar:   oklch(14% 0.014 240);   /* #12151c — sidebar bg */
+
+  /* Borders */
+  --border-subtle: oklch(26% 0.02 240);   /* #252a36 — card borders, dividers */
+  --border-mid:    oklch(32% 0.022 240);  /* #2e3446 — separator lines */
+  --border-strong: oklch(42% 0.025 240);  /* #3d4760 — active / focus ring */
+
+  /* Foregrounds */
+  --fg-primary:   oklch(94% 0.005 240);   /* #eff0f2 — main text */
+  --fg-secondary: oklch(65% 0.012 240);   /* #8a929f — captions, help text */
+  --fg-muted:     oklch(44% 0.012 240);   /* #575e6d — placeholder, disabled */
+  --fg-inverse:   oklch(10% 0.01 240);    /* #0a0c11 — text on accent bg */
+
+  /* Accent: Amber (primary — run buttons, active state) */
+  --accent-amber:       oklch(78% 0.18 75);     /* #f0a830 */
+  --accent-amber-dim:   oklch(65% 0.15 75);     /* muted amber */
+  --accent-amber-glow:  oklch(78% 0.18 75 / 0.18); /* glow shadow */
+
+  /* Accent: Teal (secondary — chart lines, links, info) */
+  --accent-teal:        oklch(72% 0.145 195);   /* #2ec4b6 */
+  --accent-teal-dim:    oklch(58% 0.12 195);    /* muted teal */
+
+  /* Semantic: Profit / Success */
+  --color-profit:       oklch(68% 0.19 145);    /* #22c55e — green */
+  --color-profit-dim:   oklch(68% 0.19 145 / 0.15);
+  --color-profit-text:  oklch(78% 0.17 145);    /* lighter for text on dark bg */
+
+  /* Semantic: Loss / Danger */
+  --color-loss:         oklch(60% 0.22 25);     /* #ef4444 — red */
+  --color-loss-dim:     oklch(60% 0.22 25 / 0.15);
+  --color-loss-text:    oklch(70% 0.2 25);
+
+  /* Semantic: Warning */
+  --color-warning:      oklch(78% 0.17 65);     /* #f59e0b — orange-amber */
+  --color-warning-dim:  oklch(78% 0.17 65 / 0.15);
+
+  /* Semantic: Info */
+  --color-info:         oklch(65% 0.155 250);   /* #3b82f6 — blue */
+  --color-info-dim:     oklch(65% 0.155 250 / 0.15);
+
+  /* Neutral scale (for heatmaps, tables) */
+  --neutral-100: oklch(95% 0.005 240);
+  --neutral-200: oklch(85% 0.008 240);
+  --neutral-300: oklch(72% 0.01 240);
+  --neutral-400: oklch(58% 0.012 240);
+  --neutral-500: oklch(44% 0.012 240);
+  --neutral-600: oklch(32% 0.016 240);
+  --neutral-700: oklch(24% 0.018 240);
+  --neutral-800: oklch(18% 0.016 240);
+  --neutral-900: oklch(12% 0.012 240);
+}
+
+/* ─────────────────────────────────────────────
+   TYPOGRAPHY FOUNDATIONS
+   ───────────────────────────────────────────── */
+:root {
+  /* Font families */
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-body:    'Inter', system-ui, sans-serif;
+  --font-mono:    'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+
+  /* Font weights */
+  --fw-light:    300;
+  --fw-regular:  400;
+  --fw-medium:   500;
+  --fw-semibold: 600;
+  --fw-bold:     700;
+
+  /* Type scale (px) */
+  --text-xs:   11px;   /* micro labels, tags */
+  --text-sm:   12px;   /* captions, help text */
+  --text-base: 13px;   /* body, table cells, input values */
+  --text-md:   14px;   /* UI labels, tab labels */
+  --text-lg:   16px;   /* section captions, sub-labels */
+  --text-xl:   18px;   /* subheadings, group labels */
+  --text-2xl:  22px;   /* section headings */
+  --text-3xl:  28px;   /* tab title, metric large */
+  --text-4xl:  36px;   /* hero metric */
+
+  /* Line heights */
+  --leading-tight:  1.2;
+  --leading-snug:   1.35;
+  --leading-normal: 1.5;
+  --leading-relaxed:1.65;
+
+  /* Letter spacing */
+  --tracking-tight:  -0.02em;
+  --tracking-normal:  0em;
+  --tracking-wide:    0.04em;
+  --tracking-wider:   0.08em;
+  --tracking-widest:  0.12em;
+}
+
+/* ─────────────────────────────────────────────
+   SEMANTIC TYPE ROLES
+   ───────────────────────────────────────────── */
+:root {
+  /* Headings */
+  --h1-font:   var(--font-display);
+  --h1-size:   var(--text-3xl);
+  --h1-weight: var(--fw-bold);
+  --h1-color:  var(--fg-primary);
+  --h1-tracking: var(--tracking-tight);
+
+  --h2-font:   var(--font-display);
+  --h2-size:   var(--text-2xl);
+  --h2-weight: var(--fw-semibold);
+  --h2-color:  var(--fg-primary);
+
+  --h3-font:   var(--font-display);
+  --h3-size:   var(--text-xl);
+  --h3-weight: var(--fw-semibold);
+  --h3-color:  var(--fg-primary);
+
+  --h4-font:   var(--font-body);
+  --h4-size:   var(--text-lg);
+  --h4-weight: var(--fw-medium);
+  --h4-color:  var(--fg-secondary);
+  --h4-tracking: var(--tracking-wide);
+  /* h4 used as section sub-labels — often uppercase */
+
+  /* Body */
+  --body-font:   var(--font-body);
+  --body-size:   var(--text-base);
+  --body-weight: var(--fw-regular);
+  --body-color:  var(--fg-primary);
+  --body-leading: var(--leading-normal);
+
+  /* Caption / help text */
+  --caption-font:   var(--font-body);
+  --caption-size:   var(--text-sm);
+  --caption-weight: var(--fw-regular);
+  --caption-color:  var(--fg-secondary);
+
+  /* Metric values (KPI numbers) */
+  --metric-font:   var(--font-mono);
+  --metric-size:   var(--text-3xl);
+  --metric-weight: var(--fw-semibold);
+  --metric-color:  var(--fg-primary);
+
+  /* Table cells — numeric */
+  --table-num-font:   var(--font-mono);
+  --table-num-size:   var(--text-base);
+  --table-num-weight: var(--fw-regular);
+
+  /* Code / param values */
+  --code-font:   var(--font-mono);
+  --code-size:   var(--text-sm);
+  --code-color:  var(--accent-teal);
+  --code-bg:     var(--bg-elevated);
+
+  /* Labels (form labels, column headers) */
+  --label-font:   var(--font-body);
+  --label-size:   var(--text-sm);
+  --label-weight: var(--fw-medium);
+  --label-color:  var(--fg-secondary);
+
+  /* Tab labels */
+  --tab-font:    var(--font-body);
+  --tab-size:    var(--text-md);
+  --tab-weight:  var(--fw-medium);
+}
+
+/* ─────────────────────────────────────────────
+   SPACING SCALE
+   ───────────────────────────────────────────── */
+:root {
+  --space-1:   4px;
+  --space-2:   8px;
+  --space-3:   12px;
+  --space-4:   16px;
+  --space-5:   20px;
+  --space-6:   24px;
+  --space-8:   32px;
+  --space-10:  40px;
+  --space-12:  48px;
+  --space-16:  64px;
+}
+
+/* ─────────────────────────────────────────────
+   BORDER RADIUS
+   ───────────────────────────────────────────── */
+:root {
+  --radius-sm:   3px;   /* chips, tags, small badges */
+  --radius-md:   5px;   /* inputs, buttons */
+  --radius-lg:   8px;   /* cards, panels */
+  --radius-xl:  12px;   /* modals, large surfaces */
+  --radius-full: 9999px; /* pill badges */
+}
+
+/* ─────────────────────────────────────────────
+   SHADOWS / ELEVATION
+   ───────────────────────────────────────────── */
+:root {
+  --shadow-sm:   0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md:   0 2px 8px rgba(0,0,0,0.5);
+  --shadow-lg:   0 4px 20px rgba(0,0,0,0.6);
+  --shadow-glow-amber: 0 0 0 2px var(--accent-amber-glow), 0 0 12px var(--accent-amber-glow);
+  --shadow-glow-teal:  0 0 0 2px oklch(72% 0.145 195 / 0.2), 0 0 12px oklch(72% 0.145 195 / 0.1);
+  --focus-ring:  0 0 0 2px var(--accent-amber);
+}
+
+/* ─────────────────────────────────────────────
+   COMPONENT TOKENS
+   ───────────────────────────────────────────── */
+:root {
+  /* Buttons — Primary (Run / action) */
+  --btn-primary-bg:     var(--accent-amber);
+  --btn-primary-color:  var(--fg-inverse);
+  --btn-primary-hover:  oklch(84% 0.18 75);
+  --btn-primary-active: oklch(70% 0.16 75);
+  --btn-primary-shadow: 0 0 12px var(--accent-amber-glow);
+
+  /* Buttons — Secondary */
+  --btn-secondary-bg:    var(--bg-elevated);
+  --btn-secondary-color: var(--fg-primary);
+  --btn-secondary-border: var(--border-mid);
+  --btn-secondary-hover:  var(--bg-overlay);
+
+  /* Buttons — Danger */
+  --btn-danger-bg:    var(--color-loss-dim);
+  --btn-danger-color: var(--color-loss-text);
+  --btn-danger-border: oklch(60% 0.22 25 / 0.4);
+  --btn-danger-hover: oklch(60% 0.22 25 / 0.25);
+
+  /* Inputs */
+  --input-bg:       var(--bg-elevated);
+  --input-border:   var(--border-subtle);
+  --input-focus:    var(--accent-amber);
+  --input-color:    var(--fg-primary);
+  --input-placeholder: var(--fg-muted);
+
+  /* Tabs */
+  --tab-active-color:  var(--accent-amber);
+  --tab-active-border: var(--accent-amber);
+  --tab-inactive-color: var(--fg-secondary);
+  --tab-hover-color:   var(--fg-primary);
+
+  /* Metrics (KPI cards) */
+  --metric-card-bg:     var(--bg-surface);
+  --metric-card-border: var(--border-subtle);
+  --metric-positive:    var(--color-profit-text);
+  --metric-negative:    var(--color-loss-text);
+  --metric-neutral:     var(--fg-primary);
+
+  /* Table */
+  --table-header-bg:    var(--bg-overlay);
+  --table-row-hover:    var(--bg-elevated);
+  --table-border:       var(--border-subtle);
+  --table-stripe:       oklch(16% 0.016 240 / 0.5);
+}
+
+/* ─────────────────────────────────────────────
+   GLOBAL BASE STYLES (applied when this CSS
+   is loaded directly in HTML UI kit pages)
+   ───────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg-base);
+  color: var(--fg-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Headings */
+h1 {
+  font-family: var(--h1-font);
+  font-size: var(--h1-size);
+  font-weight: var(--h1-weight);
+  color: var(--h1-color);
+  letter-spacing: var(--h1-tracking);
+  line-height: var(--leading-tight);
+  margin: 0 0 var(--space-4);
+}
+h2 {
+  font-family: var(--h2-font);
+  font-size: var(--h2-size);
+  font-weight: var(--h2-weight);
+  color: var(--h2-color);
+  line-height: var(--leading-tight);
+  margin: 0 0 var(--space-3);
+}
+h3 {
+  font-family: var(--h3-font);
+  font-size: var(--h3-size);
+  font-weight: var(--h3-weight);
+  color: var(--h3-color);
+  margin: 0 0 var(--space-2);
+}
+h4 {
+  font-family: var(--h4-font);
+  font-size: var(--h4-size);
+  font-weight: var(--h4-weight);
+  color: var(--h4-color);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  margin: 0 0 var(--space-2);
+}
+
+p {
+  font-size: var(--body-size);
+  color: var(--body-color);
+  line-height: var(--body-leading);
+  margin: 0 0 var(--space-3);
+}
+
+code, pre {
+  font-family: var(--code-font);
+  font-size: var(--code-size);
+  color: var(--code-color);
+  background: var(--code-bg);
+  border-radius: var(--radius-sm);
+  padding: 1px 5px;
+}
+
+a {
+  color: var(--accent-teal);
+  text-decoration: none;
+}
+a:hover {
+  color: oklch(82% 0.14 195);
+  text-decoration: underline;
+}
+
+/* Divider */
+hr {
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  margin: var(--space-5) 0;
+}

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: oklch(11% 0.012 240); font-family: 'Inter', sans-serif; padding: 16px; }
+  .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .swatch { border-radius: 5px; overflow: hidden; }
+  .swatch-color { height: 52px; border-radius: 4px 4px 0 0; position: relative; display: flex; align-items: flex-end; padding: 6px 8px; }
+  .role-tag { font-size: 9px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(0,0,0,0.6); background: rgba(255,255,255,0.25); border-radius: 3px; padding: 1px 5px; }
+  .swatch-info { padding: 6px 8px; background: oklch(16% 0.016 240); border: 1px solid oklch(26% 0.02 240); border-top: none; border-radius: 0 0 4px 4px; }
+  .swatch-name { font-size: 11px; font-weight: 600; color: oklch(94% 0.005 240); font-family: 'JetBrains Mono', monospace; }
+  .swatch-val  { font-size: 10px; color: oklch(65% 0.012 240); font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
+  .section-label { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: oklch(44% 0.012 240); margin: 12px 0 6px; grid-column: 1 / -1; }
+</style>
+</head>
+<body>
+<div class="grid">
+  <div class="section-label">Accent Colors</div>
+  <div class="swatch"><div class="swatch-color" style="background:oklch(78% 0.18 75)"><span class="role-tag">Primary</span></div><div class="swatch-info"><div class="swatch-name">accent-amber</div><div class="swatch-val">oklch(78% 0.18 75)</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:oklch(65% 0.15 75)"><span class="role-tag">Dim</span></div><div class="swatch-info"><div class="swatch-name">amber-dim</div><div class="swatch-val">oklch(65% 0.15 75)</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:oklch(72% 0.145 195)"><span class="role-tag">Secondary</span></div><div class="swatch-info"><div class="swatch-name">accent-teal</div><div class="swatch-val">oklch(72% 0.145 195)</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:oklch(58% 0.12 195)"><span class="role-tag">Dim</span></div><div class="swatch-info"><div class="swatch-name">teal-dim</div><div class="swatch-val">oklch(58% 0.12 195)</div></div></div>
+
+  <div class="section-label">Semantic Colors</div>
+  <div class="swatch"><div class="swatch-color" style="background:oklch(68% 0.19 145)"><span class="role-tag">Profit</span></div><div class="swatch-info"><div class="swatch-name">color-profit</div><div class="swatch-val">oklch(68% 0.19 145)</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:oklch(68% 0.19 145 / 0.2)"><span class="role-tag">Profit bg</span></div><div class="swatch-info"><div class="swatch-name">profit-dim</div><div class="swatch-val">oklch(68% 0.19 145 / 0.15)</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:oklch(60% 0.22 25)"><span class="role-tag">Loss</span></div><div class="swatch-info"><div class="swatch-name">color-loss</div><div class="swatch-val">oklch(60% 0.22 25)</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:oklch(60% 0.22 25 / 0.2)"><span class="role-tag">Loss bg</span></div><div class="swatch-info"><div class="swatch-name">loss-dim</div><div class="swatch-val">oklch(60% 0.22 25 / 0.15)</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:oklch(78% 0.17 65)"><span class="role-tag">Warning</span></div><div class="swatch-info"><div class="swatch-name">color-warning</div><div class="swatch-val">oklch(78% 0.17 65)</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:oklch(65% 0.155 250)"><span class="role-tag">Info</span></div><div class="swatch-info"><div class="swatch-name">color-info</div><div class="swatch-val">oklch(65% 0.155 250)</div></div></div>
+</div>
+</body>
+</html>

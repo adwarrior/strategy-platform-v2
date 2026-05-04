@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: oklch(11% 0.012 240); font-family: 'Inter', sans-serif; padding: 18px 20px; }
+  .row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  .row-label { font-size: 10px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: oklch(44% 0.012 240); width: 90px; flex-shrink: 0; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 0 14px; height: 34px; border-radius: 5px; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 500; border: none; cursor: pointer; transition: background 120ms ease, box-shadow 120ms ease; white-space: nowrap; }
+
+  .btn-primary { background: oklch(78% 0.18 75); color: oklch(10% 0.01 240); box-shadow: 0 0 12px oklch(78% 0.18 75 / 0.18); }
+  .btn-primary:hover { background: oklch(84% 0.18 75); }
+  .btn-primary:active { background: oklch(70% 0.16 75); }
+
+  .btn-secondary { background: oklch(20% 0.018 240); color: oklch(94% 0.005 240); border: 1px solid oklch(32% 0.022 240); }
+  .btn-secondary:hover { background: oklch(24% 0.02 240); }
+
+  .btn-ghost { background: transparent; color: oklch(65% 0.012 240); border: 1px solid oklch(26% 0.02 240); }
+  .btn-ghost:hover { background: oklch(20% 0.018 240); color: oklch(94% 0.005 240); }
+
+  .btn-danger { background: oklch(60% 0.22 25 / 0.15); color: oklch(70% 0.2 25); border: 1px solid oklch(60% 0.22 25 / 0.4); }
+  .btn-danger:hover { background: oklch(60% 0.22 25 / 0.25); }
+
+  .btn-success { background: oklch(68% 0.19 145 / 0.15); color: oklch(78% 0.17 145); border: 1px solid oklch(68% 0.19 145 / 0.4); }
+
+  .btn-sm { height: 26px; padding: 0 10px; font-size: 12px; border-radius: 4px; }
+  .btn-lg { height: 42px; padding: 0 20px; font-size: 14px; border-radius: 6px; }
+  .btn-disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .icon { width: 14px; height: 14px; opacity: 0.9; }
+</style>
+</head>
+<body>
+  <div class="row"><span class="row-label">Primary</span>
+    <button class="btn btn-primary">▶ Run Optimization</button>
+    <button class="btn btn-primary btn-disabled">▶ Run Optimization</button>
+  </div>
+  <div class="row"><span class="row-label">Secondary</span>
+    <button class="btn btn-secondary">Restore Run</button>
+    <button class="btn btn-secondary">⬇ Export</button>
+    <button class="btn btn-secondary">📋 Load Config</button>
+  </div>
+  <div class="row"><span class="row-label">Ghost</span>
+    <button class="btn btn-ghost">⬇ Export results (txt)</button>
+    <button class="btn btn-ghost">Compare Runs</button>
+  </div>
+  <div class="row"><span class="row-label">Danger</span>
+    <button class="btn btn-danger">Delete Run</button>
+    <button class="btn btn-danger">■ Stop</button>
+  </div>
+  <div class="row"><span class="row-label">Success</span>
+    <button class="btn btn-success">✅ Loaded</button>
+  </div>
+  <div class="row"><span class="row-label">Sizes</span>
+    <button class="btn btn-secondary btn-sm">Small</button>
+    <button class="btn btn-secondary">Default</button>
+    <button class="btn btn-primary btn-lg">▶ Run Backtest</button>
+  </div>
+</body>
+</html>

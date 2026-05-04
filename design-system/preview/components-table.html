@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: oklch(11% 0.012 240); font-family: 'Inter', sans-serif; padding: 16px; }
+  .table-wrap { border: 1px solid oklch(26% 0.02 240); border-radius: 7px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; }
+  thead tr { background: oklch(20% 0.018 240); }
+  thead th { padding: 8px 12px; text-align: left; font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: oklch(65% 0.012 240); border-bottom: 1px solid oklch(26% 0.02 240); white-space: nowrap; }
+  thead th.num { text-align: right; }
+  tbody tr { border-bottom: 1px solid oklch(26% 0.02 240 / 0.6); transition: background 80ms; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: oklch(20% 0.018 240); }
+  tbody tr.selected { background: oklch(78% 0.18 75 / 0.06); border-left: 2px solid oklch(78% 0.18 75); }
+  td { padding: 7px 12px; font-size: 12px; color: oklch(94% 0.005 240); }
+  td.num { text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+  td.config { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: oklch(72% 0.145 195); }
+  .pos { color: oklch(78% 0.17 145); }
+  .neg { color: oklch(70% 0.2 25); }
+  .badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 9999px; font-family: 'JetBrains Mono', monospace; }
+  .badge-green { background: oklch(68% 0.19 145 / 0.18); color: oklch(78% 0.17 145); }
+  .badge-red { background: oklch(60% 0.22 25 / 0.18); color: oklch(70% 0.2 25); }
+  .rank { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: oklch(44% 0.012 240); }
+</style>
+</head>
+<body>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Configuration</th>
+          <th class="num">Net P&L</th>
+          <th class="num">Sharpe</th>
+          <th class="num">Win Rate</th>
+          <th class="num">Trades</th>
+          <th class="num">Profit Factor</th>
+          <th class="num">Max DD</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="selected">
+          <td class="rank">1</td>
+          <td class="config">stop_fib=0.85  tp_r=2.5  dir=Both</td>
+          <td class="num pos">$18,240</td>
+          <td class="num">2.84</td>
+          <td class="num">63.2%</td>
+          <td class="num">142</td>
+          <td class="num">1.94</td>
+          <td class="num neg">$2,640</td>
+          <td><span class="badge badge-green">Shortlisted</span></td>
+        </tr>
+        <tr>
+          <td class="rank">2</td>
+          <td class="config">stop_fib=0.90  tp_r=2.0  dir=Both</td>
+          <td class="num pos">$16,800</td>
+          <td class="num">2.61</td>
+          <td class="num">61.4%</td>
+          <td class="num">138</td>
+          <td class="num">1.82</td>
+          <td class="num neg">$2,900</td>
+          <td><span class="badge badge-green">Shortlisted</span></td>
+        </tr>
+        <tr>
+          <td class="rank">3</td>
+          <td class="config">stop_fib=0.80  tp_r=3.0  dir=Long Only</td>
+          <td class="num pos">$14,200</td>
+          <td class="num">2.44</td>
+          <td class="num">58.1%</td>
+          <td class="num">119</td>
+          <td class="num">1.71</td>
+          <td class="num neg">$3,100</td>
+          <td><span class="badge badge-green">Shortlisted</span></td>
+        </tr>
+        <tr>
+          <td class="rank">4</td>
+          <td class="config">stop_fib=0.75  tp_r=2.5  dir=Both</td>
+          <td class="num pos">$12,400</td>
+          <td class="num">2.12</td>
+          <td class="num">55.3%</td>
+          <td class="num">131</td>
+          <td class="num">1.58</td>
+          <td class="num neg">$3,600</td>
+          <td></td>
+        </tr>
+        <tr>
+          <td class="rank">5</td>
+          <td class="config">stop_fib=0.95  tp_r=1.5  dir=Short Only</td>
+          <td class="num neg">−$2,800</td>
+          <td class="num neg">−0.42</td>
+          <td class="num neg">41.2%</td>
+          <td class="num">88</td>
+          <td class="num neg">0.74</td>
+          <td class="num neg">$6,200</td>
+          <td><span class="badge badge-red">Rejected</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

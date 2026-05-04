@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Strategy Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; background: #0a0a0c; }
+body { font-family: 'IBM Plex Mono', monospace; color: #c8ccd4; font-size: 12px; -webkit-font-smoothing: antialiased; }
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2a2a32; }
+select, input, button, textarea { font-family: 'IBM Plex Mono', monospace; }
+select option { background: #111116; }
+
+/* ── Layout ── */
+.app { display: flex; height: 100vh; }
+.sidebar { width: 200px; min-width: 200px; background: #070709; border-right: 1px solid #1a1a22; display: flex; flex-direction: column; overflow: hidden; }
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+
+/* ── Sidebar ── */
+.sb-header { padding: 14px 14px 10px; border-bottom: 1px solid #1a1a22; }
+.sb-logo { font-size: 10px; font-weight: 600; letter-spacing: 0.15em; text-transform: uppercase; color: #39ff8a; display: flex; align-items: center; gap: 7px; }
+.sb-logo-dot { width: 6px; height: 6px; border-radius: 50%; background: #39ff8a; box-shadow: 0 0 8px #39ff8a; flex-shrink: 0; animation: pulse 2s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.sb-strat { padding: 10px 14px; border-bottom: 1px solid #1a1a22; }
+.sb-label { font-size: 9px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: #3d3d4e; margin-bottom: 5px; }
+.sb-select { width: 100%; background: #0e0e14; border: 1px solid #1e1e28; color: #c8ccd4; padding: 5px 8px; font-size: 11px; font-family: 'IBM Plex Mono', monospace; appearance: none; cursor: pointer; }
+.sb-select:focus { outline: none; border-color: #39ff8a; }
+.sb-meta { padding: 10px 14px; border-bottom: 1px solid #1a1a22; display: flex; flex-direction: column; gap: 5px; }
+.sb-meta-row { display: flex; justify-content: space-between; align-items: center; }
+.sb-meta-key { font-size: 10px; color: #3d3d4e; }
+.sb-meta-val { font-size: 10px; color: #7a7a8e; }
+.sb-meta-val.green { color: #39ff8a; }
+.sb-runs { padding: 10px 14px; display: flex; flex-direction: column; gap: 0; }
+.sb-run-item { padding: 5px 0; border-bottom: 1px solid #141418; cursor: pointer; transition: background 80ms; }
+.sb-run-item:hover .sb-run-ts { color: #39ff8a; }
+.sb-run-ts { font-size: 10px; color: #4a4a5e; font-family: 'IBM Plex Mono', monospace; }
+.sb-run-ts.active { color: #39ff8a; }
+.sb-run-pnl { font-size: 10px; color: #2a9a5a; }
+.sb-spark { padding: 10px 14px 6px; }
+.sb-spark-label { font-size: 9px; color: #3d3d4e; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+.sb-bar-type { padding: 8px 14px; border-top: 1px solid #1a1a22; margin-top: auto; }
+.bar-btns { display: flex; gap: 2px; margin-top: 5px; }
+.bar-btn { flex: 1; padding: 3px 0; text-align: center; font-size: 10px; font-family: 'IBM Plex Mono', monospace; background: #0e0e14; border: 1px solid #1e1e28; color: #4a4a5e; cursor: pointer; transition: all 80ms; }
+.bar-btn.active { background: #0e2018; border-color: #39ff8a; color: #39ff8a; }
+
+/* ── Top bar ── */
+.topbar { display: flex; align-items: center; padding: 0 20px; height: 44px; border-bottom: 1px solid #1a1a22; background: #070709; flex-shrink: 0; gap: 0; }
+.topbar-strat { font-size: 18px; font-weight: 600; color: #e8ecf4; letter-spacing: -0.01em; font-family: 'IBM Plex Sans', sans-serif; margin-right: 10px; }
+.topbar-sep { color: #1a1a22; margin-right: 10px; font-size: 18px; }
+.topbar-desc { font-size: 11px; color: #4a4a5e; font-family: 'IBM Plex Mono', monospace; }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.topbar-pill { font-size: 10px; font-family: 'IBM Plex Mono', monospace; font-weight: 500; padding: 2px 8px; border: 1px solid #1e3028; color: #39ff8a; background: #0a1810; letter-spacing: 0.04em; }
+.topbar-combos { font-size: 10px; color: #3d3d4e; }
+
+/* ── Tab bar ── */
+.tabbar { display: flex; height: 34px; border-bottom: 1px solid #1a1a22; padding: 0 20px; flex-shrink: 0; background: #070709; }
+.tab { display: flex; align-items: center; height: 100%; padding: 0 14px; font-size: 11px; font-weight: 400; color: #3d3d4e; cursor: pointer; border-bottom: 1px solid transparent; margin-bottom: -1px; transition: color 100ms, border-color 100ms; letter-spacing: 0.04em; user-select: none; gap: 6px; font-family: 'IBM Plex Mono', monospace; }
+.tab:hover { color: #7a7a8e; }
+.tab.active { color: #39ff8a; border-bottom-color: #39ff8a; }
+.tab-num { font-size: 9px; color: #2a2a32; background: #111116; padding: 1px 5px; border: 1px solid #1a1a22; }
+.tab.active .tab-num { color: #39ff8a; border-color: #1e3028; background: #0a1810; }
+
+/* ── Content ── */
+.content { flex: 1; overflow-y: auto; overflow-x: hidden; background: #0a0a0c; }
+
+/* ── Configure & Run ── */
+.cr-root { padding: 0; display: flex; flex-direction: column; }
+.cr-section { padding: 12px 20px; border-bottom: 1px solid #141418; }
+.cr-section-head { font-size: 9px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: #2a2a3a; margin-bottom: 10px; }
+.cr-row { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+.cr-field { display: flex; flex-direction: column; gap: 4px; }
+.cr-label { font-size: 9px; color: #3d3d4e; letter-spacing: 0.1em; text-transform: uppercase; }
+.cr-input { background: #0e0e14; border: none; border-bottom: 1px solid #1e1e28; color: #c8ccd4; padding: 5px 0; font-size: 11px; font-family: 'IBM Plex Mono', monospace; outline: none; min-width: 200px; transition: border-color 100ms; }
+.cr-input:focus { border-bottom-color: #39ff8a; }
+.cr-input::placeholder { color: #2a2a3a; }
+.cr-input-sm { min-width: 72px; max-width: 72px; }
+.cr-caption { font-size: 9px; color: #2a2a3a; font-family: 'IBM Plex Mono', monospace; }
+.cr-caption.green { color: #1e6e40; }
+
+/* IS/OOS split bar */
+.split-bar { display: flex; height: 20px; border: 1px solid #1a1a22; overflow: hidden; }
+.split-is  { background: #0a1820; color: #2a6aaa; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; }
+.split-oos { background: #0a1810; color: #1e6e40; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; }
+
+/* Sweep chips */
+.sweep-bar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.sweep-chip { display: flex; align-items: center; gap: 4px; padding: 3px 9px; font-size: 10px; cursor: pointer; border: 1px solid; user-select: none; transition: all 80ms; font-family: 'IBM Plex Mono', monospace; }
+.sweep-chip.on  { border-color: #1e4030; color: #39ff8a; background: #0a1810; }
+.sweep-chip.off { border-color: #1a1a22; color: #3d3d4e; background: transparent; }
+.combos-total { margin-left: auto; font-size: 11px; color: #39ff8a; font-weight: 600; }
+
+/* Params compact table */
+.params-table { width: 100%; border-collapse: collapse; }
+.params-table th { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: #2a2a3a; border-bottom: 1px solid #141418; padding: 5px 10px 5px 0; text-align: left; font-weight: 500; }
+.params-table td { padding: 6px 10px 6px 0; border-bottom: 1px solid #0e0e14; vertical-align: middle; }
+.param-name { font-size: 11px; color: #7a7a8e; }
+.param-default { font-size: 9px; color: #2a2a3a; margin-left: 6px; }
+.range-inputs { display: flex; gap: 6px; align-items: center; }
+.range-input { background: transparent; border: none; border-bottom: 1px solid #1e1e28; color: #c8ccd4; padding: 2px 0; font-size: 11px; font-family: 'IBM Plex Mono', monospace; outline: none; width: 56px; text-align: right; transition: border-color 100ms; }
+.range-input:focus { border-bottom-color: #39ff8a; }
+.range-sep { color: #2a2a3a; font-size: 10px; }
+.range-combos { font-size: 9px; color: #2a5a38; width: 50px; text-align: right; }
+.bool-btns { display: flex; gap: 0; }
+.bool-btn { padding: 2px 9px; font-size: 10px; font-family: 'IBM Plex Mono', monospace; background: #0e0e14; border: 1px solid #1e1e28; color: #3d3d4e; cursor: pointer; margin-right: -1px; transition: all 80ms; }
+.bool-btn.active { background: #0a1810; border-color: #39ff8a; color: #39ff8a; z-index: 1; }
+.cat-checks { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.cat-check { display: flex; align-items: center; gap: 4px; font-size: 10px; color: #7a7a8e; cursor: pointer; }
+.cat-check input { accent-color: #39ff8a; width: 11px; height: 11px; }
+.time-select { background: transparent; border: none; border-bottom: 1px solid #1e1e28; color: #c8ccd4; padding: 2px 0; font-size: 11px; font-family: 'IBM Plex Mono', monospace; outline: none; cursor: pointer; }
+
+/* Run bar */
+.run-bar { padding: 14px 20px; display: flex; align-items: center; gap: 14px; background: #070709; border-top: 1px solid #1a1a22; flex-shrink: 0; }
+.btn-run { padding: 10px 28px; background: #39ff8a; color: #020804; border: none; font-size: 13px; font-weight: 600; font-family: 'IBM Plex Mono', monospace; cursor: pointer; letter-spacing: 0.06em; box-shadow: 0 0 24px rgba(57,255,138,0.3); transition: all 100ms; }
+.btn-run:hover { background: #50ffaa; box-shadow: 0 0 32px rgba(57,255,138,0.5); }
+.btn-run:active { transform: scale(0.98); }
+.btn-stop { padding: 10px 22px; background: transparent; color: #ff4a4a; border: 1px solid #3a1414; font-size: 13px; font-weight: 600; font-family: 'IBM Plex Mono', monospace; cursor: pointer; }
+.btn-secondary { padding: 7px 14px; background: transparent; color: #4a4a5e; border: 1px solid #1e1e28; font-size: 11px; font-family: 'IBM Plex Mono', monospace; cursor: pointer; transition: all 80ms; }
+.btn-secondary:hover { border-color: #39ff8a; color: #39ff8a; }
+.btn-ghost { padding: 6px 12px; background: transparent; color: #3d3d4e; border: 1px solid #141418; font-size: 10px; font-family: 'IBM Plex Mono', monospace; cursor: pointer; transition: all 80ms; }
+.btn-ghost:hover { color: #7a7a8e; border-color: #2a2a32; }
+.btn-danger { padding: 5px 10px; background: transparent; color: #8a2a2a; border: 1px solid #2a1414; font-size: 10px; font-family: 'IBM Plex Mono', monospace; cursor: pointer; }
+.btn-danger:hover { color: #ff4a4a; border-color: #4a1818; }
+.progress-wrap { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+.progress-label { font-size: 10px; color: #39ff8a; font-family: 'IBM Plex Mono', monospace; }
+.progress-track { height: 2px; background: #1a1a22; }
+.progress-fill { height: 100%; background: #39ff8a; transition: width 300ms linear; box-shadow: 0 0 8px rgba(57,255,138,0.6); }
+.success-msg { font-size: 11px; color: #39ff8a; }
+
+/* ── Results ── */
+.results-root { display: flex; flex-direction: column; }
+.results-bar { display: flex; align-items: center; gap: 10px; padding: 10px 20px; border-bottom: 1px solid #141418; background: #070709; flex-wrap: wrap; }
+.results-run-select { background: #0e0e14; border: none; border-bottom: 1px solid #1e1e28; color: #c8ccd4; padding: 4px 0; font-size: 11px; font-family: 'IBM Plex Mono', monospace; min-width: 260px; outline: none; cursor: pointer; }
+.meta-pill { font-size: 9px; font-family: 'IBM Plex Mono', monospace; padding: 2px 7px; border: 1px solid #141418; color: #3d3d4e; letter-spacing: 0.06em; }
+.sub-tabs { display: flex; gap: 0; border-bottom: 1px solid #141418; padding: 0 20px; background: #070709; }
+.sub-tab { padding: 7px 14px; font-size: 10px; font-family: 'IBM Plex Mono', monospace; color: #3d3d4e; cursor: pointer; border-bottom: 1px solid transparent; margin-bottom: -1px; transition: all 80ms; letter-spacing: 0.05em; }
+.sub-tab:hover { color: #7a7a8e; }
+.sub-tab.active { color: #39ff8a; border-bottom-color: #39ff8a; }
+.results-content { padding: 14px 20px; display: flex; flex-direction: column; gap: 10px; }
+
+/* Data table */
+.dt-wrap { border: 1px solid #141418; overflow: hidden; }
+table.dt { width: 100%; border-collapse: collapse; }
+table.dt thead tr { background: #0e0e14; }
+table.dt th { padding: 7px 10px; text-align: left; font-size: 9px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: #2a2a3a; border-bottom: 1px solid #141418; white-space: nowrap; cursor: pointer; user-select: none; }
+table.dt th:hover { color: #4a4a5e; }
+table.dt th.r { text-align: right; }
+table.dt td { padding: 6px 10px; font-size: 11px; color: #c8ccd4; border-bottom: 1px solid #0e0e14; font-family: 'IBM Plex Mono', monospace; white-space: nowrap; }
+table.dt td.r { text-align: right; }
+table.dt td.code { color: #4a7a8e; font-size: 10px; }
+table.dt tbody tr { transition: background 60ms; cursor: pointer; }
+table.dt tbody tr:hover { background: #0e0e14; }
+table.dt tbody tr.sel { background: #0a1810; border-left: 2px solid #39ff8a; }
+.pos { color: #39ff8a !important; }
+.neg { color: #ff4a4a !important; }
+.neu { color: #c8ccd4 !important; }
+.dim { color: #3d3d4e !important; }
+.badge { font-size: 9px; font-weight: 600; padding: 2px 6px; letter-spacing: 0.06em; }
+.badge.short { background: #0a1810; color: #39ff8a; border: 1px solid #1e4030; }
+.badge.rej { background: #180a0a; color: #6a2a2a; border: 1px solid #2a1414; }
+
+/* ── Backtest ── */
+.bt-root { padding: 0; display: flex; flex-direction: column; }
+.bt-section { padding: 10px 20px; border-bottom: 1px solid #141418; }
+.bt-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 1px; background: #141418; border: 1px solid #141418; margin-top: 0; }
+.bt-metric { background: #0a0a0c; padding: 10px 12px; display: flex; flex-direction: column; gap: 3px; }
+.bt-metric-label { font-size: 9px; color: #2a2a3a; letter-spacing: 0.1em; text-transform: uppercase; }
+.bt-metric-value { font-size: 18px; font-weight: 600; font-family: 'IBM Plex Mono', monospace; line-height: 1; }
+.params-kv { display: flex; flex-direction: column; gap: 0; border: 1px solid #141418; }
+.param-kv-row { display: flex; justify-content: space-between; padding: 5px 10px; border-bottom: 1px solid #0e0e14; }
+.param-kv-row:last-child { border-bottom: none; }
+.kv-key { font-size: 10px; color: #3d3d4e; }
+.kv-val { font-size: 10px; color: #39ff8a; }
+
+/* Equity curve area */
+.equity-wrap { border: 1px solid #141418; padding: 10px 14px; }
+.equity-label { font-size: 9px; color: #2a2a3a; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px; }
+
+/* ── Autoresearch ── */
+.ar-root { padding: 14px 20px; display: flex; flex-direction: column; gap: 12px; }
+.ar-info { font-size: 11px; color: #3d3d4e; max-width: 600px; line-height: 1.6; }
+.gen-log { border: 1px solid #141418; overflow: hidden; }
+.gen-row { display: flex; gap: 10px; padding: 5px 10px; border-bottom: 1px solid #0e0e14; align-items: center; font-size: 10px; }
+.gen-row:last-child { border-bottom: none; }
+.gen-n { color: #2a2a3a; width: 24px; text-align: right; }
+.gen-kept { padding: 1px 6px; font-size: 9px; }
+.gen-kept.yes { background: #0a1810; color: #39ff8a; border: 1px solid #1e4030; }
+.gen-kept.no  { background: #180a0a; color: #4a2a2a; border: 1px solid #2a1414; }
+.gen-param { color: #7a7a8e; flex: 1; }
+.gen-change { color: #3d3d4e; }
+.gen-sharpe { color: #4a7a8e; margin-left: auto; }
+
+/* delete warn */
+.delete-warn { display: flex; align-items: center; gap: 8px; padding: 6px 20px; background: #180a0a; border-bottom: 1px solid #2a1414; font-size: 10px; color: #6a3a3a; }
+
+/* action row */
+.action-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.info-bar { font-size: 10px; color: #3d3d4e; padding: 5px 10px; border: 1px solid #141418; background: #0e0e14; }
+
+/* loaded banner */
+.loaded-banner { font-size: 10px; color: #2a6a4a; padding: 4px 8px; border: 1px solid #1a3a28; background: #071410; margin-top: 5px; }
+</style>
+</head>
+<body>
+<div id="root" style="height:100%"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel">
+const { useState, useEffect, useMemo, useRef } = React;
+
+// ── Data ──────────────────────────────────────────────────────────────────────
+const STRATEGIES = ['goldbot7','mobobands','orb15m','wicktest5m','patscalp','swingstrat'];
+const STRATEGY_META = {
+  goldbot7:   { symbol:'GC=F',  combos:1296, desc:'PDH/PDL fib-breakout · Gold futures' },
+  mobobands:  { symbol:'MNQ=F', combos:864,  desc:'Mobo Bands DPO · Micro Nasdaq' },
+  orb15m:     { symbol:'NQ=F',  combos:576,  desc:'Opening Range Breakout · Nasdaq' },
+  wicktest5m: { symbol:'NQ=F',  combos:2048, desc:'Wick rejection · Nasdaq 5M' },
+  patscalp:   { symbol:'ES=F',  combos:432,  desc:'Pattern scalp · S&P 500' },
+  swingstrat: { symbol:'NQ=F',  combos:320,  desc:'FVG swing · Nasdaq 15M' },
+};
+const PARAMS = {
+  goldbot7: [
+    { k:'stop_fib',           l:'stop_fib',           type:'num', from:0.70, to:1.00, step:0.05, def:0.90 },
+    { k:'take_profit_r',      l:'take_profit_r',      type:'num', from:1.00, to:4.00, step:0.25, def:2.0  },
+    { k:'direction',          l:'direction',          type:'cat', opts:['Both','Long Only','Short Only'], def:'Both' },
+    { k:'place_orders_time',  l:'place_orders_time',  type:'time',opts:['18:05','18:30','19:00'], def:'18:05' },
+    { k:'cancel_orders_time', l:'cancel_orders_time', type:'time',opts:['10:00','11:00','12:00'], def:'12:00' },
+    { k:'use_risk_sizing',    l:'use_risk_sizing',    type:'bool', def:true },
+  ],
+  mobobands: [
+    { k:'profit_ticks', l:'profit_ticks', type:'num', from:8,  to:24, step:2, def:12 },
+    { k:'stop_ticks',   l:'stop_ticks',   type:'num', from:4,  to:12, step:2, def:6  },
+    { k:'jma_period',   l:'jma_period',   type:'num', from:8,  to:20, step:2, def:14 },
+    { k:'mobo_period',  l:'mobo_period',  type:'num', from:10, to:30, step:5, def:20 },
+    { k:'use_htf',      l:'use_htf',      type:'bool', def:false },
+    { k:'direction',    l:'direction',    type:'cat', opts:['Both','Long Only','Short Only'], def:'Both' },
+  ],
+  orb15m: [
+    { k:'profit_ticks', l:'profit_ticks', type:'num', from:10, to:30, step:5, def:20 },
+    { k:'stop_ticks',   l:'stop_ticks',   type:'num', from:6,  to:14, step:2, def:8  },
+    { k:'direction',    l:'direction',    type:'cat', opts:['Both','Long Only','Short Only'], def:'Both' },
+    { k:'orb_minutes',  l:'orb_minutes',  type:'num', from:15, to:60, step:15, def:15 },
+  ],
+};
+const getParams = s => PARAMS[s] || PARAMS.goldbot7;
+
+const RUN_TSS = ['20260429_1010','20260427_1705','20260425_0905','20260424_1545','20260420_1835','20260418_1056'];
+const fmtTs = ts => ts ? `OPT — ${ts.slice(0,4)}-${ts.slice(4,6)}-${ts.slice(6,8)} ${ts.slice(9,11)}:${ts.slice(11)}` : '—';
+
+const IS_ROWS = [
+  { rank:1, config:'stop_fib=0.85 tp_r=2.50 dir=Both',        net_pnl:18240, sharpe:2.84, win_rate:0.632, trades:142, pf:1.94, max_dd:-2640, status:'Shortlisted' },
+  { rank:2, config:'stop_fib=0.90 tp_r=2.00 dir=Both',        net_pnl:16800, sharpe:2.61, win_rate:0.614, trades:138, pf:1.82, max_dd:-2900, status:'Shortlisted' },
+  { rank:3, config:'stop_fib=0.80 tp_r=3.00 dir=Long Only',   net_pnl:14200, sharpe:2.44, win_rate:0.581, trades:119, pf:1.71, max_dd:-3100, status:'Shortlisted' },
+  { rank:4, config:'stop_fib=0.75 tp_r=2.50 dir=Both',        net_pnl:12400, sharpe:2.12, win_rate:0.553, trades:131, pf:1.58, max_dd:-3600, status:null },
+  { rank:5, config:'stop_fib=0.70 tp_r=2.00 dir=Both',        net_pnl: 9800, sharpe:1.88, win_rate:0.541, trades:144, pf:1.42, max_dd:-4100, status:null },
+  { rank:6, config:'stop_fib=0.95 tp_r=1.50 dir=Short Only',  net_pnl:-2800, sharpe:-0.42,win_rate:0.412, trades:88,  pf:0.74, max_dd:-6200, status:'Rejected' },
+];
+const OOS_ROWS = [
+  { rank:1, config:'stop_fib=0.85 tp_r=2.50 dir=Both',   oos_pnl:7240, oos_sharpe:2.11, oos_wr:0.608, oos_trades:54, oos_dd:-1800 },
+  { rank:2, config:'stop_fib=0.90 tp_r=2.00 dir=Both',   oos_pnl:6200, oos_sharpe:1.94, oos_wr:0.589, oos_trades:51, oos_dd:-2100 },
+  { rank:3, config:'stop_fib=0.80 tp_r=3.00 dir=Long',   oos_pnl:5400, oos_sharpe:1.78, oos_wr:0.571, oos_trades:44, oos_dd:-2400 },
+];
+const MC_ROWS = [
+  { config:'stop_fib=0.85 tp_r=2.50', stab:0.87, sp5:1.12, p50:14800, p5:8200, net_pnl:18240 },
+  { config:'stop_fib=0.90 tp_r=2.00', stab:0.81, sp5:0.98, p50:13200, p5:6800, net_pnl:16800 },
+  { config:'stop_fib=0.80 tp_r=3.00', stab:0.76, sp5:0.88, p50:11400, p5:5400, net_pnl:14200 },
+];
+
+const fmtD = v => v == null ? '—' : (v >= 0 ? `+$${v.toLocaleString()}` : `-$${Math.abs(v).toLocaleString()}`);
+const fmtP = v => v == null ? '—' : (v*100).toFixed(1)+'%';
+const fmtF = (v,d=2) => v == null ? '—' : v.toFixed(d);
+
+// ── Sidebar ───────────────────────────────────────────────────────────────────
+function Sidebar({ strat, setStrat }) {
+  const [barMin, setBarMin] = useState(5);
+  const meta = STRATEGY_META[strat];
+
+  // mini sparkline path
+  const sparkPoints = [100,94,87,91,82,74,78,64,55,48,42,38,44,30,22,16,10,8];
+  const sparkW = 172, sparkH = 42;
+  const minV = Math.min(...sparkPoints), maxV = Math.max(...sparkPoints);
+  const sparkPath = sparkPoints.map((v,i) => {
+    const x = (i/(sparkPoints.length-1))*sparkW;
+    const y = sparkH - ((v - minV)/(maxV - minV || 1))*sparkH;
+    return `${i===0?'M':'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+
+  return (
+    <div className="sidebar">
+      <div className="sb-header">
+        <div className="sb-logo"><div className="sb-logo-dot"></div>STRAT/PLATFORM</div>
+      </div>
+      <div className="sb-strat">
+        <div className="sb-label">Strategy</div>
+        <select className="sb-select" value={strat} onChange={e => setStrat(e.target.value)}>
+          {STRATEGIES.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+      </div>
+      <div className="sb-meta">
+        <div className="sb-meta-row"><span className="sb-meta-key">symbol</span><span className="sb-meta-val green">{meta.symbol}</span></div>
+        <div className="sb-meta-row"><span className="sb-meta-key">grid</span><span className="sb-meta-val">{meta.combos.toLocaleString()} combos</span></div>
+        <div className="sb-meta-row"><span className="sb-meta-key">runs</span><span className="sb-meta-val">{RUN_TSS.length}</span></div>
+        <div className="sb-meta-row"><span className="sb-meta-key">params</span><span className="sb-meta-val">{getParams(strat).length} dims</span></div>
+      </div>
+
+      <div className="sb-spark">
+        <div className="sb-spark-label">Latest equity</div>
+        <svg width={sparkW} height={sparkH} viewBox={`0 0 ${sparkW} ${sparkH}`}>
+          <defs>
+            <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#39ff8a" stopOpacity="0.2"/>
+              <stop offset="100%" stopColor="#39ff8a" stopOpacity="0"/>
+            </linearGradient>
+          </defs>
+          <path d={sparkPath + ` L${sparkW},${sparkH} L0,${sparkH} Z`} fill="url(#sg)"/>
+          <path d={sparkPath} fill="none" stroke="#39ff8a" strokeWidth="1.2"/>
+        </svg>
+        <div style={{display:'flex',justifyContent:'space-between',marginTop:2}}>
+          <span className="sb-meta-key" style={{fontSize:9}}>IS P&L</span>
+          <span style={{fontSize:10,color:'#39ff8a',fontFamily:'IBM Plex Mono,monospace'}}>+$18,240</span>
+        </div>
+      </div>
+
+      <div className="sb-runs">
+        <div className="sb-label">Recent runs</div>
+        {RUN_TSS.slice(0,4).map((ts,i) => (
+          <div key={ts} className="sb-run-item">
+            <div className={`sb-run-ts${i===0?' active':''}`}>{ts.replace(/_/,'-')}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="sb-bar-type">
+        <div className="sb-label">Bar type</div>
+        <div className="bar-btns">
+          {[1,2,3,4,5].map(n => (
+            <div key={n} className={`bar-btn${barMin===n?' active':''}`} onClick={() => setBarMin(n)}>{n}M</div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Configure & Run ───────────────────────────────────────────────────────────
+function ConfigureRun({ strat }) {
+  const params = getParams(strat);
+  const [running, setRunning] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [done, setDone] = useState(false);
+  const [groups, setGroups] = useState({ 'entry params': true, 'stop params': true, 'filter params': false });
+  const [boolStates, setBoolStates] = useState({});
+  const [restoreTs, setRestoreTs] = useState(RUN_TSS[0]);
+
+  useEffect(() => { setDone(false); setProgress(0); setRunning(false); setBoolStates({}); }, [strat]);
+
+  const handleRun = () => {
+    setRunning(true); setDone(false); setProgress(0);
+    let p = 0;
+    const iv = setInterval(() => {
+      p += Math.random()*14+4;
+      if (p >= 100) { clearInterval(iv); setRunning(false); setDone(true); p = 100; }
+      setProgress(Math.min(p,100));
+    }, 280);
+  };
+
+  const totalCombos = params.reduce((acc,p) => {
+    if (p.type==='num') return acc * (Math.round((p.to-p.from)/p.step)+1);
+    if (p.type==='cat') return acc * p.opts.length;
+    if (p.type==='bool') return acc * 2;
+    return acc;
+  },1);
+
+  const getBoolState = k => boolStates[k] ?? (params.find(p=>p.k===k)?.def === true ? 'True' : 'False');
+  const setBoolState = (k,v) => setBoolStates(s=>({...s,[k]:v}));
+
+  return (
+    <div className="cr-root">
+      {/* Header fields */}
+      <div className="cr-section">
+        <div className="cr-row">
+          <div className="cr-field" style={{flex:1}}>
+            <div className="cr-label">Run label</div>
+            <input className="cr-input" placeholder={`${strat} sweep…`} />
+            <div className="cr-caption">Saved as: OPT — &lt;label&gt; — timestamp</div>
+          </div>
+          <div className="cr-field" style={{flex:1}}>
+            <div className="cr-label">Restore from saved run</div>
+            <div style={{display:'flex',gap:8,alignItems:'flex-end'}}>
+              <select className="cr-input" style={{flex:1}} value={restoreTs} onChange={e=>setRestoreTs(e.target.value)}>
+                {RUN_TSS.map(ts=><option key={ts} value={ts}>{fmtTs(ts)}</option>)}
+              </select>
+              <button className="btn-secondary" style={{marginBottom:1}}>Restore</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Data settings */}
+      <div className="cr-section">
+        <div className="cr-section-head">Data settings</div>
+        <div className="cr-row" style={{alignItems:'flex-end'}}>
+          <div className="cr-field">
+            <div className="cr-label">Start date</div>
+            <input className="cr-input cr-input-sm" style={{minWidth:100}} defaultValue="2023-01-01" />
+          </div>
+          <div style={{color:'#2a2a3a',paddingBottom:6,fontSize:10}}>→</div>
+          <div className="cr-field">
+            <div className="cr-label">End date</div>
+            <input className="cr-input cr-input-sm" style={{minWidth:100}} defaultValue="2026-01-01" />
+          </div>
+          <div className="cr-field" style={{flex:1,maxWidth:320}}>
+            <div className="cr-label">IS / OOS split</div>
+            <div className="split-bar">
+              <div className="split-is"  style={{flex:7}}>IS  70%</div>
+              <div className="split-oos" style={{flex:3}}>OOS 30%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Sweep state */}
+      <div className="cr-section">
+        <div className="cr-row" style={{alignItems:'center'}}>
+          <div className="sweep-bar" style={{flex:1}}>
+            {Object.entries(groups).map(([g,on]) => (
+              <div key={g} className={`sweep-chip ${on?'on':'off'}`} onClick={() => setGroups(s=>({...s,[g]:!s[g]}))}>
+                <span>{on?'✓':'✗'}</span>{g}
+              </div>
+            ))}
+          </div>
+          <div className="combos-total">{totalCombos.toLocaleString()} combos</div>
+        </div>
+      </div>
+
+      {/* Parameters */}
+      <div className="cr-section">
+        <div className="cr-section-head">Parameters — {strat}</div>
+        <table className="params-table">
+          <thead>
+            <tr>
+              <th style={{width:'22%'}}>parameter</th>
+              <th style={{width:'50%'}}>sweep range</th>
+              <th style={{width:'10%',textAlign:'right'}}>combos</th>
+            </tr>
+          </thead>
+          <tbody>
+            {params.map(p => {
+              const nc = p.type==='num' ? Math.round((p.to-p.from)/p.step)+1 : p.type==='cat' ? p.opts.length : p.type==='bool' ? 2 : 1;
+              return (
+                <tr key={p.k}>
+                  <td><span className="param-name">{p.l}</span><span className="param-default">def:{String(p.def)}</span></td>
+                  <td>
+                    {p.type==='num' && (
+                      <div className="range-inputs">
+                        <input className="range-input" defaultValue={p.from} />
+                        <span className="range-sep">→</span>
+                        <input className="range-input" defaultValue={p.to} />
+                        <span className="range-sep">step</span>
+                        <input className="range-input" style={{width:48}} defaultValue={p.step} />
+                      </div>
+                    )}
+                    {p.type==='cat' && (
+                      <div className="cat-checks">
+                        {p.opts.map(o => (
+                          <label key={o} className="cat-check">
+                            <input type="checkbox" defaultChecked={o===p.def} />
+                            {o}
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                    {p.type==='bool' && (
+                      <div className="bool-btns">
+                        {['True','False','Optimize'].map(o => (
+                          <button key={o} className={`bool-btn${getBoolState(p.k)===o?' active':''}`}
+                            onClick={() => setBoolState(p.k,o)}>{o}</button>
+                        ))}
+                      </div>
+                    )}
+                    {p.type==='time' && (
+                      <select className="time-select">
+                        {p.opts.map(o=><option key={o}>{o}</option>)}
+                      </select>
+                    )}
+                  </td>
+                  <td className="range-combos r">{nc}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Run bar */}
+      <div className="run-bar">
+        {running
+          ? <button className="btn-stop" onClick={() => setRunning(false)}>■ STOP</button>
+          : <button className="btn-run" onClick={handleRun}>▶ RUN OPTIMIZATION</button>
+        }
+        {done && <div className="success-msg">pipeline complete — switch to 📈 results</div>}
+        {running && (
+          <div className="progress-wrap">
+            <div className="progress-label">{Math.round(progress)}% · {Math.round((100-progress)/14)} batches remaining</div>
+            <div className="progress-track"><div className="progress-fill" style={{width:`${progress}%`}}></div></div>
+          </div>
+        )}
+        {!running && !done && <button className="btn-secondary">Export grid (txt)</button>}
+      </div>
+    </div>
+  );
+}
+
+// ── Results ───────────────────────────────────────────────────────────────────
+function ResultsTab({ runTss }) {
+  const [sub, setSub] = useState('is');
+  const [selRun, setSelRun] = useState(runTss[0]||'');
+  const [selRow, setSelRow] = useState(0);
+  const [showDel, setShowDel] = useState(false);
+
+  return (
+    <div className="results-root">
+      <div className="results-bar">
+        <span style={{fontSize:9,color:'#3d3d4e',letterSpacing:'0.1em',textTransform:'uppercase'}}>run</span>
+        <select className="results-run-select" value={selRun} onChange={e=>setSelRun(e.target.value)}>
+          {runTss.slice(0,6).map(ts=><option key={ts} value={ts}>{fmtTs(ts)}</option>)}
+        </select>
+        <div className="meta-pill">IS 2023-01-01 → 2025-03-01</div>
+        <div className="meta-pill">OOS 2025-03-01 → 2026-01-01</div>
+        <button className="btn-danger" style={{marginLeft:'auto'}} onClick={()=>setShowDel(!showDel)}>delete run</button>
+      </div>
+      {showDel && (
+        <div className="delete-warn">
+          permanently delete IS + MC + OOS results?
+          <button className="btn-danger" style={{borderColor:'#4a1818',color:'#ff4a4a'}} onClick={()=>setShowDel(false)}>confirm delete</button>
+          <button className="btn-ghost" onClick={()=>setShowDel(false)}>cancel</button>
+        </div>
+      )}
+      <div className="sub-tabs">
+        {[['is','IN-SAMPLE'],['mc','MONTE CARLO'],['oos','OOS VALIDATION'],['cmp','COMPARE RUNS']].map(([id,label]) => (
+          <div key={id} className={`sub-tab${sub===id?' active':''}`} onClick={()=>setSub(id)}>{label}</div>
+        ))}
+      </div>
+      <div className="results-content">
+        {sub==='is'  && <ISTab rows={IS_ROWS} sel={selRow} setSel={setSelRow} />}
+        {sub==='mc'  && <MCTab rows={MC_ROWS} />}
+        {sub==='oos' && <OOSTab rows={OOS_ROWS} sel={selRow} setSel={setSelRow} />}
+        {sub==='cmp' && <CmpTab runTss={runTss} />}
+      </div>
+    </div>
+  );
+}
+
+function ISTab({ rows, sel, setSel }) {
+  const [showN, setShowN] = useState(10);
+  return (
+    <>
+      <div className="action-row">
+        <span style={{fontSize:9,color:'#3d3d4e',letterSpacing:'0.06em'}}>SHOW</span>
+        {[10,25,50].map(n => <button key={n} className={`btn-ghost`} style={{padding:'2px 8px',color:showN===n?'#39ff8a':'#3d3d4e',borderColor:showN===n?'#1e4030':'#141418'}} onClick={()=>setShowN(n)}>{n}</button>)}
+        <button className="btn-ghost" style={{marginLeft:'auto'}}>⬇ export IS results</button>
+      </div>
+      <div className="dt-wrap">
+        <table className="dt">
+          <thead><tr>
+            <th>#</th><th>configuration</th>
+            <th className="r">net p&l</th><th className="r">sharpe</th>
+            <th className="r">win rate</th><th className="r">trades</th>
+            <th className="r">pf</th><th className="r">max dd</th><th>status</th>
+          </tr></thead>
+          <tbody>
+            {rows.slice(0,showN).map((r,i) => (
+              <tr key={i} className={sel===i?'sel':''} onClick={()=>setSel(i)}>
+                <td className="dim">{r.rank}</td>
+                <td className="code">{r.config}</td>
+                <td className={`r ${r.net_pnl>=0?'pos':'neg'}`}>{fmtD(r.net_pnl)}</td>
+                <td className={`r ${r.sharpe>=0?'pos':'neg'}`}>{fmtF(r.sharpe)}</td>
+                <td className="r">{fmtP(r.win_rate)}</td>
+                <td className="r">{r.trades}</td>
+                <td className={`r ${r.pf>=1?'pos':'neg'}`}>{fmtF(r.pf)}</td>
+                <td className={`r neg`}>{fmtD(r.max_dd)}</td>
+                <td>{r.status && <span className={`badge ${r.status==='Shortlisted'?'short':'rej'}`}>{r.status.toUpperCase()}</span>}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="action-row">
+        <span className="code" style={{fontSize:10,color:'#4a7a8e',flex:1}}>{rows[sel]?.config}</span>
+        <button className="btn-secondary">load into configure &amp; run</button>
+        <button className="btn-secondary">send to backtest</button>
+      </div>
+    </>
+  );
+}
+
+function MCTab({ rows }) {
+  return (
+    <>
+      <div className="info-bar">200 simulations · day-shuffle monte carlo · IS period only</div>
+      <div className="dt-wrap">
+        <table className="dt">
+          <thead><tr>
+            <th>configuration</th><th className="r">mc stability</th>
+            <th className="r">sharpe p5</th><th className="r">p&l p50</th>
+            <th className="r">p&l p5</th><th className="r">IS net p&l</th>
+          </tr></thead>
+          <tbody>
+            {rows.map((r,i)=>(
+              <tr key={i}>
+                <td className="code">{r.config}</td>
+                <td className={`r ${r.stab>0.7?'pos':'neg'}`}>{fmtP(r.stab)}</td>
+                <td className={`r ${r.sp5>0?'pos':'neg'}`}>{fmtF(r.sp5)}</td>
+                <td className="r pos">{fmtD(r.p50)}</td>
+                <td className="r pos">{fmtD(r.p5)}</td>
+                <td className="r pos">{fmtD(r.net_pnl)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
+function OOSTab({ rows, sel, setSel }) {
+  return (
+    <>
+      <div className="dt-wrap">
+        <table className="dt">
+          <thead><tr>
+            <th>#</th><th>configuration</th>
+            <th className="r">OOS net p&l</th><th className="r">OOS sharpe</th>
+            <th className="r">OOS win rate</th><th className="r">trades</th>
+            <th className="r">OOS max dd</th>
+          </tr></thead>
+          <tbody>
+            {rows.map((r,i)=>(
+              <tr key={i} className={sel===i?'sel':''} onClick={()=>setSel(i)}>
+                <td className="dim">{r.rank}</td>
+                <td className="code">{r.config}</td>
+                <td className={`r ${r.oos_pnl>=0?'pos':'neg'}`}>{fmtD(r.oos_pnl)}</td>
+                <td className={`r ${r.oos_sharpe>=0?'pos':'neg'}`}>{fmtF(r.oos_sharpe)}</td>
+                <td className="r">{fmtP(r.oos_wr)}</td>
+                <td className="r">{r.oos_trades}</td>
+                <td className="r neg">{fmtD(r.oos_dd)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="action-row">
+        <span className="code" style={{fontSize:10,color:'#4a7a8e',flex:1}}>{rows[sel]?.config}</span>
+        <button className="btn-secondary">load OOS config #{sel+1} into backtester</button>
+        <button className="btn-secondary">lock params into configure &amp; run</button>
+      </div>
+    </>
+  );
+}
+
+function CmpTab({ runTss }) {
+  const bestRows = runTss.slice(0,3).map((ts,i) => ({
+    run: fmtTs(ts), config: ['stop_fib=0.85 tp_r=2.50','stop_fib=0.90 tp_r=2.00','stop_fib=0.80 tp_r=3.00'][i],
+    net_pnl:[18240,15600,12800][i], sharpe:[2.84,2.41,2.09][i], win_rate:[0.632,0.601,0.581][i], trades:[142,128,119][i],
+  }));
+  return (
+    <>
+      <div className="info-bar">comparing IS optimization runs · {runTss.length} runs selected</div>
+      <div style={{fontSize:9,color:'#3d3d4e',letterSpacing:'0.12em',textTransform:'uppercase',marginTop:6}}>Best per run</div>
+      <div className="dt-wrap">
+        <table className="dt">
+          <thead><tr>
+            <th>run</th><th>best config</th>
+            <th className="r">net p&l</th><th className="r">sharpe</th>
+            <th className="r">win rate</th><th className="r">trades</th>
+          </tr></thead>
+          <tbody>
+            {bestRows.map((r,i)=>(
+              <tr key={i}>
+                <td className="code" style={{fontSize:9}}>{r.run.split(' — ')[1]}</td>
+                <td className="code">{r.config}</td>
+                <td className="r pos">{fmtD(r.net_pnl)}</td>
+                <td className="r pos">{fmtF(r.sharpe)}</td>
+                <td className="r">{fmtP(r.win_rate)}</td>
+                <td className="r">{r.trades}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="action-row">
+        <button className="btn-secondary">send to backtester</button>
+        <button className="btn-secondary">send to configure &amp; run</button>
+      </div>
+    </>
+  );
+}
+
+// ── Backtest ──────────────────────────────────────────────────────────────────
+const BT_PERF = { net_pnl:7240, trades:54, win_rate:0.608, sharpe:2.11, sortino:3.04, pf:1.78, max_dd:1800, lg_win:960, lg_loss:-620 };
+const BT_PARAMS = [['stop_fib','0.85'],['take_profit_r','2.50'],['direction','Both'],['place_orders_time','18:05'],['cancel_orders_time','12:00'],['use_risk_sizing','True']];
+const SAVED_BTS = ['BAC — OOS validation — 2026-04-10 09:15:22','BAC — Entry sweep best — 2026-04-08 14:33:07','BAC-OOS — Baseline — 2026-04-05 11:20:44'];
+
+function BacktestTab() {
+  const [selBt, setSelBt] = useState(SAVED_BTS[0]);
+  const [running, setRunning] = useState(false);
+  const [hasResult, setHasResult] = useState(true);
+  const [loaded, setLoaded] = useState('BAC — OOS validation');
+
+  const handleRun = () => { setRunning(true); setTimeout(() => { setRunning(false); setHasResult(true); }, 1800); };
+
+  // equity curve path
+  const pts = [100,94,88,82,86,75,68,62,55,49,43,38,44,32,25,19,12,9];
+  const W=600, H=80;
+  const mn=Math.min(...pts), mx=Math.max(...pts);
+  const equityPath = pts.map((v,i)=>{
+    const x=(i/(pts.length-1))*W, y=H-((v-mn)/(mx-mn||1))*H;
+    return `${i?'L':'M'}${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+
+  return (
+    <div className="bt-root">
+      {/* Saved runs */}
+      <div className="bt-section">
+        <div style={{display:'flex',gap:8,alignItems:'flex-end'}}>
+          <div style={{flex:1}}>
+            <div className="cr-label" style={{marginBottom:4}}>Saved backtests</div>
+            <select style={{background:'#0e0e14',border:'none',borderBottom:'1px solid #1e1e28',color:'#c8ccd4',padding:'4px 0',fontSize:11,fontFamily:'IBM Plex Mono',width:'100%',outline:'none'}}
+              value={selBt} onChange={e=>{setSelBt(e.target.value);setLoaded(e.target.value.split(' — ').slice(0,2).join(' — '));}}>
+              {SAVED_BTS.map(s=><option key={s}>{s}</option>)}
+            </select>
+          </div>
+          <button className="btn-secondary">send to configure &amp; run</button>
+          <button className="btn-danger">delete</button>
+        </div>
+        <div className="loaded-banner">loaded: {loaded}</div>
+      </div>
+
+      {/* OOS quick-load */}
+      <div className="bt-section">
+        <div className="cr-label" style={{marginBottom:6}}>Load from OOS results</div>
+        <div style={{display:'flex',gap:6}}>
+          {OOS_ROWS.map((r,i) => (
+            <button key={i} className="btn-ghost" style={{fontSize:10,padding:'3px 10px',borderColor:'#1a2a20',color:'#2a6a4a'}}
+              onClick={()=>setLoaded(`OOS config #${i+1}`)}>
+              OOS #{i+1} · sharpe {r.oos_sharpe.toFixed(2)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Config row */}
+      <div className="bt-section">
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:20}}>
+          {/* Params */}
+          <div>
+            <div className="cr-label" style={{marginBottom:6}}>Parameters</div>
+            <div className="params-kv">
+              {BT_PARAMS.map(([k,v])=>(
+                <div key={k} className="param-kv-row">
+                  <span className="kv-key">{k}</span>
+                  <span className="kv-val">{v}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Dates */}
+          <div style={{display:'flex',flexDirection:'column',gap:10}}>
+            <div className="cr-field">
+              <div className="cr-label">Start date</div>
+              <input className="cr-input cr-input-sm" defaultValue="2025-03-01" />
+            </div>
+            <div className="cr-field">
+              <div className="cr-label">End date</div>
+              <input className="cr-input cr-input-sm" defaultValue="2026-01-01" />
+            </div>
+            <div className="cr-field">
+              <div className="cr-label">Backtest label</div>
+              <input className="cr-input" placeholder="optional description…" />
+            </div>
+            <button className="btn-run" style={{width:'fit-content',padding:'8px 22px',fontSize:12}} onClick={handleRun} disabled={running}>
+              {running ? '⏳ RUNNING…' : '▶ RUN BACKTEST'}
+            </button>
+          </div>
+          {/* Quick stats if result */}
+          {hasResult && (
+            <div style={{display:'flex',flexDirection:'column',gap:6}}>
+              <div className="cr-label" style={{marginBottom:2}}>Quick stats</div>
+              {[['net p&l',fmtD(BT_PERF.net_pnl),'pos'],['sharpe',fmtF(BT_PERF.sharpe),'pos'],['win rate',fmtP(BT_PERF.win_rate),null],['max dd',fmtD(-BT_PERF.max_dd),'neg'],['trades',String(BT_PERF.trades),null]].map(([k,v,c])=>(
+                <div key={k} style={{display:'flex',justifyContent:'space-between',fontSize:11,fontFamily:'IBM Plex Mono',borderBottom:'1px solid #0e0e14',paddingBottom:4}}>
+                  <span style={{color:'#3d3d4e'}}>{k}</span>
+                  <span className={c||''}>{v}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Full metrics */}
+      {hasResult && (
+        <>
+          <div className="bt-section" style={{paddingBottom:0}}>
+            <div className="cr-label" style={{marginBottom:6}}>Performance metrics</div>
+            <div className="bt-grid">
+              {[['Net P&L',fmtD(BT_PERF.net_pnl),'pos'],['Sharpe',fmtF(BT_PERF.sharpe),'pos'],['Win Rate',fmtP(BT_PERF.win_rate),''],['Profit Factor',fmtF(BT_PERF.pf),'pos'],['Sortino',fmtF(BT_PERF.sortino),'pos'],['Max Drawdown',fmtD(-BT_PERF.max_dd),'neg'],['Largest Win',fmtD(BT_PERF.lg_win),'pos'],['Largest Loss',fmtD(BT_PERF.lg_loss),'neg']].map(([l,v,c])=>(
+                <div key={l} className="bt-metric">
+                  <div className="bt-metric-label">{l}</div>
+                  <div className={`bt-metric-value ${c}`}>{v}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="bt-section">
+            <div className="equity-wrap">
+              <div className="equity-label">Equity curve</div>
+              <svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%',height:H,display:'block'}}>
+                <defs>
+                  <linearGradient id="eg" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#39ff8a" stopOpacity="0.15"/>
+                    <stop offset="100%" stopColor="#39ff8a" stopOpacity="0"/>
+                  </linearGradient>
+                </defs>
+                <path d={equityPath + ` L${W},${H} L0,${H} Z`} fill="url(#eg)"/>
+                <path d={equityPath} fill="none" stroke="#39ff8a" strokeWidth="1.4"/>
+              </svg>
+            </div>
+            <div className="action-row" style={{marginTop:8}}>
+              <button className="btn-ghost">⬇ export results (txt)</button>
+              <button className="btn-secondary">load params into configure &amp; run</button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Autoresearch ──────────────────────────────────────────────────────────────
+function AutoresearchTab() {
+  const [running, setRunning] = useState(false);
+  const [gens, setGens] = useState(0);
+
+  useEffect(() => {
+    if (!running) return;
+    const iv = setInterval(() => setGens(g => g + 1), 1100);
+    return () => clearInterval(iv);
+  }, [running]);
+
+  const genRows = Array.from({length:Math.min(gens,8)}, (_,i) => {
+    const n = gens - i;
+    const kept = Math.random() > 0.35 ? 'yes' : 'no';
+    const params = ['take_profit_r','stop_fib','jma_period','mobo_period','direction'][i%5];
+    return { n, kept, params, old: (1.8 + i*0.1).toFixed(2), nv: (1.8 + (i-1)*0.1 + 0.25).toFixed(2), sharpe: (1.8+n*0.04).toFixed(3) };
+  });
+
+  return (
+    <div className="ar-root">
+      <div className="ar-info">
+        Autonomous parameter optimisation — tests mutations against IS backtest, keeps improvements automatically.
+      </div>
+      <div className="action-row">
+        {!running
+          ? <button className="btn-run" style={{padding:'8px 24px',fontSize:12}} onClick={() => { setRunning(true); setGens(0); }}>▶ START</button>
+          : <button className="btn-stop" onClick={() => setRunning(false)}>■ STOP</button>
+        }
+      </div>
+      {gens > 0 && (
+        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:1,background:'#141418',border:'1px solid #141418'}}>
+          {[['generations',String(gens),''],['kept improvements',String(Math.floor(gens*0.35)),'pos'],['best sharpe',(1.8+gens*0.04).toFixed(3),'pos'],['Δ vs baseline','+'+(gens*0.04).toFixed(3),'pos']].map(([l,v,c])=>(
+            <div key={l} className="bt-metric">
+              <div className="bt-metric-label">{l}</div>
+              <div className={`bt-metric-value ${c}`} style={{fontSize:22}}>{v}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      {genRows.length > 0 && (
+        <div>
+          <div className="cr-section-head" style={{marginBottom:6}}>Generation log</div>
+          <div className="gen-log">
+            {genRows.map((r,i) => (
+              <div key={i} className="gen-row">
+                <span className="gen-n">#{r.n}</span>
+                <span className={`gen-kept ${r.kept}`}>{r.kept.toUpperCase()}</span>
+                <span className="gen-param">{r.params}</span>
+                <span className="gen-change">{r.old} → {r.nv}</span>
+                <span className="gen-sharpe">sharpe {r.sharpe}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Top bar & Tab bar ─────────────────────────────────────────────────────────
+const TABS = [{id:'run',label:'CONFIGURE & RUN',n:'⚙'},{id:'results',label:'RESULTS',n:'📈'},{id:'bt',label:'BACKTEST',n:'🔬'},{id:'ar',label:'AUTORESEARCH',n:'🔁'}];
+
+function App() {
+  const [strat, setStrat] = useState('goldbot7');
+  const [tab, setTab] = useState('run');
+  const meta = STRATEGY_META[strat];
+
+  const handleStratChange = s => { setStrat(s); setTab('run'); };
+
+  return (
+    <div className="app">
+      <Sidebar strat={strat} setStrat={handleStratChange} />
+      <div className="main">
+        <div className="topbar">
+          <span className="topbar-strat">{strat}</span>
+          <span className="topbar-sep">—</span>
+          <span className="topbar-desc">{meta.desc}</span>
+          <div className="topbar-right">
+            <span className="topbar-combos">{meta.combos.toLocaleString()} combos</span>
+            <span className="topbar-pill">{meta.symbol}</span>
+          </div>
+        </div>
+        <div className="tabbar">
+          {TABS.map(t => (
+            <div key={t.id} className={`tab${tab===t.id?' active':''}`} onClick={() => setTab(t.id)}>
+              <span className="tab-num">{t.n}</span>{t.label}
+            </div>
+          ))}
+        </div>
+        <div className="content">
+          {tab==='run'     && <ConfigureRun strat={strat} />}
+          {tab==='results' && <ResultsTab runTss={RUN_TSS} />}
+          {tab==='bt'      && <BacktestTab />}
+          {tab==='ar'      && <AutoresearchTab />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

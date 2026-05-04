@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: oklch(11% 0.012 240); font-family: 'Inter', sans-serif; padding: 16px; }
+  .row { display: flex; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; align-items: flex-start; }
+  .field { display: flex; flex-direction: column; gap: 5px; min-width: 140px; }
+  .label { font-size: 11px; font-weight: 500; color: oklch(65% 0.012 240); letter-spacing: 0.02em; }
+  .input { background: oklch(20% 0.018 240); border: 1px solid oklch(26% 0.02 240); border-radius: 5px; padding: 7px 10px; font-size: 13px; font-family: 'JetBrains Mono', monospace; color: oklch(94% 0.005 240); width: 100%; outline: none; }
+  .input::placeholder { color: oklch(44% 0.012 240); }
+  .input:focus { border-color: oklch(78% 0.18 75); box-shadow: 0 0 0 2px oklch(78% 0.18 75 / 0.15); }
+  .input-focus { border-color: oklch(78% 0.18 75); box-shadow: 0 0 0 2px oklch(78% 0.18 75 / 0.15); }
+  .input-error { border-color: oklch(60% 0.22 25); box-shadow: 0 0 0 2px oklch(60% 0.22 25 / 0.15); }
+  .input-disabled { opacity: 0.4; cursor: not-allowed; }
+  .caption { font-size: 11px; color: oklch(65% 0.012 240); }
+  .caption-err { font-size: 11px; color: oklch(70% 0.2 25); }
+
+  /* Range group (From/To/Step) */
+  .range-group { display: flex; gap: 8px; align-items: flex-end; }
+  .range-group .field { min-width: 80px; }
+
+  /* Selectbox */
+  .select { appearance: none; background: oklch(20% 0.018 240); border: 1px solid oklch(26% 0.02 240); border-radius: 5px; padding: 7px 28px 7px 10px; font-size: 13px; font-family: 'Inter', sans-serif; color: oklch(94% 0.005 240); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%238a929f' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; }
+
+  /* Radio group */
+  .radio-group { display: flex; gap: 2px; background: oklch(16% 0.016 240); border: 1px solid oklch(26% 0.02 240); border-radius: 5px; padding: 3px; }
+  .radio-opt { padding: 5px 12px; font-size: 12px; font-weight: 500; border-radius: 4px; color: oklch(65% 0.012 240); cursor: pointer; }
+  .radio-opt.active { background: oklch(78% 0.18 75); color: oklch(10% 0.01 240); font-weight: 600; }
+
+  /* Checkbox */
+  .check-row { display: flex; align-items: center; gap: 8px; }
+  .check-box { width: 16px; height: 16px; border-radius: 3px; border: 1px solid oklch(42% 0.025 240); background: oklch(20% 0.018 240); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .check-box.checked { background: oklch(78% 0.18 75); border-color: oklch(78% 0.18 75); }
+  .check-label { font-size: 13px; color: oklch(94% 0.005 240); }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="field">
+      <div class="label">Run label</div>
+      <input class="input" placeholder="Optional description…" value="">
+      <span class="caption">Saved as OPT — &lt;label&gt; — timestamp</span>
+    </div>
+    <div class="field">
+      <div class="label">Run label (focus)</div>
+      <input class="input input-focus" value="Entry architecture sweep">
+    </div>
+    <div class="field">
+      <div class="label">Run label (error)</div>
+      <input class="input input-error" value="??invalid">
+      <span class="caption-err">Invalid characters in label</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="field">
+      <div class="label">take_profit_r <span style="color:oklch(44% 0.012 240);font-size:10px">default: 2.0</span></div>
+      <div class="range-group">
+        <div class="field"><div class="label">From</div><input class="input" value="1.00" style="width:72px"></div>
+        <div class="field"><div class="label">To</div><input class="input" value="4.00" style="width:72px"></div>
+        <div class="field"><div class="label">Step</div><input class="input" value="0.25" style="width:72px"></div>
+      </div>
+      <span class="caption">13 values · 13 combos</span>
+    </div>
+    <div class="field">
+      <div class="label">direction <span style="color:oklch(44% 0.012 240);font-size:10px">default: Both</span></div>
+      <select class="select input">
+        <option>Both</option>
+        <option>Long Only</option>
+        <option>Short Only</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="field">
+      <div class="label">use_htf_confirmation</div>
+      <div class="radio-group">
+        <div class="radio-opt active">True</div>
+        <div class="radio-opt">False</div>
+        <div class="radio-opt">Optimize</div>
+      </div>
+    </div>
+    <div class="field">
+      <div class="label">Include in sweep</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div class="check-row"><div class="check-box checked"><svg width="10" height="8" viewBox="0 0 10 8"><path d="M1 4l3 3 5-6" stroke="oklch(10% 0.01 240)" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg></div><span class="check-label">Entry params</span></div>
+        <div class="check-row"><div class="check-box checked"><svg width="10" height="8" viewBox="0 0 10 8"><path d="M1 4l3 3 5-6" stroke="oklch(10% 0.01 240)" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg></div><span class="check-label">Stop params</span></div>
+        <div class="check-row"><div class="check-box"></div><span class="check-label" style="color:oklch(65% 0.012 240)">HTF params</span></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

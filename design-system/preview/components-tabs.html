@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: oklch(11% 0.012 240); font-family: 'Inter', sans-serif; padding: 16px; }
+  .section { margin-bottom: 20px; }
+  .section-label { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: oklch(44% 0.012 240); margin-bottom: 8px; }
+
+  /* Primary tab bar */
+  .tab-bar { display: flex; gap: 2px; border-bottom: 1px solid oklch(26% 0.02 240); padding: 0 4px; }
+  .tab { display: flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: 13px; font-weight: 500; color: oklch(65% 0.012 240); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 120ms, border-color 120ms; white-space: nowrap; }
+  .tab:hover { color: oklch(94% 0.005 240); }
+  .tab.active { color: oklch(78% 0.18 75); border-bottom-color: oklch(78% 0.18 75); }
+
+  /* Sub-tab bar */
+  .sub-tab-bar { display: flex; gap: 2px; background: oklch(16% 0.016 240); border: 1px solid oklch(26% 0.02 240); border-radius: 6px; padding: 3px; width: fit-content; }
+  .sub-tab { padding: 5px 14px; font-size: 12px; font-weight: 500; color: oklch(65% 0.012 240); border-radius: 4px; cursor: pointer; transition: background 120ms, color 120ms; }
+  .sub-tab:hover { color: oklch(94% 0.005 240); background: oklch(20% 0.018 240); }
+  .sub-tab.active { background: oklch(20% 0.018 240); color: oklch(94% 0.005 240); box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+</style>
+</head>
+<body>
+  <div class="section">
+    <div class="section-label">Primary Tab Bar</div>
+    <div class="tab-bar">
+      <div class="tab active">⚙️ Configure &amp; Run</div>
+      <div class="tab">📈 Results</div>
+      <div class="tab">🔬 Backtest</div>
+      <div class="tab">🔁 Autoresearch</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Results Sub-tabs (pill style)</div>
+    <div class="sub-tab-bar">
+      <div class="sub-tab active">In-Sample</div>
+      <div class="sub-tab">Monte Carlo</div>
+      <div class="sub-tab">OOS Validation</div>
+      <div class="sub-tab">Compare Runs</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Tab — Results state active</div>
+    <div class="tab-bar">
+      <div class="tab">⚙️ Configure &amp; Run</div>
+      <div class="tab active">📈 Results</div>
+      <div class="tab">🔬 Backtest</div>
+      <div class="tab">🔁 Autoresearch</div>
+    </div>
+    <div style="padding:12px 4px">
+      <div class="sub-tab-bar">
+        <div class="sub-tab">In-Sample</div>
+        <div class="sub-tab active">OOS Validation</div>
+        <div class="sub-tab">Monte Carlo</div>
+        <div class="sub-tab">Compare Runs</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,28 @@
+────────────────────────── Traceback (most recent call last) ───────────────────────────
+  /home/ad/.local/lib/python3.12/site-packages/streamlit/runtime/scriptrunner/exec_cod  
+  e.py:129 in exec_func_with_error_handling                                             
+                                                                                        
+  /home/ad/.local/lib/python3.12/site-packages/streamlit/runtime/scriptrunner/script_r  
+  unner.py:689 in code_to_exec                                                          
+                                                                                        
+  /home/ad/strategy-platform/strategy_platform/dashboard/app.py:1238 in <module>        
+                                                                                        
+    1235 │   │   │   │   fig_d = px.bar(                                                
+    1236 │   │   │   │   │   dow_df, x="Day", y="Net P&L ($)",                          
+    1237 │   │   │   │   │   color="Net P&L ($)", color_continuous_scale=["#e74c3c", "  
+  ❱ 1238 │   │   │   │   │   text=dow_df["Net P&L ($)"].apply(lambda x: f"${x:,.0f}"),  
+    1239 │   │   │   │   │   hover_data=["Trades"],                                     
+    1240 │   │   │   │   )                                                              
+    1241 │   │   │   │   fig_d.add_hline(y=0, line_dash="dash", line_color="gray")      
+                                                                                        
+  /home/ad/.local/lib/python3.12/site-packages/plotly/express/_imshow.py:403 in imshow  
+                                                                                        
+    400 │   │   if text_auto is True:                                                   
+    401 │   │   │   texttemplate = "%{z}"                                               
+    402 │   │   elif text_auto is not False:                                            
+  ❱ 403 │   │   │   texttemplate = "%{z:" + text_auto + "}"                             
+    404 │   │                                                                           
+    405 │   │   traces = [                                                              
+    406 │   │   │   go.Heatmap(                                                         
+────────────────────────────────────────────────────────────────────────────────────────
+TypeError: can only concatenate str (not "function") to str

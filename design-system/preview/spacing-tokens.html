@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: oklch(11% 0.012 240); font-family: 'Inter', sans-serif; padding: 16px; }
+  .section { margin-bottom: 16px; }
+  .section-label { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: oklch(44% 0.012 240); margin-bottom: 10px; }
+  .space-row { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+  .space-bar { background: oklch(78% 0.18 75 / 0.4); border-radius: 2px; height: 10px; flex-shrink: 0; }
+  .space-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: oklch(65% 0.012 240); width: 80px; }
+  .space-px { font-size: 11px; color: oklch(44% 0.012 240); }
+
+  .radius-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .radius-box { width: 52px; height: 36px; background: oklch(20% 0.018 240); border: 1px solid oklch(42% 0.025 240); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
+  .radius-name { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: oklch(65% 0.012 240); }
+
+  .shadow-row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .shadow-box { width: 80px; height: 40px; background: oklch(20% 0.018 240); border-radius: 5px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 5px; }
+  .shadow-name { font-size: 9px; font-family: 'JetBrains Mono', monospace; color: oklch(65% 0.012 240); }
+</style>
+</head>
+<body>
+  <div class="section">
+    <div class="section-label">Spacing Scale</div>
+    <div class="space-row"><div class="space-bar" style="width:4px"></div><span class="space-label">--space-1</span><span class="space-px">4px</span></div>
+    <div class="space-row"><div class="space-bar" style="width:8px"></div><span class="space-label">--space-2</span><span class="space-px">8px</span></div>
+    <div class="space-row"><div class="space-bar" style="width:12px"></div><span class="space-label">--space-3</span><span class="space-px">12px</span></div>
+    <div class="space-row"><div class="space-bar" style="width:16px"></div><span class="space-label">--space-4</span><span class="space-px">16px</span></div>
+    <div class="space-row"><div class="space-bar" style="width:20px"></div><span class="space-label">--space-5</span><span class="space-px">20px</span></div>
+    <div class="space-row"><div class="space-bar" style="width:24px"></div><span class="space-label">--space-6</span><span class="space-px">24px</span></div>
+    <div class="space-row"><div class="space-bar" style="width:32px"></div><span class="space-label">--space-8</span><span class="space-px">32px</span></div>
+    <div class="space-row"><div class="space-bar" style="width:48px"></div><span class="space-label">--space-12</span><span class="space-px">48px</span></div>
+  </div>
+  <div class="section">
+    <div class="section-label">Border Radius</div>
+    <div class="radius-row">
+      <div class="radius-box" style="border-radius:3px"><span class="radius-name">sm · 3px</span></div>
+      <div class="radius-box" style="border-radius:5px"><span class="radius-name">md · 5px</span></div>
+      <div class="radius-box" style="border-radius:8px"><span class="radius-name">lg · 8px</span></div>
+      <div class="radius-box" style="border-radius:12px"><span class="radius-name">xl · 12px</span></div>
+      <div class="radius-box" style="border-radius:9999px;width:64px"><span class="radius-name">pill</span></div>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-label">Elevation / Shadows</div>
+    <div class="shadow-row">
+      <div class="shadow-box" style="box-shadow:0 1px 3px rgba(0,0,0,0.4)"><span class="shadow-name">shadow-sm</span></div>
+      <div class="shadow-box" style="box-shadow:0 2px 8px rgba(0,0,0,0.5)"><span class="shadow-name">shadow-md</span></div>
+      <div class="shadow-box" style="box-shadow:0 4px 20px rgba(0,0,0,0.6)"><span class="shadow-name">shadow-lg</span></div>
+      <div class="shadow-box" style="box-shadow:0 0 0 2px oklch(78% 0.18 75 / 0.18),0 0 12px oklch(78% 0.18 75 / 0.18)"><span class="shadow-name">glow-amber</span></div>
+      <div class="shadow-box" style="box-shadow:0 0 0 2px oklch(72% 0.145 195 / 0.2),0 0 12px oklch(72% 0.145 195 / 0.1)"><span class="shadow-name">glow-teal</span></div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: oklch(11% 0.012 240); font-family: 'Inter', sans-serif; padding: 16px; }
+  .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .swatch { border-radius: 5px; overflow: hidden; }
+  .swatch-color { height: 52px; border-radius: 4px 4px 0 0; }
+  .swatch-info { padding: 6px 8px; background: oklch(16% 0.016 240); border: 1px solid oklch(26% 0.02 240); border-top: none; border-radius: 0 0 4px 4px; }
+  .swatch-name { font-size: 11px; font-weight: 600; color: oklch(94% 0.005 240); font-family: 'JetBrains Mono', monospace; }
+  .swatch-val  { font-size: 10px; color: oklch(65% 0.012 240); font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
+  .section-label { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: oklch(44% 0.012 240); margin: 12px 0 6px; grid-column: 1 / -1; }
+</style>
+</head>
+<body>
+<div class="grid">
+  <div class="section-label">Backgrounds</div>
+  <div class="swatch"><div class="swatch-color" style="background:oklch(11% 0.012 240);border:1px solid oklch(26% 0.02 240)"></div><div class="swatch-info"><div class="swatch-name">bg-base</div><div class="swatch-val">oklch(11% 0.012 240)</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:oklch(16% 0.016 240)"></div><div class="swatch-info"><div class="swatch-name">bg-surface</div><div class="swatch-val">oklch(16% 0.016 240)</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:oklch(20% 0.018 240)"></div><div class="swatch-info"><div class="swatch-name">bg-elevated</div><div class="swatch-val">oklch(20% 0.018 240)</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:oklch(24% 0.02 240)"></div><div class="swatch-info"><div class="swatch-name">bg-overlay</div><div class="swatch-val">oklch(24% 0.02 240)</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:oklch(14% 0.014 240)"></div><div class="swatch-info"><div class="swatch-name">bg-sidebar</div><div class="swatch-val">oklch(14% 0.014 240)</div></div></div>
+
+  <div class="section-label">Borders</div>
+  <div class="swatch"><div class="swatch-color" style="background:oklch(26% 0.02 240)"></div><div class="swatch-info"><div class="swatch-name">border-subtle</div><div class="swatch-val">oklch(26% 0.02 240)</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:oklch(32% 0.022 240)"></div><div class="swatch-info"><div class="swatch-name">border-mid</div><div class="swatch-val">oklch(32% 0.022 240)</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:oklch(42% 0.025 240)"></div><div class="swatch-info"><div class="swatch-name">border-strong</div><div class="swatch-val">oklch(42% 0.025 240)</div></div></div>
+
+  <div class="section-label">Foregrounds</div>
+  <div class="swatch"><div class="swatch-color" style="background:oklch(94% 0.005 240)"></div><div class="swatch-info"><div class="swatch-name">fg-primary</div><div class="swatch-val">oklch(94% 0.005 240)</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:oklch(65% 0.012 240)"></div><div class="swatch-info"><div class="swatch-name">fg-secondary</div><div class="swatch-val">oklch(65% 0.012 240)</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:oklch(44% 0.012 240)"></div><div class="swatch-info"><div class="swatch-name">fg-muted</div><div class="swatch-val">oklch(44% 0.012 240)</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:oklch(10% 0.01 240);border:1px solid oklch(26% 0.02 240)"></div><div class="swatch-info"><div class="swatch-name">fg-inverse</div><div class="swatch-val">oklch(10% 0.01 240)</div></div></div>
+</div>
+</body>
+</html>

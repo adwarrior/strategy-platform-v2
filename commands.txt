@@ -1,0 +1,52 @@
+========================================
+  STRATEGY PLATFORM — QUICK COMMANDS
+========================================
+
+All commands run from: /home/ad/strategy-platform
+
+----------------------------------------
+1. MAIN DASHBOARD
+----------------------------------------
+cd /home/ad/strategy-platform
+streamlit run strategy_platform/dashboard/app.py
+
+Opens at: http://localhost:8501
+
+Tabs:
+  - Configure & Run  → run full IS/OOS grid optimisation
+  - In-Sample        → view grid search results
+  - Monte Carlo      → stability analysis
+  - OOS Validation   → out-of-sample results
+  - Backtest         → single param set on any date range
+  - Autoresearch     → AI optimiser (edit params, set dates, launch)
+
+----------------------------------------
+2. AUTORESEARCH (command line only, no UI)
+----------------------------------------
+cd /home/ad/strategy-platform
+python3 -u autoresearch/autoresearch_loop.py \
+  --strategy wicktest5m \
+  --start 2023-01-01 \
+  --end   2025-01-01 \
+  --model haiku \
+  --max-gens 100 \
+  --min-trades 10
+
+Options:
+  --strategy     wicktest5m | goldbot7 (etc.)
+  --start        IS window start date  YYYY-MM-DD
+  --end          IS window end date    YYYY-MM-DD
+  --model        haiku (cheap/fast) | sonnet (slower/smarter)
+  --max-gens     number of iterations (default 100)
+  --min-trades   reject runs with fewer trades than this (default 10)
+
+----------------------------------------
+3. NOTES
+----------------------------------------
+- Use the Autoresearch tab in the dashboard — no separate UI needed.
+- Edit default_params directly in the Autoresearch tab before launching.
+- Autoresearch saves best params back to default_params in strategy.py.
+- Use "Load into Backtester" button in sidebar to test default_params.
+- OutputNinja.txt  → paste NinjaTrader trade list here for comparison
+- output.txt       → paste Python dashboard trade list here
+- AutoOutput.txt   → paste autoresearch console output here

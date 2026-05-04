@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: oklch(11% 0.012 240); font-family: 'Inter', sans-serif; padding: 16px; }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .card { background: oklch(16% 0.016 240); border: 1px solid oklch(26% 0.02 240); border-radius: 7px; padding: 12px 14px; }
+  .card-label { font-size: 11px; font-weight: 500; color: oklch(65% 0.012 240); letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 4px; }
+  .card-value { font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 600; line-height: 1.1; }
+  .card-delta { font-size: 11px; font-family: 'JetBrains Mono', monospace; margin-top: 4px; }
+  .pos { color: oklch(78% 0.17 145); }
+  .neg { color: oklch(70% 0.2 25); }
+  .neu { color: oklch(94% 0.005 240); }
+  .amber { color: oklch(78% 0.18 75); }
+  .teal  { color: oklch(72% 0.145 195); }
+  .divider { height: 1px; background: oklch(26% 0.02 240); grid-column: 1 / -1; margin: 4px 0; }
+
+  .card-mini { background: oklch(16% 0.016 240); border: 1px solid oklch(26% 0.02 240); border-radius: 5px; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .card-mini .card-label { margin: 0; }
+  .card-mini .card-value { font-size: 16px; }
+  .mini-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+</style>
+</head>
+<body>
+  <div class="grid">
+    <div class="card">
+      <div class="card-label">Net P&L</div>
+      <div class="card-value pos">$18,240</div>
+      <div class="card-delta pos">▲ +14.2% IS</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Sharpe</div>
+      <div class="card-value neu">2.84</div>
+      <div class="card-delta teal">OOS: 2.11</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Win Rate</div>
+      <div class="card-value amber">63.2%</div>
+      <div class="card-delta" style="color:oklch(65% 0.012 240)">142 trades</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Max Drawdown</div>
+      <div class="card-value neg">$2,640</div>
+      <div class="card-delta neg">▼ worst sim</div>
+    </div>
+    <div class="divider"></div>
+  </div>
+  <div style="margin-top:10px">
+    <div class="mini-grid">
+      <div class="card-mini"><span class="card-label">Profit Factor</span><span class="card-value neu">1.94</span></div>
+      <div class="card-mini"><span class="card-label">Sortino</span><span class="card-value neu">3.41</span></div>
+      <div class="card-mini"><span class="card-label">MC Stability</span><span class="card-value pos">87%</span></div>
+      <div class="card-mini"><span class="card-label">MC Sharpe P5</span><span class="card-value teal">1.12</span></div>
+      <div class="card-mini"><span class="card-label">MC P&L P50</span><span class="card-value pos">$14,800</span></div>
+      <div class="card-mini"><span class="card-label">Param Dims</span><span class="card-value amber">6</span></div>
+    </div>
+  </div>
+</body>
+</html>
