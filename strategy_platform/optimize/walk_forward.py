@@ -57,31 +57,31 @@ from strategy_platform.optimize.pipeline import (
 class _SafeEncoder(json.JSONEncoder):
     """Convert Timestamps → ISO strings and NaN/Inf → null."""
 
-    def default(self, obj: Any) -> Any:
-        if isinstance(obj, pd.Timestamp):
-            return obj.isoformat()
-        if isinstance(obj, (datetime, date)):
-            return obj.isoformat()
-        if isinstance(obj, (np.integer,)):
-            return int(obj)
-        if isinstance(obj, (np.floating,)):
-            v = float(obj)
+    def default(self, o: Any) -> Any:
+        if isinstance(o, pd.Timestamp):
+            return o.isoformat()
+        if isinstance(o, (datetime, date)):
+            return o.isoformat()
+        if isinstance(o, (np.integer,)):
+            return int(o)
+        if isinstance(o, (np.floating,)):
+            v = float(o)
             return None if (math.isnan(v) or math.isinf(v)) else v
-        if isinstance(obj, (np.bool_,)):
-            return bool(obj)
-        if isinstance(obj, (np.ndarray,)):
-            return obj.tolist()
-        return super().default(obj)
+        if isinstance(o, (np.bool_,)):
+            return bool(o)
+        if isinstance(o, (np.ndarray,)):
+            return o.tolist()
+        return super().default(o)
 
-    def encode(self, obj: Any) -> str:
+    def encode(self, o: Any) -> str:
         # Intercept float NaN/Inf at the top level too
-        if isinstance(obj, float) and (math.isnan(obj) or math.isinf(obj)):
+        if isinstance(o, float) and (math.isnan(o) or math.isinf(o)):
             return "null"
-        return super().encode(obj)
+        return super().encode(o)
 
-    def iterencode(self, obj: Any, _one_shot: bool = False):
+    def iterencode(self, o: Any, _one_shot: bool = False):
         # Recursively sanitise dicts/lists
-        return super().iterencode(self._sanitise(obj), _one_shot)
+        return super().iterencode(self._sanitise(o), _one_shot)
 
     def _sanitise(self, obj: Any) -> Any:
         if isinstance(obj, dict):
