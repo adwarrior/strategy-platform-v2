@@ -185,16 +185,17 @@ def _trades_to_records(trades: Any) -> List[Dict[str, Any]]:
     for rec in records:
         row: Dict[str, Any] = {}
         for k, v in rec.items():
+            key = str(k)
             if isinstance(v, pd.Timestamp):
-                row[k] = v.isoformat()
+                row[key] = v.isoformat()
             elif isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
-                row[k] = None
+                row[key] = None
             elif isinstance(v, (np.integer,)):
-                row[k] = int(v)
+                row[key] = int(v)
             elif isinstance(v, (np.floating,)):
-                row[k] = None if (math.isnan(float(v)) or math.isinf(float(v))) else float(v)
+                row[key] = None if (math.isnan(float(v)) or math.isinf(float(v))) else float(v)
             else:
-                row[k] = v
+                row[key] = v
         safe.append(row)
     return safe
 
@@ -250,7 +251,7 @@ def _run_is_sweep(
     best_row  = df_valid.iloc[0]
     param_keys = list(param_grid.keys())
     best_params = {k: best_row[k] for k in param_keys if k in best_row}
-    best_metrics = _extract_metrics(best_row.to_dict())
+    best_metrics = _extract_metrics({str(k): v for k, v in best_row.to_dict().items()})
     return best_params, best_metrics, n_combos
 
 
