@@ -67,6 +67,8 @@ class _SafeEncoder(json.JSONEncoder):
         if isinstance(obj, (np.floating,)):
             v = float(obj)
             return None if (math.isnan(v) or math.isinf(v)) else v
+        if isinstance(obj, (np.bool_,)):
+            return bool(obj)
         if isinstance(obj, (np.ndarray,)):
             return obj.tolist()
         return super().default(obj)
