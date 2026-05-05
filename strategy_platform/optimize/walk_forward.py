@@ -367,6 +367,7 @@ def run_walk_forward(
     print(f"\n[WFO] Loading full-range {symbol} data ({data_start} → {data_end})...")
 
     if is_tick_strategy:
+        assert tick_bar_size is not None  # set above when is_tick_strategy
         df_full = load_tick_bars(symbol, bar_size=tick_bar_size,
                                  start=data_start, end=data_end, host=db_host)
     elif is_1m_strategy:
