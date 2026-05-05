@@ -301,6 +301,9 @@ def run_walk_forward(
     ------
     ValueError  if fewer than 2 slices can be formed from the given date range.
     """
+    if data_start is None or data_end is None:
+        raise ValueError("data_start and data_end are required.")
+
     os.makedirs(REPORTS_DIR, exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d_%H%M")
 
@@ -364,6 +367,7 @@ def run_walk_forward(
     print(f"\n[WFO] Loading full-range {symbol} data ({data_start} → {data_end})...")
 
     if is_tick_strategy:
+        assert tick_bar_size is not None  # set above when is_tick_strategy
         df_full = load_tick_bars(symbol, bar_size=tick_bar_size,
                                  start=data_start, end=data_end, host=db_host)
     elif is_1m_strategy:
