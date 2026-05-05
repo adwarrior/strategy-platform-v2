@@ -301,6 +301,9 @@ def run_walk_forward(
     ------
     ValueError  if fewer than 2 slices can be formed from the given date range.
     """
+    if data_start is None or data_end is None:
+        raise ValueError("data_start and data_end are required.")
+
     os.makedirs(REPORTS_DIR, exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d_%H%M")
 
