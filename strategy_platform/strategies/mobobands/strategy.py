@@ -120,6 +120,59 @@ def _compute_jma(
 # Indicator computation
 # ---------------------------------------------------------------------------
 
+def _compute_adx(df: pd.DataFrame, period: int) -> np.ndarray:
+    """
+    Wilder ADX matching NT8's built-in ADX(period).
+    Returns a length-N array; first `period` values are NaN.
+    """
+    h = df['high'].to_numpy(dtype=np.float64)
+    l = df['low'].to_numpy(dtype=np.float64)
+    c = df['close'].to_numpy(dtype=np.float64)
+    n = len(df)
+    adx = np.full(n, np.nan)
+    if n < period + 1 or period < 1:
+        return adx
+
+    up_move   = h[1:] - h[:-1]
+    down_move = l[:-1] - l[1:]
+    plus_dm  = np.where((up_move > down_move) & (up_move > 0), up_move, 0.0)
+    minus_dm = np.where((down_move > up_move) & (down_move > 0), down_move, 0.0)
+    tr = np.maximum.reduce([h[1:] - l[1:], np.abs(h[1:] - c[:-1]), np.abs(l[1:] - c[:-1])])
+
+    # Wilder smoothing: first value = sum of first `period`, then prev*(p-1)/p + new
+    atr_w   = np.zeros(n - 1)
+    plus_w  = np.zeros(n - 1)
+    minus_w = np.zeros(n - 1)
+    if n - 1 < period:
+        return adx
+    atr_w[period - 1]   = tr[:period].sum()
+    plus_w[period - 1]  = plus_dm[:period].sum()
+    minus_w[period - 1] = minus_dm[:period].sum()
+    for i in range(period, n - 1):
+        atr_w[i]   = atr_w[i - 1]   - atr_w[i - 1] / period   + tr[i]
+        plus_w[i]  = plus_w[i - 1]  - plus_w[i - 1] / period  + plus_dm[i]
+        minus_w[i] = minus_w[i - 1] - minus_w[i - 1] / period + minus_dm[i]
+
+    with np.errstate(divide='ignore', invalid='ignore'):
+        plus_di  = np.where(atr_w > 0, 100.0 * plus_w  / atr_w, 0.0)
+        minus_di = np.where(atr_w > 0, 100.0 * minus_w / atr_w, 0.0)
+        di_sum   = plus_di + minus_di
+        dx       = np.where(di_sum > 0, 100.0 * np.abs(plus_di - minus_di) / di_sum, 0.0)
+
+    # ADX is Wilder smoothing of DX, starting at index 2*period-1 in the (n-1) array.
+    if 2 * period - 1 > n - 2:
+        return adx
+    adx_w = np.full(n - 1, np.nan)
+    seed_idx = 2 * period - 2  # index into dx for the first ADX value
+    adx_w[seed_idx] = dx[period - 1:seed_idx + 1].mean()
+    for i in range(seed_idx + 1, n - 1):
+        adx_w[i] = (adx_w[i - 1] * (period - 1) + dx[i]) / period
+
+    # Map back to length-N array (offset by 1 since tr/dm/dx are off-by-one)
+    adx[1:] = adx_w
+    return adx
+
+
 def _compute_indicators(
     df: pd.DataFrame,
     dpo_period: int,
@@ -136,6 +189,8 @@ def _compute_indicators(
     jurik_period: int = 35,
     jurik_phase: float = 0.0,
     jurik_fl_period: int = 35,
+    enable_adx_filter: bool = False,
+    adx_period: int = 14,
 ) -> pd.DataFrame:
     """
     Returns a DataFrame with DPO, center, upper/lower bands, valc, bandwidth,
@@ -181,6 +236,11 @@ def _compute_indicators(
         nan_col = np.full(len(df), np.nan)
         jma_vals = jma_upper = jma_lower = nan_col
 
+    if enable_adx_filter:
+        adx_vals = _compute_adx(df, adx_period)
+    else:
+        adx_vals = np.full(len(df), np.nan)
+
     return pd.DataFrame({
         'dpo':          dpo,
         'center':       center,
@@ -194,6 +254,7 @@ def _compute_indicators(
         'jma':          jma_vals,
         'jma_upper':    jma_upper,
         'jma_lower':    jma_lower,
+        'adx':          adx_vals,
     }, index=df.index)
 
 
@@ -329,6 +390,8 @@ def _run_backtest_loop(
     jurik_period         = int(params.get('jurik_period', 35))
     jurik_phase          = float(params.get('jurik_phase', 0.0))
     jurik_fl_period      = int(params.get('jurik_fl_period', 35))
+    enable_adx           = bool(params.get('enable_adx_filter', False))
+    adx_threshold        = float(params.get('adx_threshold', 20.0))
 
     lb  = max(hook_lb, 2)
     slb = lb - 1
@@ -354,6 +417,7 @@ def _run_backtest_loop(
     jma_arr        = ind['jma'].values
     jma_upper_arr  = ind['jma_upper'].values
     jma_lower_arr  = ind['jma_lower'].values
+    adx_arr        = ind['adx'].values if 'adx' in ind.columns else np.full(n, np.nan)
 
     bw_ma = pd.Series(bw_arr, index=idx).rolling(bw_period).mean().values
 
@@ -457,6 +521,11 @@ def _run_backtest_loop(
         if enable_bw and bw_mult > 0.0 and not np.isnan(bw_ma_i):
             bw_ok = bw_i > bw_ma_i * bw_mult
 
+        adx_ok = True
+        if enable_adx:
+            adx_i = adx_arr[i]
+            adx_ok = (not np.isnan(adx_i)) and adx_i >= adx_threshold
+
         slope = 0.0
         if slope_lb > 0 and i >= slope_lb:
             slope = (ctr_arr[i] - ctr_arr[i - slope_lb]) / slope_lb
@@ -480,6 +549,7 @@ def _run_backtest_loop(
                 and (slope_thresh <= 0.0 or slope < -slope_thresh)
                 and (enable_mid or dpo_piv < ctr_piv)
                 and bw_ok
+                and adx_ok
                 and (not require_color_change or (slope_now < 0 and color_changed))
                 and (not enable_wa or wa_dn_arr[i] > wa_dead)
                 and (not enable_jurik or (jma_arr[i] < jma_lower_arr[i] and (i == 0 or jma_arr[i] < jma_arr[i - 1])))):
@@ -507,6 +577,7 @@ def _run_backtest_loop(
                 and (slope_thresh <= 0.0 or slope > slope_thresh)
                 and (enable_mid or dpo_piv > ctr_piv)
                 and bw_ok
+                and adx_ok
                 and (not require_color_change or (slope_now > 0 and color_changed))
                 and (not enable_wa or wa_up_arr[i] > wa_dead)
                 and (not enable_jurik or (jma_arr[i] > jma_upper_arr[i] and (i == 0 or jma_arr[i] > jma_arr[i - 1])))):
@@ -573,6 +644,8 @@ def _run_backtest_loop_tick(
     jurik_period         = int(params.get('jurik_period', 35))
     jurik_phase          = float(params.get('jurik_phase', 0.0))
     jurik_fl_period      = int(params.get('jurik_fl_period', 35))
+    enable_adx           = bool(params.get('enable_adx_filter', False))
+    adx_threshold        = float(params.get('adx_threshold', 20.0))
 
     lb  = max(hook_lb, 2)
     slb = lb - 1
@@ -599,6 +672,7 @@ def _run_backtest_loop_tick(
     jma_arr        = ind['jma'].values
     jma_upper_arr  = ind['jma_upper'].values
     jma_lower_arr  = ind['jma_lower'].values
+    adx_arr        = ind['adx'].values if 'adx' in ind.columns else np.full(n, np.nan)
 
     bw_ma_base = pd.Series(bw_arr, index=idx).rolling(bw_period).mean().values
 
@@ -753,6 +827,11 @@ def _run_backtest_loop_tick(
             if enable_bw and bw_mult > 0.0 and not np.isnan(bw_ma_i):
                 bw_ok = bw_t > bw_ma_i * bw_mult
 
+            adx_ok = True
+            if enable_adx:
+                adx_i = adx_arr[i]
+                adx_ok = (not np.isnan(adx_i)) and adx_i >= adx_threshold
+
             # ── SELL hook ────────────────────────────────────────────────────
             if (enable_shorts
                     and valc_t <= -1
@@ -761,6 +840,7 @@ def _run_backtest_loop_tick(
                     and (slope_thresh <= 0.0 or slope < -slope_thresh)
                     and (enable_mid or dpo_piv < ctr_piv)
                     and bw_ok
+                    and adx_ok
                     and (not require_color_change or (slope_now < 0 and color_changed))
                     and (not enable_wa or wa_dn_arr[i] > wa_dead)
                     and (not enable_jurik or (jma_arr[i] < jma_lower_arr[i] and (i == 0 or jma_arr[i] < jma_arr[i - 1])))):
@@ -788,6 +868,7 @@ def _run_backtest_loop_tick(
                     and (slope_thresh <= 0.0 or slope > slope_thresh)
                     and (enable_mid or dpo_piv > ctr_piv)
                     and bw_ok
+                    and adx_ok
                     and (not require_color_change or (slope_now > 0 and color_changed))
                     and (not enable_wa or wa_up_arr[i] > wa_dead)
                     and (not enable_jurik or (jma_arr[i] > jma_upper_arr[i] and (i == 0 or jma_arr[i] > jma_arr[i - 1])))):
@@ -1119,6 +1200,9 @@ class MoboBandsPro(BaseStrategy):
         'jurik_period': 35,
         'jurik_phase': 0,
         'jurik_fl_period': 35,
+        'enable_adx_filter': False,
+        'adx_period': 14,
+        'adx_threshold': 20.0,
     }
 
     # NQ=F defaults — overridden by dashboard when symbol changes
@@ -1171,6 +1255,11 @@ class MoboBandsPro(BaseStrategy):
             'jurik_phase':         (-50.0, 50.0, 10.0),
             'jurik_fl_period':     (5, 100, 5),
 
+            # ADX chop filter
+            'enable_adx_filter': [True, False],
+            'adx_period':        (7, 30, 1),
+            'adx_threshold':     (10.0, 40.0, 2.5),
+
             # Tick bar size — outer loop when bar_type == 'tick'; ignored otherwise
             'tick_bar_size': (100, 2000, 100),
 
@@ -1194,6 +1283,8 @@ class MoboBandsPro(BaseStrategy):
         'jurik_period':       ('enable_jurik_filter', True),
         'jurik_phase':        ('enable_jurik_filter', True),
         'jurik_fl_period':    ('enable_jurik_filter', True),
+        'adx_period':         ('enable_adx_filter', True),
+        'adx_threshold':      ('enable_adx_filter', True),
         # calculate_mode has no dependency — always shown
     }
 
@@ -1209,6 +1300,7 @@ class MoboBandsPro(BaseStrategy):
             'Wattah Atar':        ['enable_wattah_atar', 'wa_sensitivity', 'wa_fast_length',
                                    'wa_slow_length', 'wa_channel_length', 'wa_mult', 'wa_dead_zone'],
             'Jurik Filter':       ['enable_jurik_filter', 'jurik_period', 'jurik_phase', 'jurik_fl_period'],
+            'ADX Chop Filter':    ['enable_adx_filter', 'adx_period', 'adx_threshold'],
             'Trade Management':   ['profit_ticks', 'stop_ticks', 'bars_between_trades',
                                    'enable_longs', 'enable_shorts'],
             'Bar Settings':       ['tick_bar_size'],
@@ -1252,6 +1344,9 @@ class MoboBandsPro(BaseStrategy):
             'jurik_period':            'Jurik Period',
             'jurik_phase':             'Jurik Phase',
             'jurik_fl_period':         'Jurik FL Period',
+            'enable_adx_filter':       'ADX Filter On',
+            'adx_period':              'ADX Period',
+            'adx_threshold':           'ADX Threshold',
             'calculate_mode':          'Calculate Mode',
         }
 
@@ -1281,6 +1376,8 @@ class MoboBandsPro(BaseStrategy):
             jurik_period=int(params.get('jurik_period', self.default_params['jurik_period'])),
             jurik_phase=float(params.get('jurik_phase', self.default_params['jurik_phase'])),
             jurik_fl_period=int(params.get('jurik_fl_period', self.default_params['jurik_fl_period'])),
+            enable_adx_filter=bool(params.get('enable_adx_filter', False)),
+            adx_period=int(params.get('adx_period', self.default_params['adx_period'])),
         )
 
         if calc_mode in ('on_each_tick', 'on_price_change'):
