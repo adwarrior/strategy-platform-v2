@@ -54,7 +54,6 @@ class NYBreakout(BaseStrategy):
         'anchor_start_hour': 9,
         'anchor_end_hour': 10,
         'min_fvg_ticks': 4,
-        'enable_rebalance': True,
         'include_pre_trigger_fvgs': True,
         'prefer_overlap': True,
         'prefer_outside': True,
@@ -88,13 +87,12 @@ class NYBreakout(BaseStrategy):
     @property
     def param_grid(self) -> Dict[str, Any]:
         return {
-            # Anchor
-            'anchor_start_hour':       (7, 11, 1),
-            'anchor_end_hour':         (8, 12, 1),
+            # Anchor — fixed at 9-10am ET (NY institutional positioning hour); not swept
+            'anchor_start_hour':       [9],
+            'anchor_end_hour':         [10],
 
             # FVG Detection
             'min_fvg_ticks':           (1, 20, 1),
-            'enable_rebalance':        [True, False],
             'include_pre_trigger_fvgs': [True, False],
 
             # Entry / Selection
@@ -132,7 +130,7 @@ class NYBreakout(BaseStrategy):
     def param_groups(self) -> Dict[str, List[str]]:
         return {
             "1. Anchor Range":  ['anchor_start_hour', 'anchor_end_hour'],
-            "2. FVG Detection": ['min_fvg_ticks', 'enable_rebalance', 'include_pre_trigger_fvgs'],
+            "2. FVG Detection": ['min_fvg_ticks', 'include_pre_trigger_fvgs'],
             "3. Entry":         ['prefer_overlap', 'prefer_outside', 'prefer_closest',
                                  'allow_limit_retarget', 'bos_cancel_enabled', 'bos_cancel_count',
                                  'max_trades_per_day', 'entry_cutoff_time', 'cancel_pending_at_cutoff'],
@@ -147,7 +145,6 @@ class NYBreakout(BaseStrategy):
             'anchor_start_hour':       'Anchor Start Hour (ET)',
             'anchor_end_hour':         'Anchor End Hour (ET)',
             'min_fvg_ticks':           'Min FVG Ticks',
-            'enable_rebalance':        'Enable Rebalance (V2 reserved)',
             'include_pre_trigger_fvgs': 'Include Pre-Trigger FVGs',
             'prefer_overlap':          'Prefer Overlap',
             'prefer_outside':          'Prefer Outside',

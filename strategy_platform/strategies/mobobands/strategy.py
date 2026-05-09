@@ -1089,7 +1089,7 @@ def _summarise(trades: List[Dict], total_sessions: int = 0) -> dict:
         'r_squared':           r_sq,
         'pct_months_profit':   pct_months_profit,
         'longest_flat_days':   longest_flat,
-        'total_commission':    0.0,
+        'total_commission':    float(sum(t.get('commission', 0.0) for t in trades)),
         'start_date':          str(trade_dates_all[0]),
         'end_date':            str(trade_dates_all[-1]),
     }
