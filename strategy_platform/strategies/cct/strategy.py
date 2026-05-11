@@ -217,8 +217,8 @@ class CCT(BaseStrategy):
             "8. Premium/Discount":['require_premium_discount', 'range_bars_minutes',
                                    'impulse_min_bars', 'impulse_min_atr_mult',
                                    'impulse_min_body_ratio', 'pd_atr_period', 'eq_tolerance_ticks'],
-            "9. Sessions":      ['session_start', 'session_end',
-                                 'session_close_exit_time', 'enable_session_close_exit'],
+            "9. Sessions":      ['enable_session_window', 'session_start', 'session_end',
+                                 'enable_session_close_exit', 'session_close_exit_time'],
         }
 
     @property
@@ -259,8 +259,9 @@ class CCT(BaseStrategy):
             'impulse_min_body_ratio':         'Impulse Min Body Ratio',
             'pd_atr_period':                  'P/D ATR Period',
             'eq_tolerance_ticks':             'EQ Tolerance (ticks)',
-            'session_start':                  'Session Start (HH:MM, blank=always)',
-            'session_end':                    'Session End (HH:MM, blank=always)',
+            'enable_session_window':          'Enable Session Window',
+            'session_start':                  'Session Start (HH:MM)',
+            'session_end':                    'Session End (HH:MM)',
             'session_close_exit_time':        'Session Close Exit Time',
             'enable_session_close_exit':      'Enable Session Close Exit',
         }
@@ -451,8 +452,9 @@ def _run_backtest_loop(
     pd_atr_period     = int(params['pd_atr_period'])
     eq_tol            = int(params['eq_tolerance_ticks']) * tick_size
 
-    sess_start_t      = _parse_time(str(params.get('session_start', '')))
-    sess_end_t        = _parse_time(str(params.get('session_end',   '')))
+    enable_sess_window = bool(params.get('enable_session_window', False))
+    sess_start_t      = _parse_time(str(params.get('session_start', '09:30')))
+    sess_end_t        = _parse_time(str(params.get('session_end',   '16:00')))
     sess_close_exit_t = _parse_time(str(params.get('session_close_exit_time', '16:45')))
     enable_close_exit = bool(params['enable_session_close_exit'])
 
