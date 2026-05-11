@@ -102,9 +102,10 @@ class CCT(BaseStrategy):
         'pd_atr_period':            14,
         'eq_tolerance_ticks':       0,
 
-        # Sessions (HH:MM strings; empty = always-on)
-        'session_start': '',
-        'session_end':   '',
+        # Sessions
+        'enable_session_window':   False,
+        'session_start':           '09:30',
+        'session_end':             '16:00',
         'session_close_exit_time': '16:45',
         'enable_session_close_exit': True,
     }
