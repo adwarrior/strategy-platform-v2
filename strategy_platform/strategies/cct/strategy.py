@@ -169,8 +169,9 @@ class CCT(BaseStrategy):
             'pd_atr_period':                  (5, 30, 1),
             'eq_tolerance_ticks':             (0, 20, 1),
 
-            'session_start':                  [''],
-            'session_end':                    [''],
+            'enable_session_window':          [True, False],
+            'session_start':                  ['07:00', '08:00', '09:00', '09:30', '10:00'],
+            'session_end':                    ['15:00', '15:30', '16:00', '16:30', '17:00'],
             'session_close_exit_time':        ['15:00', '15:30', '16:00', '16:30', '16:45', '16:55'],
             'enable_session_close_exit':      [True, False],
         }
@@ -184,6 +185,8 @@ class CCT(BaseStrategy):
         'fvg_min_gap_ticks':     ('use_ifvg_entry',        True),
         'max_fvg_age_bars':      ('use_ifvg_entry',        True),
         'use_ifvg_pattern_stop': ('use_ifvg_entry',        True),
+        'session_start':         ('enable_session_window', True),
+        'session_end':           ('enable_session_window', True),
         'atr_stop_period':       ('use_atr_stop_target',   True),
         'atr_stop_mult':         ('use_atr_stop_target',   True),
         'atr_target_mult':       ('use_atr_stop_target',   True),
