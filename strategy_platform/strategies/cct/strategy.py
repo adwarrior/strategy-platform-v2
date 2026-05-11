@@ -1066,7 +1066,7 @@ def _run_backtest_loop(
         return True
 
     def _in_session(ts: pd.Timestamp) -> bool:
-        if sess_start_t is None or sess_end_t is None:
+        if not enable_sess_window or sess_start_t is None or sess_end_t is None:
             return True
         now = ts.time()
         if sess_start_t <= sess_end_t:
