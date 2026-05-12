@@ -139,27 +139,31 @@ def _run_fold(
     """Run one IS+OOS fold. Returns (row_dict, oos_trade_list)."""
 
     # Slice using UTC index (tick bars are UTC-indexed)
-    # Convert date strings to UTC timestamps for slicing
     is_s_utc  = pd.Timestamp(is_start,  tz="UTC")
     is_e_utc  = pd.Timestamp(is_end,    tz="UTC") + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
     oos_s_utc = pd.Timestamp(oos_start, tz="UTC")
     oos_e_utc = pd.Timestamp(oos_end,   tz="UTC") + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
 
-    # df_full index is tz-aware UTC (from load_tick_bars)
     df_is  = df_full.loc[is_s_utc:is_e_utc]
     df_oos = df_full.loc[oos_s_utc:oos_e_utc]
 
     params = {**strategy.default_params, **BASELINE_OVERRIDE}
+
+    # Set instrument attrs on strategy so run_backtest uses correct tick_size/value/commission
+    strategy.tick_size    = TICK_SIZE
+    strategy.tick_value   = TICK_VALUE
+    strategy.commission_rt = COMMISSION
 
     def _backtest(df: pd.DataFrame) -> List[Dict]:
         if len(df) < 50:
             return []
         try:
             result = strategy.run_backtest(df, params)
-            # run_backtest returns a stats dict; we need the raw trades.
-            # The strategy stores trades on _last_trades if it follows platform convention,
-            # or returns them embedded. Check what run_backtest actually returns.
-            return result.get("_trades", [])
+            # run_backtest returns {stats..., 'trades': pd.DataFrame}
+            trades_df = result.get("trades", pd.DataFrame())
+            if isinstance(trades_df, pd.DataFrame) and not trades_df.empty:
+                return trades_df.to_dict("records")
+            return []
         except Exception as exc:
             print(f"    [fold {fold_idx} tick={tick_sz}] backtest error: {exc}")
             return []
