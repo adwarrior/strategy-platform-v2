@@ -49,63 +49,44 @@ class CCT(BaseStrategy):
     supported_bar_types = ['1m']
 
     default_params: Dict[str, Any] = {
-        # Direction
-        'enable_long':  True,
+        'enable_long': True,
         'enable_short': True,
-
-        # HTF
         'htf_minutes': 60,
-
-        # POI
-        'max_pois_to_keep':           250,
-        'void_self_on_win':           True,
-        'only_trade_newest_poi':      False,
-        'selection_mode':             'BestPrice',   # 'BestPrice' | 'MostRecent'
-        'require_bullish_bar_for_longs':  False,
+        'max_pois_to_keep': 50,
+        'void_self_on_win': True,
+        'only_trade_newest_poi': False,
+        'selection_mode': 'BestPrice',
+        'require_bullish_bar_for_longs': False,
         'require_bearish_bar_for_shorts': False,
-        'only_one_trade_per_poi':     False,
-        'require_virgin_wick':        True,
-
-        # Risk + sizing
-        'min_rr':              1.0,
-        'use_risk_sizing':     False,
-        'max_risk':            100.0,
-        'max_contracts':       10,
-        'qty':                 1,
-
-        # Target modes (priority: ATR > RR > HTF)
-        'use_rr_target':       False,
-        'rr_target_multiple':  2.0,
-
-        # Stop modes
+        'only_one_trade_per_poi': True,
+        'require_virgin_wick': True,
+        'min_rr': 1,
+        'use_risk_sizing': False,
+        'max_risk': 100,
+        'max_contracts': 10,
+        'qty': 1,
+        'use_rr_target': False,
+        'rr_target_multiple': 2,
         'use_alternative_stop': False,
-        'use_ifvg_pattern_stop': False,
-
-        # IFVG entry
-        'use_ifvg_entry':   False,
-        'ifvg_mode':        'Either',    # 'IfvgOnly' | 'Either' | 'Both'
-        'fvg_min_gap_ticks': 1,
-        'max_fvg_age_bars':  10,
-
-        # ATR stop/target (override)
+        'use_ifvg_pattern_stop': True,
+        'use_ifvg_entry': False,
+        'ifvg_mode': 'Either',
+        'fvg_min_gap_ticks': 11,
+        'max_fvg_age_bars': 0,
         'use_atr_stop_target': False,
-        'atr_stop_period':     14,
-        'atr_stop_mult':       1.0,
-        'atr_target_mult':     2.0,
-
-        # P/D filter (optional)
+        'atr_stop_period': 14,
+        'atr_stop_mult': 1,
+        'atr_target_mult': 2,
         'require_premium_discount': False,
-        'range_bars_minutes':       5,
-        'impulse_min_bars':         3,
-        'impulse_min_atr_mult':     2.0,
-        'impulse_min_body_ratio':   0.6,
-        'pd_atr_period':            14,
-        'eq_tolerance_ticks':       0,
-
-        # Sessions
-        'enable_session_window':   False,
-        'session_start':           '09:30',
-        'session_end':             '16:00',
+        'range_bars_minutes': 5,
+        'impulse_min_bars': 3,
+        'impulse_min_atr_mult': 2,
+        'impulse_min_body_ratio': 0.6,
+        'pd_atr_period': 14,
+        'eq_tolerance_ticks': 0,
+        'enable_session_window': False,
+        'session_start': '09:30',
+        'session_end': '16:00',
         'session_close_exit_time': '16:45',
         'enable_session_close_exit': True,
     }
