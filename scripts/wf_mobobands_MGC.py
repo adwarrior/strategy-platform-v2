@@ -32,7 +32,7 @@ sys.path.insert(0, str(ROOT))
 from dotenv import load_dotenv
 load_dotenv(ROOT / ".env")
 
-from strategy_platform.data.loader import load_tick_bars, INSTRUMENT_META, get_instrument_meta
+from strategy_platform.data.loader import load_tick_bars, INSTRUMENT_META
 from strategy_platform.strategies.mobobands.strategy import MobobandsStrategy
 
 # ---------------------------------------------------------------------------
