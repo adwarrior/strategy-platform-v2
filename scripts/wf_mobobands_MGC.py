@@ -139,7 +139,10 @@ def session_breakdown(trades_df: pd.DataFrame) -> Dict[str, Dict[str, float]]:
     if trades_df is None or len(trades_df) == 0:
         return out
 
-    et_times = trades_df["entry_time"].dt.tz_localize("UTC").dt.tz_convert("US/Eastern")
+    _et_src = trades_df["entry_time"]
+    if _et_src.dt.tz is None:
+        _et_src = _et_src.dt.tz_localize("UTC")
+    et_times = _et_src.dt.tz_convert("US/Eastern")
     for i, row in trades_df.iterrows():
         hour = et_times.iloc[i].hour
         sess = session_for_hour(hour)
