@@ -2945,3 +2945,4 @@ gen	timestamp	sharpe	net_pnl	trades	win_rate	param_changed	old_value	new_value	k
 198	2026-04-14 15:38:08	5.1958	9065.2	260	0.2962	stop_ticks	15	10	no
 199	2026-04-14 15:38:21	4.2943	8614.46	323	0.3251	num_dev_dn	0.8	1.0	no
 200	2026-04-14 15:38:34	5.1958	9065.2	260	0.2962	stop_ticks	15	10	no
+0	2026-05-12 07:34:04	-1.7489	-4497.81	444	0.3423	baseline	-	-	yes
