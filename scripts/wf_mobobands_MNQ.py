@@ -234,31 +234,32 @@ def main():
     all_rows:       List[Dict]  = []
     all_oos_trades: List[Dict]  = []
 
-    # Determine full date span to load per tick size (cover all folds)
-    global_start = FOLDS[0][0]       # 2024-10-01
-    global_end   = FOLDS[-1][3]      # 2025-10-31
+    # Load per-fold (3mo at a time) to avoid OOM on MNQ's 130M+ ticks
+    import gc
 
     for tick_sz in TICK_SIZES:
         print(f"\n{'='*60}")
-        print(f"  Tick size: {tick_sz}  |  Loading MNQ bars {global_start} → {global_end}")
+        print(f"  Tick size: {tick_sz}")
         print(f"{'='*60}")
 
-        df_full = load_tick_bars(SYMBOL, bar_size=tick_sz,
-                                 start=global_start, end=global_end)
-        df_full = _check_tz(df_full)
-        print(f"  Loaded {len(df_full):,} bars.")
-
         for i, (is_s, is_e, oos_s, oos_e) in enumerate(FOLDS, start=1):
-            print(f"  Fold {i}: IS {is_s}→{is_e}  OOS {oos_s}→{oos_e} ...", end="", flush=True)
+            print(f"  Fold {i}: loading {is_s} → {oos_e} ...", flush=True)
+            df_fold = load_tick_bars(SYMBOL, bar_size=tick_sz,
+                                     start=is_s, end=oos_e)
+            df_fold = _check_tz(df_fold)
+            print(f"    Loaded {len(df_fold):,} bars. IS {is_s}→{is_e}  OOS {oos_s}→{oos_e}",
+                  flush=True)
             row, oos_trades = _run_fold(
-                strategy, df_full, i, tick_sz,
+                strategy, df_fold, i, tick_sz,
                 is_s, is_e, oos_s, oos_e,
             )
             all_rows.append(row)
             all_oos_trades.extend(oos_trades)
             flag = " [LOW TRADES]" if row["low_trade_flag"] else ""
-            print(f"  IS={row['is_trades']} trades  OOS={row['oos_trades']} trades  "
-                  f"OOS Sharpe={row['oos_sharpe']:.3f}{flag}")
+            print(f"    IS={row['is_trades']} trades  OOS={row['oos_trades']} trades  "
+                  f"OOS Sharpe={row['oos_sharpe']:.3f}{flag}", flush=True)
+            del df_fold
+            gc.collect()
 
     # ── Write main TSV ────────────────────────────────────────────────────────
     df_main = pd.DataFrame(all_rows)
