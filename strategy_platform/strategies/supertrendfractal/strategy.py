@@ -358,43 +358,27 @@ def _run_backtest_loop(
         #    of close), market-exit. Mirrors C# ExitLong/Short call.
         # 3) Otherwise, update sl = line_now for next bar's intrabar check.
         if exit_mode == 'TrailToLine' and in_trade:
+            # Only check the trail-flip exit (line crossing the close).
+            # We deliberately do NOT check an intrabar stop against the line,
+            # because NT's SetStopLoss frequently rejects stops placed too
+            # close to entry/current price (the C# try/catch silently swallows
+            # the rejection), leaving the position with no active stop. The
+            # TrailFlip exit is the only path that reliably fires on both sides.
             line_now = line_arr[i]
             if direction == 'long':
-                # 1) intrabar stop fill at the previous sl
-                if l_arr[i] <= sl:
-                    xp  = sl
-                    p_t = (xp - ep) / tick_size
-                    trades.append(_make_trade(entry_time, ts, direction,
-                                              ep, xp, p_t, tick_value, commission, 'StopLoss', qty))
-                    in_trade = False; last_exit_bar = i; session_end_target = None; continue
-                # 2) trail-flip (line crossed close)
                 if line_now >= c_arr[i]:
                     xp  = c_arr[i]
                     p_t = (xp - ep) / tick_size
                     trades.append(_make_trade(entry_time, ts, direction,
                                               ep, xp, p_t, tick_value, commission, 'TrailFlip', qty))
                     in_trade = False; last_exit_bar = i; session_end_target = None; continue
-                # 3) ratchet trail — only move stop UP for a long (favorable).
-                # NT's SetStopLoss rejects unfavorable moves (the C# try/catch
-                # swallows the exception); replicate that here.
-                if line_now > sl:
-                    sl = line_now
             else:  # short
-                if h_arr[i] >= sl:
-                    xp  = sl
-                    p_t = (ep - xp) / tick_size
-                    trades.append(_make_trade(entry_time, ts, direction,
-                                              ep, xp, p_t, tick_value, commission, 'StopLoss', qty))
-                    in_trade = False; last_exit_bar = i; session_end_target = None; continue
                 if line_now <= c_arr[i]:
                     xp  = c_arr[i]
                     p_t = (ep - xp) / tick_size
                     trades.append(_make_trade(entry_time, ts, direction,
                                               ep, xp, p_t, tick_value, commission, 'TrailFlip', qty))
                     in_trade = False; last_exit_bar = i; session_end_target = None; continue
-                # Ratchet trail — only move stop DOWN for a short (favorable).
-                if line_now < sl:
-                    sl = line_now
 
         # -- FixedTPSL bar-level exit check --
         if exit_mode == 'FixedTPSL' and in_trade:
