@@ -4465,9 +4465,9 @@ with tab_bt:
         st.info(
             "Export from NT8: right-click the chart data series → Export Data. "
             "Select 1-Minute bars for best accuracy. The file format is semicolon-delimited "
-            "with no header (YYYYMMDD HHMMSS;O;H;L;C;V). Timestamps are taken to be in "
-            "the chart's display timezone (default: Eastern Time / America/New_York). "
-            "NT labels each bar by its CLOSE time."
+            "with no header (YYYYMMDD HHMMSS;O;H;L;C;V). Timestamps are in UTC (NT exports "
+            "in UTC regardless of chart display timezone). They are converted to ET for the "
+            "backtest. NT labels each bar by its CLOSE time."
         )
         nt_csv_path = st.text_input(
             "Path to NT .txt file",

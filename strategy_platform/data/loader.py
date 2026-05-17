@@ -533,7 +533,7 @@ def get_meta(symbol: str) -> dict:
 def load_nt_csv(
     path:       str,
     resample:   str = '5min',
-    tz_input:   str = 'America/New_York',
+    tz_input:   str = 'UTC',
     tz_output:  str = 'America/New_York',
     start:      Optional[str] = None,
     end:        Optional[str] = None,
