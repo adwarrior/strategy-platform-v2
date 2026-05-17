@@ -95,6 +95,57 @@ INSTRUMENT_META: Dict[str, Dict] = {
     '6S=F':   {'tick_size': 0.0001,  'tick_value': 12.50, 'commission': 4.72},
     # ── Crypto (time bars) ──────────────────────────────────────────────────
     'BTC=F':  {'tick_size': 5.00,    'tick_value': 25.00, 'commission': 10.00},
+
+    # ── FX Futures (plain, tick_data parity) ────────────────────────────────
+    '6A':     {'tick_size': 0.0001,   'tick_value': 10.00, 'commission':  4.72},  # AUD/USD
+    '6C':     {'tick_size': 0.0001,   'tick_value': 10.00, 'commission':  4.72},  # CAD/USD
+    '6J':     {'tick_size': 0.000001, 'tick_value': 12.50, 'commission':  4.72},  # JPY/USD
+    '6N':     {'tick_size': 0.0001,   'tick_value': 10.00, 'commission':  4.72},  # NZD/USD
+    # ── Micro FX Futures ────────────────────────────────────────────────────
+    'M6A':    {'tick_size': 0.0001,   'tick_value':  1.00, 'commission':  0.84},  # Micro AUD/USD (10k)
+    'M6E':    {'tick_size': 0.0001,   'tick_value':  1.25, 'commission':  0.84},  # Micro EUR/USD (12.5k)
+    'M6J':    {'tick_size': 0.000001, 'tick_value':  1.25, 'commission':  0.84},  # Micro JPY/USD (1.25M)
+    # ── US Equity Futures (plain, tick_data parity) ──────────────────────────
+    'YM':     {'tick_size': 1.00,     'tick_value':  5.00, 'commission':  3.98},  # Mini Dow
+    'RTY':    {'tick_size': 0.10,     'tick_value':  5.00, 'commission':  3.98},  # E-mini Russell 2000
+    'MYM':    {'tick_size': 1.00,     'tick_value':  0.50, 'commission':  1.02},  # Micro Dow
+    'M2K':    {'tick_size': 0.10,     'tick_value':  0.50, 'commission':  1.02},  # Micro Russell 2000
+    'EMD':    {'tick_size': 0.10,     'tick_value': 10.00, 'commission':  3.98},  # E-mini S&P MidCap 400
+    'NKD':    {'tick_size': 5.00,     'tick_value': 25.00, 'commission':  3.98},  # Nikkei 225 USD
+    # ── Metals (plain, tick_data parity) ────────────────────────────────────
+    'SI':     {'tick_size': 0.005,    'tick_value': 25.00, 'commission':  4.62},  # Silver
+    'HG':     {'tick_size': 0.0005,   'tick_value': 12.50, 'commission':  4.62},  # Copper
+    'PA':     {'tick_size': 0.10,     'tick_value':  5.00, 'commission':  4.62},  # Palladium
+    'PL':     {'tick_size': 0.10,     'tick_value':  5.00, 'commission':  4.62},  # Platinum
+    # ── Energy (plain, tick_data parity) ────────────────────────────────────
+    'CL':     {'tick_size': 0.01,     'tick_value': 10.00, 'commission':  3.96},  # Crude Oil
+    'HO':     {'tick_size': 0.0001,   'tick_value':  4.20, 'commission':  3.96},  # Heating Oil
+    'RB':     {'tick_size': 0.0001,   'tick_value':  4.20, 'commission':  3.96},  # RBOB Gasoline
+    'NG':     {'tick_size': 0.001,    'tick_value': 10.00, 'commission':  3.96},  # Natural Gas
+    'QM':     {'tick_size': 0.025,    'tick_value': 12.50, 'commission':  3.92},  # E-mini Crude Oil
+    'QG':     {'tick_size': 0.005,    'tick_value':  2.50, 'commission':  2.52},  # E-mini Natural Gas
+    # ── Livestock ────────────────────────────────────────────────────────────
+    'GF':     {'tick_size': 0.00025,  'tick_value': 10.00, 'commission':  5.58},  # Feeder Cattle
+    'HE':     {'tick_size': 0.00025,  'tick_value': 10.00, 'commission':  5.58},  # Lean Hogs
+    'LE':     {'tick_size': 0.00025,  'tick_value': 10.00, 'commission':  5.58},  # Live Cattle
+    # ── Crypto Micro ─────────────────────────────────────────────────────────
+    'MBT':    {'tick_size': 5.00,     'tick_value': 25.00, 'commission':  5.52},  # Micro Bitcoin
+    'MET':    {'tick_size': 2.50,     'tick_value': 12.50, 'commission':  0.92},  # Micro Ether
+    # ── E-mini Metals (ETF-linked) ────────────────────────────────────────────
+    'QI':     {'tick_size': 0.001,    'tick_value':  2.50, 'commission':  3.02},  # E-mini Silver (2,500 oz)
+    'QO':     {'tick_size': 0.10,     'tick_value':  5.00, 'commission':  3.02},  # E-mini Gold (50 oz)
+    # ── Treasuries ────────────────────────────────────────────────────────────
+    'ZB':     {'tick_size': 0.03125,  'tick_value': 31.25, 'commission':  3.44},  # 30Y T-Bond (1/32)
+    'UB':     {'tick_size': 0.03125,  'tick_value': 31.25, 'commission':  3.12},  # Ultra T-Bond (1/32)
+    'ZN':     {'tick_size': 0.015625, 'tick_value': 15.625,'commission':  3.02},  # 10Y T-Note (1/64)
+    'ZF':     {'tick_size': 0.0078125,'tick_value':  7.8125,'commission': 2.82},  # 5Y T-Note (1/128)
+    'ZT':     {'tick_size': 0.0078125,'tick_value':  7.8125,'commission': 2.72},  # 2Y T-Note (1/128)
+    # ── Grains / Softs ───────────────────────────────────────────────────────
+    'ZC':     {'tick_size': 0.25,     'tick_value': 12.50, 'commission':  5.58},  # Corn (1/4 cent)
+    'ZS':     {'tick_size': 0.25,     'tick_value': 12.50, 'commission':  5.58},  # Soybeans (1/4 cent)
+    'ZW':     {'tick_size': 0.25,     'tick_value': 12.50, 'commission':  5.58},  # Wheat (1/4 cent)
+    'ZL':     {'tick_size': 0.01,     'tick_value':  6.00, 'commission':  5.58},  # Soybean Oil
+    'ZM':     {'tick_size': 0.10,     'tick_value': 10.00, 'commission':  5.58},  # Soybean Meal
 }
 
 # Master instrument list — all symbols known to exist in any data source.
