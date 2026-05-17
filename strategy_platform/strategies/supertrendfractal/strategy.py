@@ -349,26 +349,45 @@ def _run_backtest_loop(
             continue
 
         # -- TrailToLine exit management (mirrors C# step 2) --
+        # 1) Intrabar stop fill: did this bar's low/high touch the trail stop
+        #    that was set at the end of the PREVIOUS bar? Mirrors NT's
+        #    SetStopLoss(line) behaviour — fill at the line price.
+        # 2) Trail-flip: if the trend has reversed (line now on the wrong side
+        #    of close), market-exit. Mirrors C# ExitLong/Short call.
+        # 3) Otherwise, update sl = line_now for next bar's intrabar check.
         if exit_mode == 'TrailToLine' and in_trade:
             line_now = line_arr[i]
             if direction == 'long':
+                # 1) intrabar stop fill at the previous sl
+                if l_arr[i] <= sl:
+                    xp  = sl
+                    p_t = (xp - ep) / tick_size
+                    trades.append(_make_trade(entry_time, ts, direction,
+                                              ep, xp, p_t, tick_value, commission, 'StopLoss', qty))
+                    in_trade = False; last_exit_bar = i; session_end_target = None; continue
+                # 2) trail-flip (line crossed close)
                 if line_now >= c_arr[i]:
                     xp  = c_arr[i]
                     p_t = (xp - ep) / tick_size
                     trades.append(_make_trade(entry_time, ts, direction,
                                               ep, xp, p_t, tick_value, commission, 'TrailFlip', qty))
-                    in_trade = False; last_exit_bar = i; continue
-                else:
-                    sl = line_now  # trail stop to current line
+                    in_trade = False; last_exit_bar = i; session_end_target = None; continue
+                # 3) update trail
+                sl = line_now
             else:  # short
+                if h_arr[i] >= sl:
+                    xp  = sl
+                    p_t = (ep - xp) / tick_size
+                    trades.append(_make_trade(entry_time, ts, direction,
+                                              ep, xp, p_t, tick_value, commission, 'StopLoss', qty))
+                    in_trade = False; last_exit_bar = i; session_end_target = None; continue
                 if line_now <= c_arr[i]:
                     xp  = c_arr[i]
                     p_t = (ep - xp) / tick_size
                     trades.append(_make_trade(entry_time, ts, direction,
                                               ep, xp, p_t, tick_value, commission, 'TrailFlip', qty))
-                    in_trade = False; last_exit_bar = i; continue
-                else:
-                    sl = line_now
+                    in_trade = False; last_exit_bar = i; session_end_target = None; continue
+                sl = line_now
 
         # -- FixedTPSL bar-level exit check --
         if exit_mode == 'FixedTPSL' and in_trade:
