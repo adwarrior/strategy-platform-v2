@@ -626,38 +626,32 @@ class SuperTrendFractal(BaseStrategy):
     symbol: str = 'NQ=F'
 
     default_params: Dict[str, Any] = {
-        # 1. Indicator
-        'atr_multiplier':  3,
-        'atr_period':      10,
-        'fractal_length':  3,   # clamped to 3/5/7 at use time
-        # 2. Signal
-        'direction':       'Both',
-        'invert_signals':  False,
-        # 3. Exit
-        'exit_mode':       'FixedTPSL',
-        'tpsl_mode':       'Ticks',
-        'tp_ticks':        40,
-        'sl_ticks':        20,
-        'tp_atr_mult':     2.0,
-        'sl_atr_mult':     1.0,
-        'rr_ratio':        2.0,
-        # 4. Sizing
+        'atr_multiplier': 3,
+        'atr_period': 10,
+        'fractal_length': 3,
+        'direction': 'Both',
+        'invert_signals': False,
+        'exit_mode': 'TrailToLine',
+        'tpsl_mode': 'Ticks',
+        'tp_ticks': 40,
+        'sl_ticks': 20,
+        'tp_atr_mult': 2,
+        'sl_atr_mult': 1,
+        'rr_ratio': 2,
         'use_risk_sizing': False,
-        'qty':             1,
-        'max_risk':        250.0,
-        # 5. Cooldown
+        'qty': 1,
+        'max_risk': 250,
         'bars_between_trades': 2,
-        # 6. Session
-        'enable_session_filter':  True,
-        'trade_window1_start':    '08:00',
-        'trade_window1_stop':     '10:00',
-        'enable_trade_window2':   True,
-        'trade_window2_start':    '09:30',
-        'trade_window2_stop':     '11:30',
-        'enable_trade_window3':   True,
-        'trade_window3_start':    '14:00',
-        'trade_window3_stop':     '15:55',
-        'eod_exit_time':          '16:55',
+        'enable_session_filter': False,
+        'trade_window1_start': '08:00',
+        'trade_window1_stop': '10:00',
+        'enable_trade_window2': False,
+        'trade_window2_start': '09:30',
+        'trade_window2_stop': '11:30',
+        'enable_trade_window3': False,
+        'trade_window3_start': '14:00',
+        'trade_window3_stop': '15:55',
+        'eod_exit_time': '16:55',
     }
 
     # ------------------------------------------------------------------
