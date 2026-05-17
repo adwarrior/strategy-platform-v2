@@ -533,7 +533,7 @@ def get_meta(symbol: str) -> dict:
 def load_nt_csv(
     path:       str,
     resample:   str = '5min',
-    tz_input:   str = 'UTC',
+    tz_input:   str = 'America/New_York',
     tz_output:  str = 'America/New_York',
     start:      Optional[str] = None,
     end:        Optional[str] = None,
@@ -576,12 +576,12 @@ def load_nt_csv(
     df = df.set_index('datetime')
     df.index = df.index.tz_localize(tz_input).tz_convert(tz_output)
 
-    # Resample to target bar size if needed
-    # Use label='left', closed='left' to produce open-time labels matching
-    # the MySQL DB convention (a bar labeled 09:00 covers 09:00–09:05).
+    # Resample to target bar size if needed.
+    # NT exports bars labelled by CLOSE time; the MySQL loader & the rest of
+    # the platform also use label='right', closed='right'. Match that here.
     if resample and resample != '1min':
         df = (
-            df.resample(resample, label='left', closed='left')
+            df.resample(resample, label='right', closed='right')
               .agg({'open': 'first', 'high': 'max', 'low': 'min',
                     'close': 'last', 'volume': 'sum'})
               .dropna()
