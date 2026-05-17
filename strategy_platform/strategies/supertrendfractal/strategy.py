@@ -415,7 +415,7 @@ def _run_backtest_loop(
                                               ep, tp, p_t, tick_value, commission, 'TP', qty))
                     closed = True
             if closed:
-                in_trade = False; last_exit_bar = i
+                in_trade = False; last_exit_bar = i; session_end_target = None
             continue  # position managed; no new entry on same bar
 
         # -- Entry guards --
@@ -486,6 +486,8 @@ def _run_backtest_loop(
         direction = 'long' if is_long else 'short'
         ep        = entry_px
         entry_time = idx[i + 1]   # next bar's close-time label (matches NT)
+        # Session-aware EOD target: when does THIS entry's session end?
+        session_end_target = _session_end_for_entry(entry_time, eod_time)
 
         if exit_mode == 'FixedTPSL':
             if is_long:
