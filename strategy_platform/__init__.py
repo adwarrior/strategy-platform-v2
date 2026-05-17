@@ -15,4 +15,5 @@ import strategy_platform.strategies.swingstrat.strategy  # noqa: F401
 import strategy_platform.strategies.mobobands.strategy   # noqa: F401
 import strategy_platform.strategies.waejurikpro.strategy # noqa: F401
 import strategy_platform.strategies.nybreakout.strategy  # noqa: F401
-import strategy_platform.strategies.cct.strategy         # noqa: F401
+import strategy_platform.strategies.cct.strategy             # noqa: F401
+import strategy_platform.strategies.supertrendfractal.strategy  # noqa: F401
