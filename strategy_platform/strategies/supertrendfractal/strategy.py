@@ -279,7 +279,9 @@ def _run_backtest_loop(
 ) -> List[Dict]:
     """
     Bar-close simulation mirroring C# OnBarUpdate logic.
-    All entries occur at the bar's close price (Calculate.OnBarClose equivalent).
+    Signals are detected at the close of bar i; the order fills at the OPEN
+    of bar i+1, matching NT's market-order behaviour for Calculate.OnBarClose
+    strategies. Stops/targets are checked intrabar against bar H/L.
     """
     h_arr    = df['high'].values
     l_arr    = df['low'].values
