@@ -4473,12 +4473,8 @@ with tab_bt:
             placeholder="e.g. /mnt/e/Ticktemp/GC 08-25.Last.txt",
             key="bt_nt_csv_path",
         )
-        nt_resample = st.radio(
-            "Bar size",
-            ["1min", "5min"],
-            index=0,
-            horizontal=True,
-            key="bt_nt_resample",
+        st.caption(
+            f"CSV will be resampled to **{bar_minute_inc}-minute** bars to match the sidebar bar-size selection."
         )
 
     # ── Date range ────────────────────────────────────────────────────────────
@@ -4529,13 +4525,16 @@ with tab_bt:
                     _bt_end_str   = f"{bt_end}T{bt_end_time}"
                     if data_source == "NinjaTrader CSV export":
                         from strategy_platform.data.loader import load_nt_csv
+                        _csv_resample = f"{bar_minute_inc}min" if bar_minute_inc else "1min"
                         df_bt = load_nt_csv(
                             nt_csv_path,
-                            resample=st.session_state.get("bt_nt_resample", "1min"),
+                            resample=_csv_resample,
                             start=_bt_start_str,
                             end=_bt_end_str,
                         )
-                        data_source_label = f"NT CSV: {os.path.basename(nt_csv_path)}"
+                        # CSV is already at target bar size — skip the strategy's _prepare_df resample
+                        strategy.bar_type = 'time'
+                        data_source_label = f"NT CSV: {os.path.basename(nt_csv_path)} ({_csv_resample})"
                     elif bar_type == '1m':
                         from strategy_platform.data.loader import load_1m
                         df_bt = load_1m(symbol, start=_bt_start_str, end=_bt_end_str, host=db_host)
