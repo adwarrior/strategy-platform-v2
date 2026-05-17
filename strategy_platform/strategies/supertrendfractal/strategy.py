@@ -372,8 +372,11 @@ def _run_backtest_loop(
                     trades.append(_make_trade(entry_time, ts, direction,
                                               ep, xp, p_t, tick_value, commission, 'TrailFlip', qty))
                     in_trade = False; last_exit_bar = i; session_end_target = None; continue
-                # 3) update trail
-                sl = line_now
+                # 3) ratchet trail — only move stop UP for a long (favorable).
+                # NT's SetStopLoss rejects unfavorable moves (the C# try/catch
+                # swallows the exception); replicate that here.
+                if line_now > sl:
+                    sl = line_now
             else:  # short
                 if h_arr[i] >= sl:
                     xp  = sl
@@ -387,7 +390,9 @@ def _run_backtest_loop(
                     trades.append(_make_trade(entry_time, ts, direction,
                                               ep, xp, p_t, tick_value, commission, 'TrailFlip', qty))
                     in_trade = False; last_exit_bar = i; session_end_target = None; continue
-                sl = line_now
+                # Ratchet trail — only move stop DOWN for a short (favorable).
+                if line_now < sl:
+                    sl = line_now
 
         # -- FixedTPSL bar-level exit check --
         if exit_mode == 'FixedTPSL' and in_trade:
