@@ -27,6 +27,10 @@ from typing import Any, Dict, List
 from strategy_platform.base_strategy import BaseStrategy
 from strategy_platform.registry import register
 
+# Full 24h time options at 5-min granularity (288 entries) — used by all
+# session-window time params so any HH:MM in 00:00–23:55 can be selected.
+_HHMM_24H: List[str] = [f"{h:02d}:{m:02d}" for h in range(24) for m in range(0, 60, 5)]
+
 
 # ---------------------------------------------------------------------------
 # Supertrend indicator
@@ -680,15 +684,15 @@ class SuperTrendFractal(BaseStrategy):
             'bars_between_trades': (0, 10, 2),
             # 6. Session
             'enable_session_filter':  [True, False],
-            'trade_window1_start':    ['07:00', '08:00', '09:00'],
-            'trade_window1_stop':     ['09:00', '10:00', '11:00'],
+            'trade_window1_start':    _HHMM_24H,
+            'trade_window1_stop':     _HHMM_24H,
             'enable_trade_window2':   [True, False],
-            'trade_window2_start':    ['09:00', '09:30', '10:00'],
-            'trade_window2_stop':     ['11:00', '11:30', '12:00'],
+            'trade_window2_start':    _HHMM_24H,
+            'trade_window2_stop':     _HHMM_24H,
             'enable_trade_window3':   [True, False],
-            'trade_window3_start':    ['13:00', '14:00'],
-            'trade_window3_stop':     ['15:30', '15:55', '16:00'],
-            'eod_exit_time':          ['15:55', '16:00', '16:30', '16:55'],
+            'trade_window3_start':    _HHMM_24H,
+            'trade_window3_stop':     _HHMM_24H,
+            'eod_exit_time':          _HHMM_24H,
         }
 
     # ------------------------------------------------------------------
