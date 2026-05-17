@@ -76,8 +76,8 @@ INSTRUMENT_META: Dict[str, Dict] = {
     'YM=F':   {'tick_size': 1.00,    'tick_value':  5.00, 'commission': 3.98},
     'RTY=F':  {'tick_size': 0.10,    'tick_value':  5.00, 'commission': 3.98},
     # ── US Equity Futures (micro, 1M / tick bars) ───────────────────────────
-    'MNQ':    {'tick_size': 0.25,    'tick_value':  0.50, 'commission': 0.50},
-    'MES':    {'tick_size': 0.25,    'tick_value':  1.25, 'commission': 0.50},
+    'MNQ':    {'tick_size': 0.25,    'tick_value':  0.50, 'commission': 1.02},
+    'MES':    {'tick_size': 0.25,    'tick_value':  1.25, 'commission': 1.02},
     # ── Full-size ES in tick_data (stored without =F suffix) ───────────────
     'ES':     {'tick_size': 0.25,    'tick_value': 12.50, 'commission': 3.98},
     'NQ':     {'tick_size': 0.25,    'tick_value':  5.00, 'commission': 3.98},
@@ -90,9 +90,9 @@ INSTRUMENT_META: Dict[str, Dict] = {
     'GC':     {'tick_size': 0.10,    'tick_value': 10.00, 'commission': 4.62},
     'MCL':    {'tick_size': 0.01,    'tick_value':  1.00, 'commission': 0.50},
     # ── FX Futures (time bars) ──────────────────────────────────────────────
-    '6E=F':   {'tick_size': 0.00005, 'tick_value':  6.25, 'commission': 4.62},
-    '6B=F':   {'tick_size': 0.0001,  'tick_value':  6.25, 'commission': 4.62},
-    '6S=F':   {'tick_size': 0.0001,  'tick_value': 12.50, 'commission': 4.62},
+    '6E=F':   {'tick_size': 0.00005, 'tick_value':  6.25, 'commission': 4.72},
+    '6B=F':   {'tick_size': 0.0001,  'tick_value':  6.25, 'commission': 4.72},
+    '6S=F':   {'tick_size': 0.0001,  'tick_value': 12.50, 'commission': 4.72},
     # ── Crypto (time bars) ──────────────────────────────────────────────────
     'BTC=F':  {'tick_size': 5.00,    'tick_value': 25.00, 'commission': 10.00},
 }
