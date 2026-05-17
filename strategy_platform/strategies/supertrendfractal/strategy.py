@@ -250,6 +250,20 @@ def _time_in_window(ts: pd.Timestamp, start_str: str, stop_str: str) -> bool:
     return now >= s or now < e
 
 
+def _session_end_for_entry(entry_ts: pd.Timestamp, eod_time: time_t,
+                           session_break_hour: int = 18) -> pd.Timestamp:
+    """Return the timestamp at which the futures session containing entry_ts ends.
+    For CME equity futures the session runs from 18:00 ET (prev day) to 16:55 ET
+    (current day). A bar at e.g. Mon 19:55 belongs to Tuesday's session, so EOD
+    fires at Tue 16:55, not Mon 16:55. Matches NT's 'Break at EOD' behaviour."""
+    from datetime import timedelta as _td
+    if entry_ts.time() < time_t(session_break_hour, 0):
+        end_date = entry_ts.date()
+    else:
+        end_date = entry_ts.date() + _td(days=1)
+    return pd.Timestamp.combine(end_date, eod_time)
+
+
 # ---------------------------------------------------------------------------
 # Core backtest loop
 # ---------------------------------------------------------------------------
