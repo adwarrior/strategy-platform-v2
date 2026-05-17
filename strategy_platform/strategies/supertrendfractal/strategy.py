@@ -237,11 +237,17 @@ def _make_trade(entry_time, exit_time, direction, ep, xp, pnl_ticks,
 
 
 def _time_in_window(ts: pd.Timestamp, start_str: str, stop_str: str) -> bool:
-    """True if ts is >= start (inclusive) and < stop (exclusive)."""
+    """True if ts falls in [start, stop). If start > stop, treats window as
+    spanning midnight (e.g. 18:00 → 06:00 matches 18:00-23:59 and 00:00-05:59).
+    start == stop is treated as an empty window (no match)."""
     now = ts.time()
     s   = time_t(*map(int, start_str.split(':')))
     e   = time_t(*map(int, stop_str.split(':')))
-    return s <= now < e
+    if s == e:
+        return False
+    if s < e:
+        return s <= now < e
+    return now >= s or now < e
 
 
 # ---------------------------------------------------------------------------
