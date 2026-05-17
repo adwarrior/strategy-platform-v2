@@ -270,6 +270,7 @@ def _run_backtest_loop(
     h_arr    = df['high'].values
     l_arr    = df['low'].values
     c_arr    = df['close'].values
+    o_arr    = df['open'].values
     line_arr = ind['line'].values
     atr_arr  = ind['atr'].values
     long_sig = sigs['long_signal'].values
@@ -402,10 +403,15 @@ def _run_backtest_loop(
         if not go_long and not go_short:
             continue
 
+        # NT fills market orders at the OPEN of the bar AFTER the signal bar.
+        # Skip if there's no next bar to fill on.
+        if i + 1 >= n:
+            continue
+
         is_long   = go_long  # long takes priority if both (rare)
         atr_now   = atr_arr[i]
         line_now  = line_arr[i]
-        entry_px  = c_arr[i]
+        entry_px  = o_arr[i + 1]  # next bar's open (matches NT fill convention)
 
         # Resolve SL/TP ticks
         if tpsl_mode == 'Ticks':
@@ -443,7 +449,7 @@ def _run_backtest_loop(
         # Set TP/SL prices
         direction = 'long' if is_long else 'short'
         ep        = entry_px
-        entry_time = ts
+        entry_time = idx[i + 1]   # next bar's close-time label (matches NT)
 
         if exit_mode == 'FixedTPSL':
             if is_long:
