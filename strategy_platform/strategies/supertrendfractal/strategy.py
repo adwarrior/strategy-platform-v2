@@ -329,13 +329,15 @@ def _run_backtest_loop(
     qty           = 1
     trail_line    = 0.0   # used for TrailToLine mode
     last_exit_bar = -10000
+    session_end_target = None  # set on entry — matches NT's session-aware Break at EOD
 
     for i in range(n):
         ts  = idx[i]
         now = ts.time()
 
-        # -- EOD forced exit --
-        if enable_session and in_trade and now >= eod_time:
+        # -- EOD forced exit (session-aware: fires only when the entry's
+        # session reaches its EOD time, not whenever clock-time exceeds it) --
+        if enable_session and in_trade and session_end_target is not None and ts >= session_end_target:
             xp    = c_arr[i]
             sgn   = 1 if direction == 'long' else -1
             p_t   = sgn * (xp - ep) / tick_size
@@ -343,6 +345,7 @@ def _run_backtest_loop(
                                       ep, xp, p_t, tick_value, commission, 'EOD', qty))
             in_trade      = False
             last_exit_bar = i
+            session_end_target = None
             continue
 
         # -- TrailToLine exit management (mirrors C# step 2) --
