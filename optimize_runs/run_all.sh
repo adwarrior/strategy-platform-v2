@@ -75,7 +75,7 @@ run_stage_a() {
         --strategy "$STR" --symbol "$SYM" --bar-type "$BAR_TYPE" \
         --start "$DATA_START" --end "$DATA_END" \
         --train-pct 0.70 \
-        --mc-sims 0 --oos-top-n 200 --min-trades 20 \
+        --mc-sims 0 --mc-top-n 300 --oos-top-n 300 --min-trades 20 \
         --rank-by sortino \
         --param-grid "$(cat optimize_runs/stage_a_grid.json)" \
         --run-settings '{"stage":"A","note":"core sweep, all 3 exits, 24h, dir=Both"}'
@@ -115,7 +115,7 @@ run_stage_b() {
             --strategy "$STR" --symbol "$SYM" --bar-type "$BAR_TYPE" \
             --start "$DATA_START" --end "$DATA_END" \
             --train-pct 0.70 \
-            --mc-sims 0 --oos-top-n 50 --min-trades 20 \
+            --mc-sims 0 --mc-top-n 60 --oos-top-n 60 --min-trades 20 \
             --rank-by sortino \
             --param-grid "$(cat "$grid_file")" \
             --run-settings "{\"stage\":\"B\",\"core\":$i}"
