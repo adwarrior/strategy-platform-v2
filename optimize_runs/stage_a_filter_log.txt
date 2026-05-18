@@ -1,0 +1,10 @@
+Stage A filter — |DD|<=$3000, dedup by core, top 5 by OOS Sortino
+  IS  src : IS_supertrendfractal_MNQ_20260518_0522.csv
+  OOS src: OOS_supertrendfractal_MNQ_20260518_0522.csv
+  unique DD-passing OOS rows: 6
+
+  #1: sortino=0.410  sharpe=0.080  net_pnl=$786  dd=$-1,833  trades=715  wr=14.7%  exit=FixedTPSL/ATRMultiple  atr=4x/10 frac=7 cd=4
+  #2: sortino=0.195  sharpe=0.049  net_pnl=$700  dd=$-2,777  trades=681  wr=24.8%  exit=FixedTPSL/ATRMultiple  atr=4x/10 frac=7 cd=4
+  #3: sortino=0.133  sharpe=0.028  net_pnl=$285  dd=$-1,996  trades=751  wr=14.5%  exit=FixedTPSL/ATRMultiple  atr=4x/10 frac=7 cd=2
+  #4: sortino=0.133  sharpe=0.028  net_pnl=$285  dd=$-1,996  trades=751  wr=14.5%  exit=FixedTPSL/ATRMultiple  atr=4x/10 frac=7 cd=0
+  #5: sortino=-0.885  sharpe=-0.225  net_pnl=$-1,886  dd=$-2,285  trades=931  wr=19.3%  exit=FixedTPSL/ATRMultiple  atr=4x/10 frac=3 cd=4

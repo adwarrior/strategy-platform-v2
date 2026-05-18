@@ -1,0 +1,5 @@
+core_1    OOS_supertrendfractal_MNQ_20260518_1543.csv
+core_2    OOS_supertrendfractal_MNQ_20260518_1554.csv
+core_3    OOS_supertrendfractal_MNQ_20260518_1606.csv
+core_4    OOS_supertrendfractal_MNQ_20260518_1618.csv
+core_5    OOS_supertrendfractal_MNQ_20260518_1630.csv

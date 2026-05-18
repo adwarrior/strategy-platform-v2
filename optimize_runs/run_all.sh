@@ -163,6 +163,29 @@ run_synthesis_marker() {
     phase_mark synthesis ready_for_claude
 }
 
+notify_done() {
+    local msg="$1"
+    # Windows toast via PowerShell (WSL2 -> Windows). Silently no-op if not available.
+    if command -v powershell.exe >/dev/null 2>&1; then
+        powershell.exe -NoProfile -Command "
+            [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType=WindowsRuntime] | Out-Null;
+            \$t = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02);
+            \$t.GetElementsByTagName('text')[0].AppendChild(\$t.CreateTextNode('STF Optimization')) | Out-Null;
+            \$t.GetElementsByTagName('text')[1].AppendChild(\$t.CreateTextNode('$msg')) | Out-Null;
+            [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('WSL').Show([Windows.UI.Notifications.ToastNotification]::new(\$t));
+        " 2>/dev/null || true
+    fi
+    # Terminal bell (×5 to be hard to miss) + banner
+    for _ in 1 2 3 4 5; do printf '\a'; sleep 0.2; done
+    echo
+    echo "######################################################################"
+    echo "#  ${msg}"
+    echo "#  $(date -Iseconds)"
+    echo "######################################################################"
+    # Mark with a flag file so Claude/user can detect at a glance
+    touch /home/ad/strategy-platform-v2/optimize_runs/COMPLETE.flag
+}
+
 # ---------------------------------------------------------------------------
 # Main driver
 # ---------------------------------------------------------------------------
@@ -185,6 +208,7 @@ run_synthesis_marker() {
 
     state_set session_end "$(date -Iseconds)"
     state_set status "complete"
+    notify_done "ALL PHASES COMPLETE — ready for synthesis. Reply 'synthesize' to Claude."
     echo
     echo "================ run_all.sh DONE at $(date -Iseconds) ================"
 } 2>&1 | tee -a "$LOG"

@@ -2,18 +2,21 @@
 Post-filter Stage A pipeline results.
 
 Reads the latest IS_supertrendfractal_MNQ_*.csv and OOS_supertrendfractal_MNQ_*.csv
-in reports/, applies max_drawdown <= $2000 to both halves, ranks survivors by
-OOS Sortino (then OOS net_pnl as tiebreak), and emits:
+in reports/, applies a max-drawdown cap on both halves, dedups by core-param
+fingerprint, ranks survivors by oos_sortino (then oos_net_pnl), and emits:
 
   optimize_runs/stage_a_top_cores.json   - top-N "core" param dicts
   optimize_runs/stage_a_filter_log.txt   - human-readable summary
 
-A "core" config is the 5-tuple (atr_multiplier, atr_period, fractal_length,
-exit_mode + tpsl_mode + tp/sl/rr params, bars_between_trades). Stage B then
+A "core" config is the indicator + exit-tree + cooldown 5-tuple. Stage B then
 sweeps session windows on these locked cores.
 
+Note: Stage A DD cap is intentionally looser than the final prop cap of $2,500
+because session filtering in Stage B typically cuts DD 20-30%, AR refines
+further. Final-prop cap is enforced post-WFO.
+
 Usage:
-    python optimize_runs/filter_stage_a.py [TOP_N]
+    python optimize_runs/filter_stage_a.py [TOP_N] [DD_CAP_DOLLARS]
 """
 from __future__ import annotations
 
@@ -29,8 +32,19 @@ ROOT = Path(__file__).resolve().parents[1]
 REPORTS = ROOT / "reports"
 OUT_DIR = ROOT / "optimize_runs"
 
-DD_LIMIT = 2000.0  # max_drawdown cap in $
+DEFAULT_DD_CAP = 3000.0
 DEFAULT_TOP_N = 5
+
+CORE_KEYS = [
+    "atr_multiplier", "atr_period", "fractal_length",
+    "direction", "invert_signals",
+    "exit_mode", "tpsl_mode",
+    "tp_ticks", "sl_ticks",
+    "tp_atr_mult", "sl_atr_mult",
+    "rr_ratio",
+    "use_risk_sizing", "qty", "max_risk",
+    "bars_between_trades",
+]
 
 
 def _latest(pattern: str) -> Path | None:
@@ -38,8 +52,35 @@ def _latest(pattern: str) -> Path | None:
     return Path(files[-1]) if files else None
 
 
+def _canonical_core(row: pd.Series) -> tuple:
+    """Build a fingerprint that ignores irrelevant params per exit_mode/tpsl_mode."""
+    exit_mode = row.get("exit_mode")
+    tpsl_mode = row.get("tpsl_mode")
+    # Always-relevant
+    base = (
+        row.get("atr_multiplier"), row.get("atr_period"), row.get("fractal_length"),
+        row.get("direction"), row.get("invert_signals"),
+        exit_mode,
+        row.get("bars_between_trades"),
+    )
+    # Exit-tree relevant subset
+    if exit_mode == "FixedTPSL":
+        if tpsl_mode == "Ticks":
+            tail = ("Ticks", row.get("tp_ticks"), row.get("sl_ticks"))
+        elif tpsl_mode == "ATRMultiple":
+            tail = ("ATR", row.get("tp_atr_mult"), row.get("sl_atr_mult"))
+        elif tpsl_mode == "RiskReward":
+            tail = ("RR", row.get("rr_ratio"))
+        else:
+            tail = (tpsl_mode,)
+    else:
+        tail = ("Trail",)
+    return base + tail
+
+
 def main() -> int:
     top_n = int(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_TOP_N
+    dd_cap = float(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_DD_CAP
 
     oos_csv = _latest("OOS_supertrendfractal_MNQ_*.csv")
     is_csv = _latest("IS_supertrendfractal_MNQ_*.csv")
@@ -52,99 +93,85 @@ def main() -> int:
 
     print(f"  IS  src: {is_csv.name}")
     print(f"  OOS src: {oos_csv.name}")
+    print(f"  DD cap: ${dd_cap:.0f}   top_n: {top_n}")
 
     oos = pd.read_csv(oos_csv)
     is_df = pd.read_csv(is_csv)
-
     print(f"  IS rows: {len(is_df)}  OOS rows: {len(oos)}")
 
-    # ---- DD filter on OOS ----
-    dd_col = "max_drawdown" if "max_drawdown" in oos.columns else None
-    if not dd_col:
-        print(f"  WARN: no max_drawdown column in OOS — skipping DD filter")
-        survivors = oos.copy()
-    else:
-        oos[dd_col] = oos[dd_col].abs()
-        before = len(oos)
-        survivors = oos[oos[dd_col] <= DD_LIMIT].copy()
-        print(f"  OOS DD<=${DD_LIMIT:.0f}: {len(survivors)}/{before} survive")
-
-    # ---- Also filter on IS DD if available ----
-    if dd_col and "max_drawdown" in is_df.columns:
-        is_df[dd_col] = is_df[dd_col].abs()
-        # Join key — assume same param columns present in both
-        param_cols = [
-            c for c in is_df.columns
-            if c not in {"sharpe", "sortino", "net_pnl", "profit_factor",
-                         "max_drawdown", "win_rate", "trades", "total_trades",
-                         "trades_df", "tick_bar_size"}
-            and not c.startswith("mc_")
-        ]
-        is_keep = is_df[is_df[dd_col] <= DD_LIMIT][param_cols].drop_duplicates()
-        before = len(survivors)
-        survivors = survivors.merge(is_keep, on=param_cols, how="inner")
-        print(f"  IS  DD<=${DD_LIMIT:.0f}: {len(survivors)}/{before} survive")
-
-    if len(survivors) == 0:
-        print("  ERROR: no combos passed DD filter on both IS and OOS.", file=sys.stderr)
-        # Still write an empty seed so downstream can detect & abort
-        (OUT_DIR / "stage_a_top_cores.json").write_text("[]")
+    # ---- DD filter (OOS uses oos_max_drawdown; IS uses bare max_drawdown) ----
+    if "oos_max_drawdown" not in oos.columns:
+        print("  ERROR: oos_max_drawdown column missing in OOS CSV", file=sys.stderr)
         return 3
+    oos["_dd_abs"] = oos["oos_max_drawdown"].abs()
+    before = len(oos)
+    oos_keep = oos[oos["_dd_abs"] <= dd_cap].copy()
+    print(f"  OOS |DD|<=${dd_cap:.0f}: {len(oos_keep)}/{before}")
+
+    # Cross-check on IS DD too
+    if "max_drawdown" in is_df.columns:
+        is_df["_dd_abs"] = is_df["max_drawdown"].abs()
+        merge_keys = [k for k in CORE_KEYS if k in is_df.columns and k in oos_keep.columns]
+        is_pass = is_df[is_df["_dd_abs"] <= dd_cap][merge_keys].drop_duplicates()
+        before = len(oos_keep)
+        oos_keep = oos_keep.merge(is_pass, on=merge_keys, how="inner")
+        print(f"  IS  |DD|<=${dd_cap:.0f}: {len(oos_keep)}/{before} also pass IS DD")
+
+    if len(oos_keep) == 0:
+        print("  ERROR: no combos passed DD filter on both IS and OOS", file=sys.stderr)
+        (OUT_DIR / "stage_a_top_cores.json").write_text("[]")
+        return 4
 
     # ---- Rank by OOS Sortino desc, then OOS net_pnl desc ----
     rank_cols = []
-    if "sortino" in survivors.columns:
-        rank_cols.append(("sortino", False))
-    if "net_pnl" in survivors.columns:
-        rank_cols.append(("net_pnl", False))
-    if not rank_cols:
-        rank_cols = [("sharpe", False)]
-    sort_by = [c for c, _ in rank_cols]
-    ascending = [a for _, a in rank_cols]
-    survivors = survivors.sort_values(by=sort_by, ascending=ascending)
+    for c in ("oos_sortino", "oos_sharpe", "oos_net_pnl"):
+        if c in oos_keep.columns:
+            rank_cols.append(c)
+    oos_keep = oos_keep.sort_values(by=rank_cols, ascending=[False] * len(rank_cols))
 
-    # ---- Pick top N, extracting only the "core" param keys ----
-    CORE_KEYS = [
-        "atr_multiplier", "atr_period", "fractal_length",
-        "direction", "invert_signals",
-        "exit_mode", "tpsl_mode",
-        "tp_ticks", "sl_ticks",
-        "tp_atr_mult", "sl_atr_mult",
-        "rr_ratio",
-        "use_risk_sizing", "qty", "max_risk",
-        "bars_between_trades",
-    ]
-    have_keys = [k for k in CORE_KEYS if k in survivors.columns]
-
-    top = survivors.head(top_n)
+    # ---- Dedup by canonical core fingerprint; pick top_n unique cores ----
+    seen: set = set()
     cores: list[dict] = []
     log_lines: list[str] = [
-        f"Stage A filter — DD<=${DD_LIMIT:.0f}, ranked by OOS Sortino/net_pnl",
-        f"  IS src : {is_csv.name}",
+        f"Stage A filter — |DD|<=${dd_cap:.0f}, dedup by core, top {top_n} by OOS Sortino",
+        f"  IS  src : {is_csv.name}",
         f"  OOS src: {oos_csv.name}",
-        f"  survivors after DD filter: {len(survivors)}",
+        f"  unique DD-passing OOS rows: {len(oos_keep)}",
         "",
-        "Top cores:",
     ]
-    for i, (_, row) in enumerate(top.iterrows(), 1):
-        core = {k: row[k] for k in have_keys}
-        # Clean up types: numpy ints/floats -> python natives
-        for k, v in core.items():
+    have_keys = [k for k in CORE_KEYS if k in oos_keep.columns]
+    for _, row in oos_keep.iterrows():
+        fp = _canonical_core(row)
+        if fp in seen:
+            continue
+        seen.add(fp)
+        params = {k: row[k] for k in have_keys}
+        for k, v in params.items():
             if hasattr(v, "item"):
-                core[k] = v.item()
-        cores.append(core)
+                params[k] = v.item()
+        # Convert numpy bool to native bool, etc.
+        for k, v in params.items():
+            if isinstance(v, (bool,)):
+                params[k] = bool(v)
+        cores.append(params)
         log_lines.append(
-            f"  #{i}: sortino={row.get('sortino', float('nan')):.3f}  "
-            f"net_pnl=${row.get('net_pnl', 0):.0f}  "
-            f"dd=${row.get('max_drawdown', 0):.0f}  "
-            f"trades={int(row.get('total_trades', row.get('trades', 0)))}  "
-            f"params={core}"
+            f"  #{len(cores)}: sortino={row.get('oos_sortino', 0):.3f}  "
+            f"sharpe={row.get('oos_sharpe', 0):.3f}  "
+            f"net_pnl=${row.get('oos_net_pnl', 0):,.0f}  "
+            f"dd=${row.get('oos_max_drawdown', 0):,.0f}  "
+            f"trades={int(row.get('oos_total_trades', 0))}  "
+            f"wr={row.get('oos_win_rate', 0):.1%}  "
+            f"exit={row.get('exit_mode')}/{row.get('tpsl_mode')}  "
+            f"atr={row.get('atr_multiplier')}x/{int(row.get('atr_period', 0))} frac={int(row.get('fractal_length', 0))} "
+            f"cd={int(row.get('bars_between_trades', 0))}"
         )
+        if len(cores) >= top_n:
+            break
 
     (OUT_DIR / "stage_a_top_cores.json").write_text(json.dumps(cores, indent=2))
     (OUT_DIR / "stage_a_filter_log.txt").write_text("\n".join(log_lines))
     print("\n".join(log_lines))
-    print(f"\n  wrote: optimize_runs/stage_a_top_cores.json  ({len(cores)} cores)")
+    print(f"\n  wrote: optimize_runs/stage_a_top_cores.json  ({len(cores)} unique cores)")
     return 0
 
 

@@ -1,0 +1,102 @@
+{
+  "atr_multiplier": [
+    4
+  ],
+  "atr_period": [
+    10
+  ],
+  "fractal_length": [
+    3
+  ],
+  "direction": [
+    "Both"
+  ],
+  "invert_signals": [
+    false
+  ],
+  "exit_mode": [
+    "FixedTPSL"
+  ],
+  "tpsl_mode": [
+    "ATRMultiple"
+  ],
+  "tp_ticks": [
+    20
+  ],
+  "sl_ticks": [
+    10
+  ],
+  "tp_atr_mult": [
+    2.0
+  ],
+  "sl_atr_mult": [
+    0.5
+  ],
+  "rr_ratio": [
+    1.5
+  ],
+  "use_risk_sizing": [
+    false
+  ],
+  "qty": [
+    1
+  ],
+  "max_risk": [
+    250
+  ],
+  "bars_between_trades": [
+    4
+  ],
+  "enable_session_filter": [
+    true
+  ],
+  "trade_window1_start": [
+    "00:00",
+    "02:00",
+    "04:00",
+    "06:00",
+    "08:00",
+    "10:00",
+    "12:00",
+    "14:00",
+    "16:00",
+    "18:00",
+    "20:00",
+    "22:00"
+  ],
+  "trade_window1_stop": [
+    "04:00",
+    "06:00",
+    "08:00",
+    "10:00",
+    "12:00",
+    "14:00",
+    "16:00",
+    "18:00",
+    "20:00",
+    "22:00",
+    "23:55",
+    "02:00"
+  ],
+  "enable_trade_window2": [
+    false
+  ],
+  "trade_window2_start": [
+    "09:30"
+  ],
+  "trade_window2_stop": [
+    "11:30"
+  ],
+  "enable_trade_window3": [
+    false
+  ],
+  "trade_window3_start": [
+    "14:00"
+  ],
+  "trade_window3_stop": [
+    "15:55"
+  ],
+  "eod_exit_time": [
+    "16:55"
+  ]
+}
