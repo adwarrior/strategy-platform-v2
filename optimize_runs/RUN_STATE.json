@@ -1,0 +1,23 @@
+{
+  "_about": "SuperTrendFractal MNQ 5M optimization run-state. Updated by run_all.sh after each phase.",
+  "_created": "2026-05-17",
+  "strategy": "supertrendfractal",
+  "symbol": "MNQ",
+  "bar_type": "time",
+  "data_start": "2020-01-01",
+  "data_end": "2026-05-15",
+  "dd_filter_dollars": 2000,
+  "stage_a_combos_estimated": 5832,
+  "stage_a": "pending",
+  "filter_a": "pending",
+  "stage_b": "pending",
+  "stage_b_core_1": "pending",
+  "stage_b_core_2": "pending",
+  "stage_b_core_3": "pending",
+  "stage_b_core_4": "pending",
+  "stage_b_core_5": "pending",
+  "aggregate_b": "pending",
+  "wfo": "pending",
+  "autoresearch": "pending",
+  "synthesis": "pending"
+}
