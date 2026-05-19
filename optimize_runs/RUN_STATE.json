@@ -16,11 +16,13 @@
   "stage_b_core_3": "done",
   "stage_b_core_4": "done",
   "stage_b_core_5": "done",
-  "aggregate_b": "failed",
-  "wfo": "pending",
-  "autoresearch": "pending",
-  "synthesis": "pending",
-  "session_start": "2026-05-18T15:42:56+01:00",
-  "_updated": "2026-05-18T16:42:58",
-  "pid": "235133"
+  "aggregate_b": "done",
+  "wfo": "done",
+  "autoresearch": "done",
+  "synthesis": "ready_for_claude",
+  "session_start": "2026-05-18T21:55:33+01:00",
+  "_updated": "2026-05-18T22:00:35",
+  "pid": "19571",
+  "session_end": "2026-05-18T22:00:35+01:00",
+  "status": "complete"
 }

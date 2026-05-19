@@ -1,0 +1,8 @@
+Stage B finalists (top 5, |DD|<=$2000, profitable, by OOS Sortino/net_pnl)
+  Aggregated CSVs: ['OOS_supertrendfractal_MNQ_20260518_1543.csv', 'OOS_supertrendfractal_MNQ_20260518_1554.csv', 'OOS_supertrendfractal_MNQ_20260518_1606.csv', 'OOS_supertrendfractal_MNQ_20260518_1618.csv', 'OOS_supertrendfractal_MNQ_20260518_1630.csv']
+
+  #1: sortino=1.903  sharpe=0.210  net_pnl=$2,749  dd=$-1,880  trades=366  wr=18.9%  win1=08:00->22:00  exit=FixedTPSL/ATRMultiple  atr=4x10 frac=7 tp_atr=3.0 sl_atr=0.5 cd=4
+  #2: sortino=1.870  sharpe=0.219  net_pnl=$2,891  dd=$-1,836  trades=411  wr=18.0%  win1=06:00->22:00  exit=FixedTPSL/ATRMultiple  atr=4x10 frac=7 tp_atr=3.0 sl_atr=0.5 cd=4
+  #3: sortino=1.849  sharpe=0.217  net_pnl=$2,949  dd=$-1,792  trades=481  wr=17.7%  win1=06:00->23:55  exit=FixedTPSL/ATRMultiple  atr=4x10 frac=7 tp_atr=3.0 sl_atr=0.5 cd=4
+  #4: sortino=1.670  sharpe=0.199  net_pnl=$2,566  dd=$-1,578  trades=239  wr=20.9%  win1=08:00->18:00  exit=FixedTPSL/ATRMultiple  atr=4x10 frac=7 tp_atr=3.0 sl_atr=0.5 cd=2
+  #5: sortino=1.670  sharpe=0.199  net_pnl=$2,566  dd=$-1,578  trades=239  wr=20.9%  win1=08:00->18:00  exit=FixedTPSL/ATRMultiple  atr=4x10 frac=7 tp_atr=3.0 sl_atr=0.5 cd=0
