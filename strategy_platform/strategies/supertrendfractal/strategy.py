@@ -296,8 +296,16 @@ def _run_backtest_loop(
 
     # -- Params --
     direction_mode    = params.get('direction', 'Both')
-    exit_mode         = params.get('exit_mode', 'FixedTPSL')
-    tpsl_mode         = params.get('tpsl_mode', 'Ticks')
+    exit_mode         = params.get('exit_mode', 'FixedTPSL_Ticks')
+    # ---- Backward compat: old configs used (exit_mode='FixedTPSL', tpsl_mode='Ticks'|'ATRMultiple'|'RiskReward')
+    # Translate to the new combined names so old saved runs still execute.
+    if exit_mode == 'FixedTPSL':
+        _old_tpsl = params.get('tpsl_mode', 'Ticks')
+        exit_mode = {
+            'Ticks':       'FixedTPSL_Ticks',
+            'ATRMultiple': 'FixedTPSL_ATR',
+            'RiskReward':  'FixedTPSL_RR',
+        }.get(_old_tpsl, 'FixedTPSL_Ticks')
     tp_ticks          = int(params.get('tp_ticks', 40))
     sl_ticks          = int(params.get('sl_ticks', 20))
     tp_atr_mult       = float(params.get('tp_atr_mult', 2.0))
@@ -380,8 +388,57 @@ def _run_backtest_loop(
                                               ep, xp, p_t, tick_value, commission, 'TrailFlip', qty))
                     in_trade = False; last_exit_bar = i; session_end_target = None; continue
 
+        # -- FixedTPTrailSL exit management --
+        # SL = SuperTrend line (ratchets toward price), TP = fixed ticks from entry.
+        # Priority on a bar: TrailFlip → intrabar TP → intrabar SL.
+        if exit_mode == 'FixedTPTrailSL' and in_trade:
+            line_now = line_arr[i]
+            # Ratchet the trailing stop toward the position
+            if direction == 'long' and line_now > sl:
+                sl = line_now
+            elif direction == 'short' and line_now < sl:
+                sl = line_now
+            closed = False
+            if direction == 'long':
+                if line_now >= c_arr[i]:
+                    xp  = c_arr[i]
+                    p_t = (xp - ep) / tick_size
+                    trades.append(_make_trade(entry_time, ts, direction,
+                                              ep, xp, p_t, tick_value, commission, 'TrailFlip', qty))
+                    closed = True
+                elif h_arr[i] >= tp:
+                    p_t = (tp - ep) / tick_size
+                    trades.append(_make_trade(entry_time, ts, direction,
+                                              ep, tp, p_t, tick_value, commission, 'TP', qty))
+                    closed = True
+                elif l_arr[i] <= sl:
+                    p_t = (sl - ep) / tick_size
+                    trades.append(_make_trade(entry_time, ts, direction,
+                                              ep, sl, p_t, tick_value, commission, 'TrailSL', qty))
+                    closed = True
+            else:  # short
+                if line_now <= c_arr[i]:
+                    xp  = c_arr[i]
+                    p_t = (ep - xp) / tick_size
+                    trades.append(_make_trade(entry_time, ts, direction,
+                                              ep, xp, p_t, tick_value, commission, 'TrailFlip', qty))
+                    closed = True
+                elif l_arr[i] <= tp:
+                    p_t = (ep - tp) / tick_size
+                    trades.append(_make_trade(entry_time, ts, direction,
+                                              ep, tp, p_t, tick_value, commission, 'TP', qty))
+                    closed = True
+                elif h_arr[i] >= sl:
+                    p_t = (ep - sl) / tick_size
+                    trades.append(_make_trade(entry_time, ts, direction,
+                                              ep, sl, p_t, tick_value, commission, 'TrailSL', qty))
+                    closed = True
+            if closed:
+                in_trade = False; last_exit_bar = i; session_end_target = None
+                continue
+
         # -- FixedTPSL bar-level exit check --
-        if exit_mode == 'FixedTPSL' and in_trade:
+        if exit_mode in ('FixedTPSL_Ticks', 'FixedTPSL_ATR', 'FixedTPSL_RR') and in_trade:
             closed = False
             if direction == 'long':
                 if l_arr[i] <= sl:
@@ -440,21 +497,21 @@ def _run_backtest_loop(
         line_now  = line_arr[i]
         entry_px  = o_arr[i + 1]  # next bar's open (matches NT fill convention)
 
-        # Resolve SL/TP ticks
-        if tpsl_mode == 'Ticks':
-            sl_t = sl_ticks
-            tp_t = tp_ticks
-        elif tpsl_mode == 'ATRMultiple':
+        # Resolve SL/TP ticks per the FixedTPSL_* sub-mode (default to Ticks)
+        if exit_mode == 'FixedTPSL_ATR':
             if tick_size <= 0:
                 continue
             sl_t = (atr_now * sl_atr_mult) / tick_size
             tp_t = (atr_now * tp_atr_mult) / tick_size
-        else:  # RiskReward
+        elif exit_mode == 'FixedTPSL_RR':
             sl_t = sl_ticks
             tp_t = sl_ticks * rr_ratio
+        else:  # FixedTPSL_Ticks (and any non-FixedTPSL mode — sl_t/tp_t used only for FixedTPSL paths and sizing)
+            sl_t = sl_ticks
+            tp_t = tp_ticks
 
-        # Stop distance for sizing
-        if exit_mode == 'TrailToLine':
+        # Stop distance for sizing — line-based for TrailToLine and FixedTPTrailSL
+        if exit_mode in ('TrailToLine', 'FixedTPTrailSL'):
             dist = (entry_px - line_now) if is_long else (line_now - entry_px)
             if dist <= 0:
                 continue
@@ -480,14 +537,21 @@ def _run_backtest_loop(
         # Session-aware EOD target: when does THIS entry's session end?
         session_end_target = _session_end_for_entry(entry_time, eod_time)
 
-        if exit_mode == 'FixedTPSL':
+        if exit_mode in ('FixedTPSL_Ticks', 'FixedTPSL_ATR', 'FixedTPSL_RR'):
             if is_long:
                 sl = ep - sl_t * tick_size
                 tp = ep + tp_t * tick_size
             else:
                 sl = ep + sl_t * tick_size
                 tp = ep - tp_t * tick_size
-        else:  # TrailToLine — initial stop at line
+        elif exit_mode == 'FixedTPTrailSL':
+            # SL = current line (trails). TP = fixed ticks from entry.
+            sl = line_now
+            if is_long:
+                tp = ep + tp_ticks * tick_size
+            else:
+                tp = ep - tp_ticks * tick_size
+        else:  # TrailToLine — initial stop at line, no TP
             sl = line_now
             tp = float('inf') if is_long else float('-inf')
 
@@ -650,7 +714,7 @@ class SuperTrendFractal(BaseStrategy):
 
     name = 'supertrendfractal'
 
-    bar_type            = 'time'
+    bar_type            = '1m'
     supported_bar_types = ['time', '1m', 'tick']
 
     # NQ=F defaults — overridden by dashboard when symbol changes
@@ -661,13 +725,13 @@ class SuperTrendFractal(BaseStrategy):
     symbol: str = 'NQ=F'
 
     default_params: Dict[str, Any] = {
+        'minute_bar_period': 5,
         'atr_multiplier': 3,
         'atr_period': 10,
         'fractal_length': 3,
         'direction': 'Both',
         'invert_signals': False,
         'exit_mode': 'TrailToLine',
-        'tpsl_mode': 'Ticks',
         'tp_ticks': 40,
         'sl_ticks': 20,
         'tp_atr_mult': 2,
@@ -696,6 +760,8 @@ class SuperTrendFractal(BaseStrategy):
     @property
     def param_grid(self) -> Dict[str, Any]:
         return {
+            # 0. Timeframe
+            'minute_bar_period': [1, 2, 3, 5, 10, 15, 30],
             # 1. Indicator
             'atr_multiplier':  (1, 5, 1),
             'atr_period':      (5, 20, 5),
@@ -704,8 +770,8 @@ class SuperTrendFractal(BaseStrategy):
             'direction':       ['Both', 'LongOnly', 'ShortOnly'],
             'invert_signals':  [False, True],
             # 3. Exit
-            'exit_mode':       ['FixedTPSL', 'TrailToLine'],
-            'tpsl_mode':       ['Ticks', 'ATRMultiple', 'RiskReward'],
+            'exit_mode':       ['FixedTPSL_Ticks', 'FixedTPSL_ATR', 'FixedTPSL_RR',
+                                'TrailToLine', 'FixedTPTrailSL'],
             'tp_ticks':        (10, 80, 10),
             'sl_ticks':        (5,  40,  5),
             'tp_atr_mult':     (0.5, 4.0, 0.5),
@@ -737,6 +803,9 @@ class SuperTrendFractal(BaseStrategy):
     @property
     def param_groups(self) -> Dict[str, List[str]]:
         return {
+            '0. Timeframe': [
+                'minute_bar_period',
+            ],
             '1. Indicator': [
                 'atr_multiplier', 'atr_period', 'fractal_length',
             ],
@@ -744,7 +813,7 @@ class SuperTrendFractal(BaseStrategy):
                 'direction', 'invert_signals',
             ],
             '3. Exit': [
-                'exit_mode', 'tpsl_mode',
+                'exit_mode',
                 'tp_ticks', 'sl_ticks',
                 'tp_atr_mult', 'sl_atr_mult',
                 'rr_ratio',
@@ -773,13 +842,13 @@ class SuperTrendFractal(BaseStrategy):
     @property
     def display_names(self) -> Dict[str, str]:
         return {
+            'minute_bar_period':      'Bar Period (min)',
             'atr_multiplier':         'ATR Multiplier',
             'atr_period':             'ATR Period',
             'fractal_length':         'Fractal Length (3/5/7)',
             'direction':              'Direction',
             'invert_signals':         'Invert Signals',
             'exit_mode':              'Exit Mode',
-            'tpsl_mode':              'TP/SL Mode',
             'tp_ticks':               'TP Ticks',
             'sl_ticks':               'SL Ticks',
             'tp_atr_mult':            'TP ATR Multiple',
@@ -806,13 +875,17 @@ class SuperTrendFractal(BaseStrategy):
     # ------------------------------------------------------------------
 
     param_conditional: Dict[str, tuple] = {
-        # FixedTPSL sub-params
-        'tpsl_mode':    ('exit_mode',       'FixedTPSL'),
-        'tp_ticks':     ('tpsl_mode',       'Ticks'),
-        'sl_ticks':     ('tpsl_mode',       'Ticks'),
-        'tp_atr_mult':  ('tpsl_mode',       'ATRMultiple'),
-        'sl_atr_mult':  ('tpsl_mode',       'ATRMultiple'),
-        'rr_ratio':     ('tpsl_mode',       'RiskReward'),
+        # Exit-mode sub-params:
+        #   FixedTPSL_Ticks   → tp_ticks, sl_ticks
+        #   FixedTPSL_ATR     → tp_atr_mult, sl_atr_mult
+        #   FixedTPSL_RR      → sl_ticks, rr_ratio
+        #   TrailToLine       → none
+        #   FixedTPTrailSL    → tp_ticks
+        # The param_conditional system only supports one (param, value) pair per
+        # field, so we cannot express OR-conditionals (e.g. show tp_ticks for
+        # _Ticks OR _TrailSL). All five fields therefore remain visible — the
+        # strategy logic reads only the fields relevant to the active exit_mode.
+        # The exit_mode label itself tells the user which fields to set.
         # Sizing
         'qty':          ('use_risk_sizing',  False),
         'max_risk':     ('use_risk_sizing',  True),
@@ -838,20 +911,34 @@ class SuperTrendFractal(BaseStrategy):
 
     def _prepare_df(self, data: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
         """
-        For bar_type == '1m': resample 1M → 5M before running the indicator.
-        For 'time' and 'tick': use as-is.
+        Resample input bars to params['minute_bar_period'] minutes (default 5).
+        If input is already at the requested resolution, returned as-is.
+        If input is coarser than requested (rare), returned as-is — cannot
+        synthesise finer bars.
         """
-        bt = getattr(self, 'bar_type', 'time')
-        if bt == '1m':
-            df5 = data.resample('5min').agg({
-                'open':   'first',
-                'high':   'max',
-                'low':    'min',
-                'close':  'last',
-                'volume': 'sum',
-            }).dropna(subset=['close'])
-            return df5
-        return data
+        target_min = int(params.get('minute_bar_period',
+                                    self.default_params.get('minute_bar_period', 5)))
+        if target_min <= 0:
+            target_min = 5
+        # Detect current bar size from median index gap (seconds)
+        if len(data) < 3:
+            return data
+        gaps = data.index.to_series().diff().dt.total_seconds().dropna()
+        median_sec = float(gaps.median()) if len(gaps) else 60.0
+        target_sec = target_min * 60
+        if abs(median_sec - target_sec) < 0.5 * target_sec:
+            # Already at (or very near) the requested resolution
+            return data
+        if median_sec > target_sec:
+            # Cannot downsample to finer bars
+            return data
+        return data.resample(f'{target_min}min').agg({
+            'open':   'first',
+            'high':   'max',
+            'low':    'min',
+            'close':  'last',
+            'volume': 'sum',
+        }).dropna(subset=['close'])
 
     # ------------------------------------------------------------------
     # Core backtest
