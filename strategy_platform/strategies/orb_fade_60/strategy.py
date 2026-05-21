@@ -336,17 +336,21 @@ def _run_backtest_loop(
         if is_dn and not can_long:
             continue
 
-        # Entry, stop, target
+        # Entry, stop, target.
+        # Entry = break-bar extreme (assumes a sell-stop / buy-stop order triggered
+        # by the break, filled at the bar's worst-case price). This matches the
+        # orb-reversal-ml research model. The target is always the opposite OR
+        # boundary (= +1.0 * OR size from the boundary we broke, scaled by target_r).
         if is_up:
             side       = 'Short'
-            entry_px   = or_high
+            entry_px   = float(first_bar['high'])
             stop_px    = entry_px + stop_r * or_size
-            target_px  = entry_px - target_r * or_size
+            target_px  = or_high - target_r * or_size
         else:
             side       = 'Long'
-            entry_px   = or_low
+            entry_px   = float(first_bar['low'])
             stop_px    = entry_px - stop_r * or_size
-            target_px  = entry_px + target_r * or_size
+            target_px  = or_low + target_r * or_size
 
         stop_dist = abs(entry_px - stop_px)
         # Position sizing
