@@ -50,3 +50,4 @@
   Heatmap saved: /home/ad/strategy-platform-v2/strategy_platform/optimize/../../reports/heatmap_supertrendfractal_MES_20260525_1430.png
 
 [3/4] Monte Carlo (200 sims × top 20 combos)...
+      [ 1/20]  stability=0.01  mc_pnl_p5=$-1,934  mc_pnl_p50=$-1,248
