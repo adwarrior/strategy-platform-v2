@@ -21,3 +21,32 @@
          400/540  (74.1%)  — checkpoint saved
          450/540  (83.3%)  — checkpoint saved
          500/540  (92.6%)  — checkpoint saved
+         540/540  (100.0%)  — checkpoint saved
+
+  IS results saved: /home/ad/strategy-platform-v2/strategy_platform/optimize/../../reports/IS_supertrendfractal_MES_20260525_1430.csv
+
+── Top 20 IS by Sharpe ─────────────────────────────────────────
+ minute_bar_period  atr_multiplier  atr_period  fractal_length direction  invert_signals       exit_mode  tp_ticks  sl_ticks  total_trades  win_rate  net_pnl    sharpe  profit_factor  max_drawdown  bs_sharpe_p5  bs_pnl_p5
+                 5               5          15               7      Both           False FixedTPSL_Ticks        60        10          1059  0.145420  -842.68 -0.097312       0.931129      -1520.18     -1.078340 -2384.9360
+                 5               4          10               3      Both           False FixedTPSL_Ticks        60        10          1903  0.148713  -966.06 -0.112452       0.955893      -2187.22     -1.073447 -3287.7070
+                 5               4          15               3      Both           False FixedTPSL_Ticks        60        10          1878  0.147497 -1153.06 -0.127792       0.946730      -2006.48     -1.178611 -3509.6620
+                 5               5           5               7      Both           False FixedTPSL_Ticks        60        10          1095  0.142466 -1154.40 -0.136327       0.909069      -1503.46     -1.242317 -2798.5580
+                 5               5          10               7      Both           False     TrailToLine        40        20           806  0.212159 -3452.12 -0.141701       0.855228      -4968.29     -1.338036 -8480.8295
+                 5               5          10               7      Both           False     TrailToLine        60        20           806  0.212159 -3452.12 -0.141701       0.855228      -4968.29     -1.338036 -8480.8295
+                 5               5          10               7      Both           False     TrailToLine        20        10           806  0.212159 -3452.12 -0.141701       0.855228      -4968.29     -1.338036 -8480.8295
+                 5               5          10               7      Both           False     TrailToLine        20        20           806  0.212159 -3452.12 -0.141701       0.855228      -4968.29     -1.338036 -8480.8295
+                 5               5          10               7      Both           False     TrailToLine        40        10           806  0.212159 -3452.12 -0.141701       0.855228      -4968.29     -1.338036 -8480.8295
+                 5               5          10               7      Both           False     TrailToLine        60        10           806  0.212159 -3452.12 -0.141701       0.855228      -4968.29     -1.338036 -8480.8295
+                 5               4           5               3      Both           False FixedTPSL_Ticks        40        20          1759  0.335418 -1519.18 -0.164783       0.950056      -2404.18     -1.185208 -3946.7780
+                 5               5          15               5      Both           False FixedTPSL_Ticks        40        20          1170  0.329060 -1568.40 -0.173807       0.923214      -2311.06     -1.331582 -3645.5170
+                 5               5          15               3      Both           False FixedTPSL_Ticks        60        20          1324  0.241692 -2450.48 -0.177529       0.906198      -3073.96     -1.418920 -5024.5100
+                 5               5          15               7      Both           False FixedTPSL_Ticks        40        20          1012  0.325099 -1657.24 -0.178988       0.906748      -2060.08     -1.358004 -3735.7330
+                 5               5          15               7      Both           False FixedTPSL_Ticks        40        10          1070  0.199065 -1153.90 -0.180023       0.900411      -1326.30     -1.291049 -2434.1070
+                 5               4           5               3      Both           False FixedTPSL_Ticks        60        20          1682  0.247919 -2065.64 -0.181780       0.937244      -2692.20     -1.271329 -4975.7980
+                 5               5           5               7      Both           False     TrailToLine        40        10           860  0.220930 -4012.20 -0.187203       0.839108      -4939.67     -1.443019 -8514.4540
+                 5               5           5               7      Both           False     TrailToLine        60        20           860  0.220930 -4012.20 -0.187203       0.839108      -4939.67     -1.443019 -8514.4540
+                 5               5           5               7      Both           False     TrailToLine        60        10           860  0.220930 -4012.20 -0.187203       0.839108      -4939.67     -1.443019 -8514.4540
+                 5               5           5               7      Both           False     TrailToLine        20        20           860  0.220930 -4012.20 -0.187203       0.839108      -4939.67     -1.443019 -8514.4540
+  Heatmap saved: /home/ad/strategy-platform-v2/strategy_platform/optimize/../../reports/heatmap_supertrendfractal_MES_20260525_1430.png
+
+[3/4] Monte Carlo (200 sims × top 20 combos)...
