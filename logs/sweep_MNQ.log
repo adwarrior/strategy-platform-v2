@@ -1,0 +1,13 @@
+  Symbol metadata: tick_size=0.25, tick_value=$0.5, commission_rt=$1.02
+
+[1/4] Loading MNQ data for 'supertrendfractal'...
+  [MNQ] querying MySQL 1M (192.168.1.228)...
+  [MNQ] 2,238,988 1M bars loaded.
+      2,238,988 1M bars  (2020-01-01 → 2026-05-22)
+      IS:  1,573,375 bars  (up to 2024-06-17)
+      OOS: 665,613 bars  (2024-06-17 →)
+      Pre-processing IS and OOS data...
+
+[2/4] Grid search: 540 combinations
+      Running all 540 combinations.
+      3 worker(s)...
