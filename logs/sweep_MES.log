@@ -63,3 +63,4 @@
       [11/20]  stability=0.01  mc_pnl_p5=$-2,444  mc_pnl_p50=$-1,444
       [12/20]  stability=0.00  mc_pnl_p5=$-3,580  mc_pnl_p50=$-2,745
       [13/20]  stability=0.00  mc_pnl_p5=$-3,560  mc_pnl_p50=$-2,175
+      [14/20]  stability=0.00  mc_pnl_p5=$-2,525  mc_pnl_p50=$-1,717
