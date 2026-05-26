@@ -98,7 +98,7 @@ class ORB30Monti(BaseStrategy):
             'delta_threshold':  (50, 500, 50),
 
             # Risk
-            'sizing_mode':            ['range_width', 'fixed_contracts'],
+            'use_risk_sizing':        [True, False],
             'risk_per_trade_dollars': (100.0, 1000.0, 100.0),
             'fixed_contract_count':   (1, 10, 1),
             'max_contracts_cap':      (5, 50, 5),
@@ -107,9 +107,9 @@ class ORB30Monti(BaseStrategy):
 
     param_conditional: Dict[str, tuple] = {
         'delta_threshold':        ('use_delta_filter',  True),
-        'risk_per_trade_dollars': ('sizing_mode',       'range_width'),
-        'max_contracts_cap':      ('sizing_mode',       'range_width'),
-        'fixed_contract_count':   ('sizing_mode',       'fixed_contracts'),
+        'risk_per_trade_dollars': ('use_risk_sizing',   True),
+        'max_contracts_cap':      ('use_risk_sizing',   True),
+        'fixed_contract_count':   ('use_risk_sizing',   False),
     }
 
     @property
