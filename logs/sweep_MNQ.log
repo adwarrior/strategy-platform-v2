@@ -11,3 +11,82 @@
 [2/4] Grid search: 540 combinations
       Running all 540 combinations.
       3 worker(s)...
+          50/540  (9.3%)  — checkpoint saved
+         100/540  (18.5%)  — checkpoint saved
+         150/540  (27.8%)  — checkpoint saved
+         200/540  (37.0%)  — checkpoint saved
+         250/540  (46.3%)  — checkpoint saved
+         300/540  (55.6%)  — checkpoint saved
+         350/540  (64.8%)  — checkpoint saved
+         400/540  (74.1%)  — checkpoint saved
+         450/540  (83.3%)  — checkpoint saved
+         500/540  (92.6%)  — checkpoint saved
+         540/540  (100.0%)  — checkpoint saved
+
+  IS results saved: /home/ad/strategy-platform-v2/strategy_platform/optimize/../../reports/IS_supertrendfractal_MNQ_20260525_1430.csv
+
+── Top 20 IS by Sharpe ─────────────────────────────────────────
+ minute_bar_period  atr_multiplier  atr_period  fractal_length direction  invert_signals   exit_mode  tp_ticks  sl_ticks  total_trades  win_rate  net_pnl   sharpe  profit_factor  max_drawdown  bs_sharpe_p5  bs_pnl_p5
+                 5               4          15               5      Both           False TrailToLine        20        10          1413  0.245577  4421.54 0.103261       1.081445      -3479.50     -0.351726  -4629.306
+                 5               4          15               5      Both           False TrailToLine        20        20          1413  0.245577  4421.54 0.103261       1.081445      -3479.50     -0.351726  -4629.306
+                 5               4          15               5      Both           False TrailToLine        60        20          1413  0.245577  4421.54 0.103261       1.081445      -3479.50     -0.351726  -4629.306
+                 5               4          15               5      Both           False TrailToLine        60        10          1413  0.245577  4421.54 0.103261       1.081445      -3479.50     -0.351726  -4629.306
+                 5               4          15               5      Both           False TrailToLine        40        10          1413  0.245577  4421.54 0.103261       1.081445      -3479.50     -0.351726  -4629.306
+                 5               4          15               5      Both           False TrailToLine        40        20          1413  0.245577  4421.54 0.103261       1.081445      -3479.50     -0.351726  -4629.306
+                 5               4          15               7      Both           False TrailToLine        40        20          1250  0.260800  4198.90 0.100526       1.082148      -3705.70     -0.406585  -4871.641
+                 5               4          15               7      Both           False TrailToLine        40        10          1250  0.260800  4198.90 0.100526       1.082148      -3705.70     -0.406585  -4871.641
+                 5               4          15               7      Both           False TrailToLine        20        10          1250  0.260800  4198.90 0.100526       1.082148      -3705.70     -0.406585  -4871.641
+                 5               4          15               7      Both           False TrailToLine        20        20          1250  0.260800  4198.90 0.100526       1.082148      -3705.70     -0.406585  -4871.641
+                 5               4          15               7      Both           False TrailToLine        60        10          1250  0.260800  4198.90 0.100526       1.082148      -3705.70     -0.406585  -4871.641
+                 5               4          15               7      Both           False TrailToLine        60        20          1250  0.260800  4198.90 0.100526       1.082148      -3705.70     -0.406585  -4871.641
+                 5               4          10               7      Both           False TrailToLine        40        20          1266  0.254344  3392.58 0.098183       1.068492      -3221.36     -0.480786  -5501.752
+                 5               4          10               7      Both           False TrailToLine        40        10          1266  0.254344  3392.58 0.098183       1.068492      -3221.36     -0.480786  -5501.752
+                 5               4          10               7      Both           False TrailToLine        60        20          1266  0.254344  3392.58 0.098183       1.068492      -3221.36     -0.480786  -5501.752
+                 5               4          10               7      Both           False TrailToLine        60        10          1266  0.254344  3392.58 0.098183       1.068492      -3221.36     -0.480786  -5501.752
+                 5               4          10               7      Both           False TrailToLine        20        10          1266  0.254344  3392.58 0.098183       1.068492      -3221.36     -0.480786  -5501.752
+                 5               4          10               7      Both           False TrailToLine        20        20          1266  0.254344  3392.58 0.098183       1.068492      -3221.36     -0.480786  -5501.752
+                 5               4          10               5      Both           False TrailToLine        60        20          1462  0.229138  2112.06 0.065792       1.039317      -3970.50     -0.539123  -6253.950
+                 5               4          10               5      Both           False TrailToLine        60        10          1462  0.229138  2112.06 0.065792       1.039317      -3970.50     -0.539123  -6253.950
+  Heatmap saved: /home/ad/strategy-platform-v2/strategy_platform/optimize/../../reports/heatmap_supertrendfractal_MNQ_20260525_1430.png
+
+[3/4] Monte Carlo (200 sims × top 20 combos)...
+      [ 1/20]  stability=0.00  mc_pnl_p5=$-367,928  mc_pnl_p50=$-237,724
+      [ 2/20]  stability=0.00  mc_pnl_p5=$-367,928  mc_pnl_p50=$-237,724
+      [ 3/20]  stability=0.00  mc_pnl_p5=$-367,928  mc_pnl_p50=$-237,724
+      [ 4/20]  stability=0.00  mc_pnl_p5=$-367,928  mc_pnl_p50=$-237,724
+      [ 5/20]  stability=0.00  mc_pnl_p5=$-367,928  mc_pnl_p50=$-237,724
+      [ 6/20]  stability=0.00  mc_pnl_p5=$-367,928  mc_pnl_p50=$-237,724
+      [ 7/20]  stability=0.01  mc_pnl_p5=$-338,727  mc_pnl_p50=$-219,822
+      [ 8/20]  stability=0.01  mc_pnl_p5=$-338,727  mc_pnl_p50=$-219,822
+      [ 9/20]  stability=0.01  mc_pnl_p5=$-338,727  mc_pnl_p50=$-219,822
+      [10/20]  stability=0.01  mc_pnl_p5=$-338,727  mc_pnl_p50=$-219,822
+      [11/20]  stability=0.01  mc_pnl_p5=$-338,727  mc_pnl_p50=$-219,822
+      [12/20]  stability=0.01  mc_pnl_p5=$-338,727  mc_pnl_p50=$-219,822
+      [13/20]  stability=0.10  mc_pnl_p5=$-222,131  mc_pnl_p50=$-96,906
+      [14/20]  stability=0.10  mc_pnl_p5=$-222,131  mc_pnl_p50=$-96,906
+      [15/20]  stability=0.10  mc_pnl_p5=$-222,131  mc_pnl_p50=$-96,906
+      [16/20]  stability=0.10  mc_pnl_p5=$-222,131  mc_pnl_p50=$-96,906
+      [17/20]  stability=0.10  mc_pnl_p5=$-222,131  mc_pnl_p50=$-96,906
+      [18/20]  stability=0.10  mc_pnl_p5=$-222,131  mc_pnl_p50=$-96,906
+      [19/20]  stability=0.07  mc_pnl_p5=$-234,902  mc_pnl_p50=$-110,109
+      [20/20]  stability=0.07  mc_pnl_p5=$-234,902  mc_pnl_p50=$-110,109
+
+  MC results saved: /home/ad/strategy-platform-v2/strategy_platform/optimize/../../reports/MC_supertrendfractal_MNQ_20260525_1430.csv
+
+[4/4] OOS validation (top 5 by MC stability)...
+
+  OOS results saved: /home/ad/strategy-platform-v2/strategy_platform/optimize/../../reports/OOS_supertrendfractal_MNQ_20260525_1430.csv
+
+── OOS Validation ──────────────────────────────────────────────
+ minute_bar_period  atr_multiplier  atr_period  fractal_length direction  invert_signals   exit_mode  tp_ticks  sl_ticks  mc_stability  mc_pnl_p50  oos_net_pnl  oos_sharpe  oos_win_rate
+                 5               4          10               7      Both           False TrailToLine        20        10         0.095   -96906.06     -2375.98   -0.110351      0.251418
+                 5               4          10               7      Both           False TrailToLine        20        20         0.095   -96906.06     -2375.98   -0.110351      0.251418
+                 5               4          10               7      Both           False TrailToLine        60        20         0.095   -96906.06     -2375.98   -0.110351      0.251418
+                 5               4          10               7      Both           False TrailToLine        60        10         0.095   -96906.06     -2375.98   -0.110351      0.251418
+                 5               4          10               7      Both           False TrailToLine        40        10         0.095   -96906.06     -2375.98   -0.110351      0.251418
+  WARNING: failed to update shared results store: Could not connect to or initialize results database 'strategy_results'. If the database already exists, confirm the RESULTS_DB_* settings and that the current MySQL user has privileges on it. Original error: (pymysql.err.OperationalError) (2003, "Can't connect to MySQL server on '192.168.1.228' ([Errno 113] No route to host)")
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+  Checkpoint removed.
+
+Done. Reports saved to /home/ad/strategy-platform-v2/strategy_platform/optimize/../../reports/
