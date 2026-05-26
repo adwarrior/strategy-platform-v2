@@ -22,11 +22,11 @@ from strategy_platform.strategies.orb30_monti.strategy import ORB30Monti
 def main() -> None:
     print("=" * 80)
     print("ORB30Monti — Python parity run vs NT8 Market Replay")
-    print("Window: 2026-05-14 → 2026-05-23 (NT covered 15/05–22/05)")
+    print("Window: 2026-05-15 → 2026-05-23 (matching NT8 Market Replay window)")
     print("=" * 80)
 
-    # 1. Load 5m MNQ over parity window
-    df = load_5m('MNQ', start='2026-05-14', end='2026-05-23')
+    # 1. Load 5m MNQ — start matches NT replay start (15/05), end exclusive in loader so 23/05 covers 22/05
+    df = load_5m('MNQ', start='2026-05-15', end='2026-05-23')
     print(f"\nData: {len(df):,} 5m bars | {df.index.min()} -> {df.index.max()} | tz={df.index.tz}")
     print(f"First 3 bars:\n{df.head(3)}\n")
 
