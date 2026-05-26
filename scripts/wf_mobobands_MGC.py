@@ -139,10 +139,12 @@ def session_breakdown(trades_df: pd.DataFrame) -> Dict[str, Dict[str, float]]:
     if trades_df is None or len(trades_df) == 0:
         return out
 
+    # entry_time inherits the strategy's bar index, which is ET-naive
+    # (loader returns ET-naive for emini MNQ/MES/MGC). Use as-is.
     _et_src = trades_df["entry_time"]
-    if _et_src.dt.tz is None:
-        _et_src = _et_src.dt.tz_localize("UTC")
-    et_times = _et_src.dt.tz_convert("US/Eastern")
+    if _et_src.dt.tz is not None:
+        _et_src = _et_src.dt.tz_convert("US/Eastern").dt.tz_localize(None)
+    et_times = _et_src
     for i, row in trades_df.iterrows():
         hour = et_times.iloc[i].hour
         sess = session_for_hour(hour)
