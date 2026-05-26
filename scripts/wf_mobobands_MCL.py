@@ -251,19 +251,18 @@ for tick_size in TICK_SIZES:
             "unreliable":   oos_s["trades"] < 30,
         })
 
-        # Session bucketing — OOS trades only
+        # Session bucketing — OOS trades only.
+        # entry_time inherits tick-bar index, which is ET-naive (DB convention).
         for t in oos_trade_list:
-            entry_utc = pd.Timestamp(t["entry_time"])
-            if entry_utc.tzinfo is None:
-                entry_utc = entry_utc.tz_localize("UTC")
-            entry_et  = entry_utc.tz_convert("US/Eastern")
+            entry_et = pd.Timestamp(t["entry_time"])
+            if entry_et.tzinfo is not None:
+                entry_et = entry_et.tz_convert("US/Eastern").tz_localize(None)
             bucket    = session_bucket(entry_et.hour)
             rows_session.append({
                 "tick_size":   tick_size,
                 "fold":        fn,
                 "oos_start":   oos_start,
                 "oos_end":     oos_end,
-                "entry_utc":   str(entry_utc),
                 "entry_et":    str(entry_et),
                 "session":     bucket,
                 "direction":   t.get("direction", ""),
