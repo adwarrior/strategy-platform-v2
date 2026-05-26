@@ -138,14 +138,15 @@ def _run_fold(
 ) -> tuple[Dict, List[Dict]]:
     """Run one IS+OOS fold. Returns (row_dict, oos_trade_list)."""
 
-    # Slice using UTC index (tick bars are UTC-indexed)
-    is_s_utc  = pd.Timestamp(is_start,  tz="UTC")
-    is_e_utc  = pd.Timestamp(is_end,    tz="UTC") + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
-    oos_s_utc = pd.Timestamp(oos_start, tz="UTC")
-    oos_e_utc = pd.Timestamp(oos_end,   tz="UTC") + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+    # Slice using ET-naive index (tick bars from load_tick_bars are ET-naive,
+    # same convention as historical_data_1m — ingestion strips tz before INSERT)
+    is_s  = pd.Timestamp(is_start)
+    is_e  = pd.Timestamp(is_end) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+    oos_s = pd.Timestamp(oos_start)
+    oos_e = pd.Timestamp(oos_end) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
 
-    df_is  = df_full.loc[is_s_utc:is_e_utc]
-    df_oos = df_full.loc[oos_s_utc:oos_e_utc]
+    df_is  = df_full.loc[is_s:is_e]
+    df_oos = df_full.loc[oos_s:oos_e]
 
     params = {**strategy.default_params, **BASELINE_OVERRIDE}
 

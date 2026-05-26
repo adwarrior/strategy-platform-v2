@@ -261,9 +261,10 @@ def main():
 
         print(f"  Loaded {len(full_data)} bars total.")
 
-        # full_data index is UTC naive or UTC — normalise
-        if full_data.index.tz is None:
-            full_data.index = full_data.index.tz_localize("UTC")
+        # full_data index is ET-naive (loader returns ET-naive for emini MNQ/MES/MGC).
+        # Strip any stray tz info so slice bounds (also ET-naive) match.
+        if full_data.index.tz is not None:
+            full_data.index = full_data.index.tz_convert("America/New_York").tz_localize(None)
 
         strat  = build_strategy(tick_sz)
         params = build_params(tick_sz)
@@ -272,14 +273,14 @@ def main():
             f_num = fold["fold"]
             print(f"  Fold {f_num}: IS {fold['is_start']}→{fold['is_end']}  OOS {fold['oos_start']}→{fold['oos_end']}")
 
-            # Slice IS
-            is_start = pd.Timestamp(fold["is_start"], tz="UTC")
-            is_end   = pd.Timestamp(fold["is_end"],   tz="UTC") + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+            # Slice IS — bounds in ET-naive to match data index
+            is_start = pd.Timestamp(fold["is_start"])
+            is_end   = pd.Timestamp(fold["is_end"]) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
             is_data  = full_data.loc[is_start:is_end].copy()
 
             # Slice OOS
-            oos_start = pd.Timestamp(fold["oos_start"], tz="UTC")
-            oos_end   = pd.Timestamp(fold["oos_end"],   tz="UTC") + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+            oos_start = pd.Timestamp(fold["oos_start"])
+            oos_end   = pd.Timestamp(fold["oos_end"]) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
             oos_data  = full_data.loc[oos_start:oos_end].copy()
 
             print(f"    IS bars: {len(is_data)}, OOS bars: {len(oos_data)}")

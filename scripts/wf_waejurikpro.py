@@ -140,10 +140,12 @@ def session_breakdown(trades_df: pd.DataFrame) -> Dict[str, Dict[str, float]]:
     if trades_df is None or len(trades_df) == 0 or "entry_time" not in trades_df.columns:
         return _finalise_sessions(out)
 
+    # entry_time inherits the strategy's bar index, which is ET-naive
+    # (loader returns ET-naive for emini MNQ/MES/MGC). Use as-is.
     _et_src = trades_df["entry_time"]
-    if _et_src.dt.tz is None:
-        _et_src = _et_src.dt.tz_localize("UTC")
-    et_times = _et_src.dt.tz_convert("US/Eastern")
+    if _et_src.dt.tz is not None:
+        _et_src = _et_src.dt.tz_convert("US/Eastern").dt.tz_localize(None)
+    et_times = _et_src
     pnl_col = "pnl" if "pnl" in trades_df.columns else "net_pnl"
     if pnl_col not in trades_df.columns:
         return _finalise_sessions(out)
@@ -217,9 +219,10 @@ def run_fold(strat: WaeJurikPro, data: pd.DataFrame, params: Dict[str, Any]) -> 
 
 
 def normalise_tz(df: pd.DataFrame) -> pd.DataFrame:
-    if df.index.tz is None:
+    """Strip any stray tz info — loader returns ET-naive for emini data."""
+    if df.index.tz is not None:
         df = df.copy()
-        df.index = df.index.tz_localize("UTC")
+        df.index = df.index.tz_convert("America/New_York").tz_localize(None)
     return df
 
 
@@ -230,10 +233,11 @@ def run_one_combo(strat, tick_sz, fold, full_data, symbol, fold_rows, session_ro
     print(f"  Fold {f_num}: IS {fold['is_start']}→{fold['is_end']}  OOS {fold['oos_start']}→{fold['oos_end']}",
           flush=True)
 
-    is_start = pd.Timestamp(fold["is_start"], tz="UTC")
-    is_end   = pd.Timestamp(fold["is_end"],   tz="UTC") + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
-    oos_start = pd.Timestamp(fold["oos_start"], tz="UTC")
-    oos_end   = pd.Timestamp(fold["oos_end"],   tz="UTC") + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+    # Slice bounds in ET-naive (matches loader's ET-naive bar index)
+    is_start = pd.Timestamp(fold["is_start"])
+    is_end   = pd.Timestamp(fold["is_end"]) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+    oos_start = pd.Timestamp(fold["oos_start"])
+    oos_end   = pd.Timestamp(fold["oos_end"]) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
     is_data  = full_data.loc[is_start:is_end].copy()
     oos_data = full_data.loc[oos_start:oos_end].copy()
     print(f"    IS bars: {len(is_data)}, OOS bars: {len(oos_data)}", flush=True)
