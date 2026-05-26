@@ -35,13 +35,10 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
-from zoneinfo import ZoneInfo
 
 from strategy_platform.base_strategy import BaseStrategy
 from strategy_platform.registry import register
 from strategy_platform.strategies.mobobands.strategy import _summarise, _bootstrap_trades
-
-_ET = ZoneInfo("America/New_York")
 
 
 # ---------------------------------------------------------------------------
@@ -241,17 +238,6 @@ def _ensure_5m(df: pd.DataFrame) -> pd.DataFrame:
 
 def _round_tick(price: float, tick_size: float) -> float:
     return round(price / tick_size) * tick_size
-
-
-def _to_et(ts: pd.Timestamp) -> pd.Timestamp:
-    """
-    Convert a bar timestamp to America/New_York.
-    DB convention: historical_data_1m timestamps are UTC (timezone-naive stored as UTC).
-    If the index has no tzinfo we treat it as UTC and localise before converting.
-    """
-    if ts.tzinfo is None:
-        ts = ts.tz_localize("UTC")
-    return ts.tz_convert(_ET)
 
 
 # ---------------------------------------------------------------------------
