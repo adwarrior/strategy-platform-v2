@@ -69,3 +69,24 @@
       [17/20]  stability=0.13  mc_pnl_p5=$-93,883  mc_pnl_p50=$-34,864
       [18/20]  stability=0.13  mc_pnl_p5=$-93,883  mc_pnl_p50=$-34,864
       [19/20]  stability=0.13  mc_pnl_p5=$-93,883  mc_pnl_p50=$-34,864
+      [20/20]  stability=0.13  mc_pnl_p5=$-93,883  mc_pnl_p50=$-34,864
+
+  MC results saved: /home/ad/strategy-platform-v2/strategy_platform/optimize/../../reports/MC_supertrendfractal_MES_20260525_1430.csv
+
+[4/4] OOS validation (top 5 by MC stability)...
+
+  OOS results saved: /home/ad/strategy-platform-v2/strategy_platform/optimize/../../reports/OOS_supertrendfractal_MES_20260525_1430.csv
+
+── OOS Validation ──────────────────────────────────────────────
+ minute_bar_period  atr_multiplier  atr_period  fractal_length direction  invert_signals       exit_mode  tp_ticks  sl_ticks  mc_stability  mc_pnl_p50  oos_net_pnl  oos_sharpe  oos_win_rate
+                 5               4          10               3      Both           False FixedTPSL_Ticks        60        10         0.940      908.52     -1231.26   -0.273174      0.139102
+                 5               4           5               3      Both           False FixedTPSL_Ticks        60        20         0.925     1306.76        59.52    0.008911      0.260922
+                 5               5           5               7      Both           False FixedTPSL_Ticks        60        10         0.850      500.13     -1778.88   -0.626182      0.113360
+                 5               4          15               3      Both           False FixedTPSL_Ticks        60        10         0.765      421.35     -1488.14   -0.360516      0.136266
+                 5               5           5               7      Both           False     TrailToLine        20        20         0.130   -34864.04     -3924.31   -0.422917      0.193122
+  WARNING: failed to update shared results store: Could not connect to or initialize results database 'strategy_results'. If the database already exists, confirm the RESULTS_DB_* settings and that the current MySQL user has privileges on it. Original error: (pymysql.err.OperationalError) (2003, "Can't connect to MySQL server on '192.168.1.228' ([Errno 113] No route to host)")
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+  Checkpoint removed.
+
+Done. Reports saved to /home/ad/strategy-platform-v2/strategy_platform/optimize/../../reports/
