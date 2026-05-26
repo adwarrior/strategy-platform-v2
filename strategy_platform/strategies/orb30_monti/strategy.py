@@ -372,17 +372,16 @@ def _run_backtest_loop(
         qty = min(qty, max_contracts_cap)
         return qty
 
-    # ---- Main loop
+    # ---- Main loop. Input is ET-naive from loader (historical_data_1m is stored ET).
     for i in range(n):
-        ts_utc: pd.Timestamp = idx[i]
-        ts_et  = _to_et(ts_utc)
+        ts_et: pd.Timestamp = idx[i]
         bar_date = ts_et.date()
 
         # ── Day rollover ──────────────────────────────────────────────────
         if bar_date != cur_date:
             if in_trade:
                 # Safety: force-close any carry-over position at open of new day
-                _close_trade(open_[i] if not np.isnan(open_[i]) else close[i], ts_utc, 'eod')
+                _close_trade(open_[i] if not np.isnan(open_[i]) else close[i], ts_et, 'eod')
             _reset_day()
             cur_date = bar_date
 
