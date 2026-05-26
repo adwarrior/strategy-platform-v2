@@ -122,7 +122,7 @@ class ORB30Monti(BaseStrategy):
             ],
             "2. Entry":   ['use_delta_filter', 'delta_threshold'],
             "3. Risk":    [
-                'sizing_mode', 'risk_per_trade_dollars',
+                'use_risk_sizing', 'risk_per_trade_dollars',
                 'fixed_contract_count', 'max_contracts_cap',
                 'risk_reward_ratio',
             ],
@@ -138,7 +138,7 @@ class ORB30Monti(BaseStrategy):
             'session_end_minute_ny':   'Session End Minute (NY)',
             'use_delta_filter':        'Use Delta Filter',
             'delta_threshold':         'Delta Threshold (proxy ticks)',
-            'sizing_mode':             'Sizing Mode',
+            'use_risk_sizing':         'Use Risk-Based Sizing',
             'risk_per_trade_dollars':  'Risk Per Trade ($)',
             'fixed_contract_count':    'Fixed Contract Count',
             'max_contracts_cap':       'Max Contracts Cap',
@@ -275,7 +275,7 @@ def _run_backtest_loop(
     use_delta_filter = bool(params['use_delta_filter'])
     delta_threshold  = int(params['delta_threshold'])
 
-    sizing_mode           = str(params['sizing_mode'])
+    use_risk_sizing       = bool(params['use_risk_sizing'])
     risk_per_trade_usd    = float(params['risk_per_trade_dollars'])
     fixed_contract_count  = max(1, int(params['fixed_contract_count']))
     max_contracts_cap     = int(params['max_contracts_cap'])
@@ -355,12 +355,12 @@ def _run_backtest_loop(
     def _compute_qty() -> int:
         """
         Mirror ORB30Monti.ComputeQty().
-        RangeWidth: floor(risk_per_trade / (range_width * point_value)), clamped [1, cap].
-        FixedContracts: fixed_contract_count.
+        use_risk_sizing=True : floor(risk_per_trade / (range_width * point_value)), clamped [1, cap].
+        use_risk_sizing=False: fixed_contract_count.
         """
-        if sizing_mode == 'fixed_contracts':
+        if not use_risk_sizing:
             return max(1, fixed_contract_count)
-        # range_width mode
+        # Risk-based sizing
         rw = range_high - range_low
         if rw <= 0:
             return 1

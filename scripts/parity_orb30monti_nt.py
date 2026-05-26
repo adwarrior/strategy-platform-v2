@@ -79,7 +79,7 @@ def main() -> None:
     # NT8 settings: RangeWidth, $200 risk, RR=1, cap=50
     params = {
         'use_delta_filter':       False,
-        'sizing_mode':            'range_width',
+        'use_risk_sizing':        True,
         'risk_per_trade_dollars': 200.0,
         'max_contracts_cap':      50,
         'risk_reward_ratio':      1.0,
