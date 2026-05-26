@@ -64,7 +64,7 @@ class ORB30Monti(BaseStrategy):
         'use_delta_filter':  False,
         'delta_threshold':   200,
         # 3. Risk
-        'sizing_mode':             'range_width',  # 'range_width' | 'fixed_contracts'
+        'use_risk_sizing':         True,   # True = $-risk based; False = fixed contracts
         'risk_per_trade_dollars':  500.0,
         'fixed_contract_count':    1,
         'max_contracts_cap':       50,
