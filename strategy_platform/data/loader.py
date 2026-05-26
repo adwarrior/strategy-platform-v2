@@ -242,14 +242,8 @@ def load_5m(
         df1 = load_1m(symbol, start=start, end=end, host=host)
         if df1.empty:
             return df1
-        # historical_data_1m is stored in UTC; convert to ET (with DST) so that
-        # session-hour logic in strategies (anchor 9-10am, etc.) works correctly,
-        # matching the convention of historical_data (which is already in ET).
-        df1.index = (
-            df1.index.tz_localize('UTC')
-               .tz_convert('America/New_York')
-               .tz_localize(None)
-        )
+        # historical_data_1m is stored ET-naive (ingestion does UTC→ET→strip-tz before INSERT).
+        # No conversion needed — resample directly on ET-naive timestamps.
         df = df1.resample('5min', label='right', closed='right').agg(
             {'open': 'first', 'high': 'max', 'low': 'min', 'close': 'last', 'volume': 'sum'}
         ).dropna(subset=['open'])
