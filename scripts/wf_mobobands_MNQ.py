@@ -203,17 +203,12 @@ def _run_fold(
         "low_trade_flag":   low_trade_flag,
     }
 
-    # Tag each OOS trade with fold + tick_size + ET session
+    # Tag each OOS trade with fold + tick_size + ET session.
+    # entry_time inherits tick-bar index, which is ET-naive (same as historical_data_1m).
     for t in oos_trades:
         entry_et = t["entry_time"]
-        # entry_time from _make_trade is a pandas Timestamp.
-        # If it's tz-naive (strategy strips tz), we must localize+convert.
-        if entry_et.tzinfo is None:
-            # Tick bar index was UTC-aware; strategy may strip tz in _run_backtest_loop.
-            # Treat as UTC then convert.
-            entry_et = entry_et.tz_localize("UTC").tz_convert("America/New_York")
-        else:
-            entry_et = entry_et.tz_convert("America/New_York")
+        if entry_et.tzinfo is not None:
+            entry_et = entry_et.tz_convert("America/New_York").tz_localize(None)
         t["_fold"]      = fold_idx
         t["_tick_size"] = tick_sz
         t["_session"]   = _session_label(entry_et.hour)
@@ -222,10 +217,10 @@ def _run_fold(
 
 
 def _check_tz(df: pd.DataFrame) -> pd.DataFrame:
-    """Ensure index is UTC-aware (load_tick_bars returns tz-naive UTC in older versions)."""
-    if df.index.tz is None:
+    """Strip any stray tz info — load_tick_bars returns ET-naive (matches DB convention)."""
+    if df.index.tz is not None:
         df = df.copy()
-        df.index = df.index.tz_localize("UTC")
+        df.index = df.index.tz_convert("America/New_York").tz_localize(None)
     return df
 
 
