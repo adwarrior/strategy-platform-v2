@@ -38,10 +38,11 @@ def main() -> None:
     print(f"Point value: ${s.tick_value / s.tick_size}/pt\n")
 
     # 3. Run backtest with NT-matching params
+    # NT8 settings used in market replay: RangeWidth sizing, $200 risk, RR=1, max cap 50.
     params = {
         'use_delta_filter':       False,
         'sizing_mode':            'range_width',
-        'risk_per_trade_dollars': 500.0,
+        'risk_per_trade_dollars': 200.0,
         'max_contracts_cap':      50,
         'risk_reward_ratio':      1.0,
     }

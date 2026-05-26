@@ -390,15 +390,11 @@ def _run_backtest_loop(
         if not eod_active and bar_time_et >= eod_t:
             eod_active = True
             if in_trade:
-                _close_trade(open_[i] if not np.isnan(open_[i]) else close[i], ts_utc, 'eod')
+                _close_trade(open_[i] if not np.isnan(open_[i]) else close[i], ts_et, 'eod')
         if eod_active:
             continue
 
         # ── Range accumulation and locking ───────────────────────────────
-        # DB timestamps (historical_data_1m) are UTC; bar at e.g. 14:30 UTC = 09:30 ET
-        # (during EDT). The bar closes at that timestamp, so ET time 09:30 IS within
-        # the range window [09:30, 10:00).
-        #
         # Inclusion rule mirrors C#:
         #   inRange when ET bar time in [range_start_t, range_end_t]
         #   Lock fires on the FIRST bar whose ET time >= range_end_t (and still in-range)
@@ -427,17 +423,17 @@ def _run_backtest_loop(
             # Still manage the open trade if one was entered
             if in_trade:
                 if low[i] <= trade_stop:
-                    _close_trade(trade_stop, ts_utc, 'sl')
+                    _close_trade(trade_stop, ts_et, 'sl')
                 elif high[i] >= trade_target:
-                    _close_trade(trade_target, ts_utc, 'tp')
+                    _close_trade(trade_target, ts_et, 'tp')
             continue
 
         # ── Manage open trade (stop / target) ────────────────────────────
         if in_trade:
             if low[i] <= trade_stop:
-                _close_trade(trade_stop, ts_utc, 'sl')
+                _close_trade(trade_stop, ts_et, 'sl')
             elif high[i] >= trade_target:
-                _close_trade(trade_target, ts_utc, 'tp')
+                _close_trade(trade_target, ts_et, 'tp')
             # After managing the trade, do not look for new entries on this bar
             continue
 
@@ -476,14 +472,14 @@ def _run_backtest_loop(
         trade_stop     = stop_price
         trade_target   = target_price
         trade_qty      = qty
-        trade_entry_ts = ts_utc
+        trade_entry_ts = ts_et
         in_trade       = True
         trade_taken    = True
 
         # Same-bar exit check (worst-case: stop hits before target if both in range)
         if low[i] <= trade_stop:
-            _close_trade(trade_stop, ts_utc, 'sl')
+            _close_trade(trade_stop, ts_et, 'sl')
         elif high[i] >= trade_target:
-            _close_trade(trade_target, ts_utc, 'tp')
+            _close_trade(trade_target, ts_et, 'tp')
 
     return trades
