@@ -11,3 +11,81 @@
 [2/4] Grid search: 540 combinations
       Running all 540 combinations.
       3 worker(s)...
+          50/540  (9.3%)  — checkpoint saved
+         100/540  (18.5%)  — checkpoint saved
+         150/540  (27.8%)  — checkpoint saved
+         200/540  (37.0%)  — checkpoint saved
+         250/540  (46.3%)  — checkpoint saved
+         300/540  (55.6%)  — checkpoint saved
+         350/540  (64.8%)  — checkpoint saved
+         400/540  (74.1%)  — checkpoint saved
+         450/540  (83.3%)  — checkpoint saved
+         500/540  (92.6%)  — checkpoint saved
+         540/540  (100.0%)  — checkpoint saved
+
+  IS results saved: /home/ad/strategy-platform-v2/strategy_platform/optimize/../../reports/IS_supertrendfractal_MGC_20260526_0606.csv
+
+── Top 20 IS by Sharpe ─────────────────────────────────────────
+ minute_bar_period  atr_multiplier  atr_period  fractal_length direction  invert_signals       exit_mode  tp_ticks  sl_ticks  total_trades  win_rate  net_pnl    sharpe  profit_factor  max_drawdown  bs_sharpe_p5  bs_pnl_p5
+                 5               5           5               3      Both           False FixedTPSL_Ticks        60        10          2255  0.162749  -287.60 -0.035173       0.986777      -1712.72     -0.801021  -2195.420
+                 5               5           5               5      Both           False FixedTPSL_Ticks        60        10          2141  0.159738  -724.32 -0.084934       0.965050      -1683.04     -0.987697  -2636.532
+                 5               5           5               3      Both           False FixedTPSL_Ticks        60        20          2080  0.258654 -1721.60 -0.187437       0.948119      -2967.44     -1.142866  -4158.960
+                 5               5          10               5      Both           False FixedTPSL_Ticks        60        10          1965  0.149618 -2056.80 -0.225657       0.893153      -2449.84     -1.549728  -3877.024
+                 5               3           5               5      Both           False FixedTPSL_Ticks        60        10          3427  0.150861 -3289.04 -0.247637       0.901888      -4839.20     -1.685011  -5728.324
+                 5               4          10               5      Both           False FixedTPSL_Ticks        60        10          2603  0.151364 -2406.56 -0.260596       0.905431      -3076.80     -1.555967  -4648.160
+                 5               4          10               7      Both           False FixedTPSL_Ticks        60        10          2272  0.149208 -2443.44 -0.271088       0.890272      -2666.72     -1.652050  -4535.008
+                 5               5           5               3      Both           False FixedTPSL_Ticks        40        10          2304  0.214844 -1792.08 -0.294305       0.914006      -2068.08     -1.525855  -3465.892
+                 5               5           5               7      Both           False FixedTPSL_Ticks        60        10          1893  0.145800 -2487.36 -0.320306       0.866471      -2607.12     -1.750942  -4240.520
+                 5               3           5               3      Both           False FixedTPSL_Ticks        60        10          3673  0.148652 -4092.96 -0.339325       0.886379      -4684.96     -1.868952  -6629.144
+                 5               5          15               5      Both           False FixedTPSL_Ticks        60        10          2017  0.143282 -3005.84 -0.344311       0.849003      -3656.72     -1.940708  -4739.660
+                 5               3           5               7      Both           False FixedTPSL_Ticks        60        20          2679  0.246361 -4852.08 -0.346824       0.888327      -5870.96     -1.819267  -7798.136
+                 5               3           5               7      Both           False FixedTPSL_Ticks        60        10          2901  0.144778 -4019.52 -0.348326       0.859365      -4520.24     -2.048191  -6232.044
+                 5               4          15               7      Both           False FixedTPSL_Ticks        60        10          2398  0.142202 -3754.96 -0.356586       0.841540      -4049.12     -2.033394  -5801.928
+                 5               5           5               5      Both           False FixedTPSL_Ticks        40        10          2153  0.210404 -2152.56 -0.366716       0.890086      -2341.84     -1.650236  -3643.264
+                 5               5           5               3      Both           False FixedTPSL_Ticks        40        20          2154  0.334726 -3094.08 -0.386895       0.899667      -3688.88     -1.728433  -5341.044
+                 5               4          15               5      Both           False FixedTPSL_Ticks        60        10          2759  0.143893 -3993.68 -0.398757       0.853229      -4334.80     -2.016683  -6138.884
+                 5               5           5               5      Both           False FixedTPSL_Ticks        60        20          2012  0.246521 -3618.24 -0.400349       0.889094      -4410.80     -1.708499  -6184.312
+                 5               5           5               7      Both           False FixedTPSL_Ticks        60        20          1808  0.243363 -3708.16 -0.404759       0.874041      -4408.56     -1.778240  -6090.872
+                 5               5          10               5      Both           False FixedTPSL_Ticks        60        20          1863  0.232958 -5371.76 -0.408247       0.825320      -6104.48     -2.288251  -7753.800
+  Heatmap saved: /home/ad/strategy-platform-v2/strategy_platform/optimize/../../reports/heatmap_supertrendfractal_MGC_20260526_0606.png
+
+[3/4] Monte Carlo (200 sims × top 20 combos)...
+      [ 1/20]  stability=0.45  mc_pnl_p5=$-891  mc_pnl_p50=$-32
+      [ 2/20]  stability=0.69  mc_pnl_p5=$-613  mc_pnl_p50=$240
+      [ 3/20]  stability=0.06  mc_pnl_p5=$-2,121  mc_pnl_p50=$-1,019
+      [ 4/20]  stability=0.02  mc_pnl_p5=$-1,795  mc_pnl_p50=$-1,068
+      [ 5/20]  stability=0.00  mc_pnl_p5=$-2,497  mc_pnl_p50=$-1,641
+      [ 6/20]  stability=0.07  mc_pnl_p5=$-1,556  mc_pnl_p50=$-780
+      [ 7/20]  stability=0.00  mc_pnl_p5=$-2,234  mc_pnl_p50=$-1,345
+      [ 8/20]  stability=0.00  mc_pnl_p5=$-2,661  mc_pnl_p50=$-2,119
+      [ 9/20]  stability=0.04  mc_pnl_p5=$-1,612  mc_pnl_p50=$-772
+      [10/20]  stability=0.00  mc_pnl_p5=$-3,824  mc_pnl_p50=$-2,958
+      [11/20]  stability=0.03  mc_pnl_p5=$-2,130  mc_pnl_p50=$-1,063
+      [12/20]  stability=0.00  mc_pnl_p5=$-3,720  mc_pnl_p50=$-2,662
+      [13/20]  stability=0.00  mc_pnl_p5=$-3,457  mc_pnl_p50=$-2,586
+      [14/20]  stability=0.00  mc_pnl_p5=$-2,908  mc_pnl_p50=$-1,983
+      [15/20]  stability=0.00  mc_pnl_p5=$-2,355  mc_pnl_p50=$-1,735
+      [16/20]  stability=0.00  mc_pnl_p5=$-4,659  mc_pnl_p50=$-3,764
+      [17/20]  stability=0.00  mc_pnl_p5=$-3,384  mc_pnl_p50=$-2,397
+      [18/20]  stability=0.00  mc_pnl_p5=$-3,477  mc_pnl_p50=$-2,372
+      [19/20]  stability=0.00  mc_pnl_p5=$-4,256  mc_pnl_p50=$-3,225
+      [20/20]  stability=0.00  mc_pnl_p5=$-5,383  mc_pnl_p50=$-4,498
+
+  MC results saved: /home/ad/strategy-platform-v2/strategy_platform/optimize/../../reports/MC_supertrendfractal_MGC_20260526_0606.csv
+
+[4/4] OOS validation (top 5 by MC stability)...
+
+  OOS results saved: /home/ad/strategy-platform-v2/strategy_platform/optimize/../../reports/OOS_supertrendfractal_MGC_20260526_0606.csv
+
+── OOS Validation ──────────────────────────────────────────────
+ minute_bar_period  atr_multiplier  atr_period  fractal_length direction  invert_signals       exit_mode  tp_ticks  sl_ticks  mc_stability  mc_pnl_p50  oos_net_pnl  oos_sharpe  oos_win_rate
+                 5               5           5               5      Both           False FixedTPSL_Ticks        60        10         0.685      240.00      -423.28   -0.106811      0.154723
+                 5               5           5               3      Both           False FixedTPSL_Ticks        60        10         0.450      -31.68       187.12    0.068842      0.168289
+                 5               4          10               5      Both           False FixedTPSL_Ticks        60        10         0.065     -780.16     -2048.56   -0.781946      0.129227
+                 5               5           5               3      Both           False FixedTPSL_Ticks        60        20         0.055    -1018.56       849.44    0.223220      0.284661
+                 5               5           5               7      Both           False FixedTPSL_Ticks        60        10         0.045     -772.12      -751.92   -0.223699      0.143954
+  Shared results store updated.
+
+  Checkpoint removed.
+
+Done. Reports saved to /home/ad/strategy-platform-v2/strategy_platform/optimize/../../reports/
