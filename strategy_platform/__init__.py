@@ -17,3 +17,4 @@ import strategy_platform.strategies.waejurikpro.strategy # noqa: F401
 import strategy_platform.strategies.nybreakout.strategy  # noqa: F401
 import strategy_platform.strategies.cct.strategy             # noqa: F401
 import strategy_platform.strategies.supertrendfractal.strategy  # noqa: F401
+import strategy_platform.strategies.orb30_monti.strategy        # noqa: F401
