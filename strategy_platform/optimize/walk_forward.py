@@ -48,6 +48,7 @@ from strategy_platform.optimize.pipeline import (
     _grid_combinations,  # noqa: F401 — imported for completeness; _deduplicated_combinations wraps it
     _init_worker,
     _run_combo,
+    strategy_reports_dir,
 )
 
 # ---------------------------------------------------------------------------

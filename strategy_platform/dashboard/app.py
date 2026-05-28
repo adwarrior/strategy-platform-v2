@@ -4823,7 +4823,7 @@ RESULTS_TSV = os.path.join(AUTORESEARCH_DIR, 'results.tsv')
 
 def _list_ar_runs(strategy_name: str, sym_safe: str) -> List[str]:
     """Return timestamps of saved AR runs for this strategy, newest first."""
-    pattern = os.path.join(REPORTS_DIR, f"AR_{strategy_name}_{sym_safe}_*.tsv")
+    pattern = os.path.join(_strat_dir(strategy_name), f"AR_{strategy_name}_{sym_safe}_*.tsv")
     files   = glob.glob(pattern)
     prefix_len = len(f"AR_{strategy_name}_{sym_safe}_")
     tss = []
@@ -4837,7 +4837,7 @@ def _list_ar_runs(strategy_name: str, sym_safe: str) -> List[str]:
 
 def _load_ar_run(strategy_name: str, sym_safe: str, ts: str) -> Optional[pd.DataFrame]:
     """Load a specific AR run TSV, skipping # metadata lines."""
-    path = os.path.join(REPORTS_DIR, f"AR_{strategy_name}_{sym_safe}_{ts}.tsv")
+    path = os.path.join(_strat_dir(strategy_name), f"AR_{strategy_name}_{sym_safe}_{ts}.tsv")
     if not os.path.exists(path):
         return None
     try:
@@ -4848,7 +4848,7 @@ def _load_ar_run(strategy_name: str, sym_safe: str, ts: str) -> Optional[pd.Data
 
 def _load_ar_run_meta(strategy_name: str, sym_safe: str, ts: str) -> dict:
     """Parse # metadata lines from an AR run file."""
-    path = os.path.join(REPORTS_DIR, f"AR_{strategy_name}_{sym_safe}_{ts}.tsv")
+    path = os.path.join(_strat_dir(strategy_name), f"AR_{strategy_name}_{sym_safe}_{ts}.tsv")
     meta = {}
     if not os.path.exists(path):
         return meta
