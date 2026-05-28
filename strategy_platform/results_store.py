@@ -456,15 +456,17 @@ def delete_optimizer_run(strategy_name: str, sym_safe: str, run_ts: str) -> None
                              {"run_id": run_id})
     except Exception:
         pass
-    # Also remove CSV files if present
+    # Also remove CSV files if present (check strategy subfolder + flat root fallback).
     try:
-        reports_dir = _os.path.join(_os.path.dirname(__file__), '..', 'reports')
+        reports_dir   = _os.path.join(_os.path.dirname(__file__), '..', 'reports')
+        strat_dir     = _os.path.join(reports_dir, strategy_name)
         for stage in ("IS", "MC", "OOS"):
-            for f in _glob.glob(_os.path.join(reports_dir, f"{stage}_{strategy_name}_{sym_safe}_{run_ts}.csv")):
-                try:
-                    _os.remove(f)
-                except Exception:
-                    pass
+            for d in (strat_dir, reports_dir):
+                for f in _glob.glob(_os.path.join(d, f"{stage}_{strategy_name}_{sym_safe}_{run_ts}.csv")):
+                    try:
+                        _os.remove(f)
+                    except Exception:
+                        pass
     except Exception:
         pass
 

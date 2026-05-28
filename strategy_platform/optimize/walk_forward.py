@@ -305,7 +305,7 @@ def run_walk_forward(
     if data_start is None or data_end is None:
         raise ValueError("data_start and data_end are required.")
 
-    os.makedirs(REPORTS_DIR, exist_ok=True)
+    strategy_dir = strategy_reports_dir(strategy_name)
     ts = datetime.now().strftime("%Y%m%d_%H%M")
 
     # ------------------------------------------------------------------
@@ -547,7 +547,7 @@ def run_walk_forward(
     # ------------------------------------------------------------------
     # Save JSON report
     # ------------------------------------------------------------------
-    report_path = os.path.join(REPORTS_DIR, f"WF_{strategy_name}_{sym_safe}_{ts}.json")
+    report_path = os.path.join(strategy_dir, f"WF_{strategy_name}_{sym_safe}_{ts}.json")
     with open(report_path, "w", encoding="utf-8") as fh:
         json.dump(output, fh, cls=_SafeEncoder, indent=2)
     print(f"[WFO] Report saved: {report_path}")
