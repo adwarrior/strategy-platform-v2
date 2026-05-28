@@ -3060,9 +3060,9 @@ with tab_is:
 
             # ── Parameter Heatmap ─────────────────────────────────────────────
             st.markdown("#### Parameter Heatmap")
-            heatmap_path = os.path.join(REPORTS_DIR, f"heatmap_{selected_name}_{sym_safe}_{selected_ts}.png")
+            heatmap_path = os.path.join(_strat_dir(selected_name), f"heatmap_{selected_name}_{sym_safe}_{selected_ts}.png")
             if not os.path.exists(heatmap_path):
-                heatmap_files = glob.glob(os.path.join(REPORTS_DIR, f"heatmap_{selected_name}_{sym_safe}_*.png"))
+                heatmap_files = glob.glob(os.path.join(_strat_dir(selected_name), f"heatmap_{selected_name}_{sym_safe}_*.png"))
                 if heatmap_files:
                     heatmap_path = max(heatmap_files, key=os.path.getmtime)
                 else:
