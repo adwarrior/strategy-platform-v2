@@ -73,6 +73,18 @@ RANK_METRICS: Dict[str, tuple] = {
 REPORTS_DIR = os.path.join(os.path.dirname(__file__), '..', '..', 'reports')
 
 
+def strategy_reports_dir(strategy_name: str) -> str:
+    """Per-strategy subfolder under reports/. Created on demand.
+
+    All strategy-tagged outputs (BT/RUN/IS/MC/OOS/AR/WF/checkpoint/heatmap) live
+    here. Files without a strategy tag (sweep findings, cross-strategy syntheses)
+    belong in reports/_synthesis or reports/_shared.
+    """
+    d = os.path.join(REPORTS_DIR, strategy_name)
+    os.makedirs(d, exist_ok=True)
+    return d
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -207,7 +219,7 @@ def run_pipeline(
     -------
     dict with keys "is_results", "mc_results", "oos_results" (all DataFrames)
     """
-    os.makedirs(REPORTS_DIR, exist_ok=True)
+    strategy_dir = strategy_reports_dir(strategy_name)
     ts = datetime.now().strftime('%Y%m%d_%H%M')
 
     cls      = StrategyRegistry.get(strategy_name)
@@ -309,7 +321,7 @@ def run_pipeline(
         total            = len(tick_bar_sizes) * len(inner_combos)
 
         gh              = _grid_hash({**{'tick_bar_size': tick_bar_sizes}, **param_grid}, data_start, data_end)
-        checkpoint_path = os.path.join(REPORTS_DIR, f'checkpoint_{strategy_name}_{sym_safe}_{gh}.csv')
+        checkpoint_path = os.path.join(strategy_dir, f'checkpoint_{strategy_name}_{sym_safe}_{gh}.csv')
         completed_keys, prior_results = _load_checkpoint(checkpoint_path, param_keys)
         new_results = list(prior_results)
         done_count  = len(completed_keys)
@@ -387,7 +399,7 @@ def run_pipeline(
         total      = len(all_combos)
 
         gh              = _grid_hash(param_grid, data_start, data_end)
-        checkpoint_path = os.path.join(REPORTS_DIR, f'checkpoint_{strategy_name}_{sym_safe}_{gh}.csv')
+        checkpoint_path = os.path.join(strategy_dir, f'checkpoint_{strategy_name}_{sym_safe}_{gh}.csv')
         completed_keys, prior_results = _load_checkpoint(checkpoint_path, param_keys)
         pending_combos  = [c for c in all_combos if _combo_key(c, param_keys) not in completed_keys]
 
@@ -435,7 +447,7 @@ def run_pipeline(
     for k, v in run_meta.items():
         df_valid[k] = v
 
-    is_csv = os.path.join(REPORTS_DIR, f'IS_{strategy_name}_{sym_safe}_{ts}.csv')
+    is_csv = os.path.join(strategy_dir, f'IS_{strategy_name}_{sym_safe}_{ts}.csv')
     df_valid.to_csv(is_csv, index=False)
     print(f"\n  IS results saved: {is_csv}")
 
@@ -478,7 +490,7 @@ def run_pipeline(
     df_mc  = pd.DataFrame(mc_rows).sort_values('mc_stability', ascending=False)
     for k, v in run_meta.items():
         df_mc[k] = v
-    mc_csv = os.path.join(REPORTS_DIR, f'MC_{strategy_name}_{sym_safe}_{ts}.csv')
+    mc_csv = os.path.join(strategy_dir, f'MC_{strategy_name}_{sym_safe}_{ts}.csv')
     df_mc.to_csv(mc_csv, index=False)
     print(f"\n  MC results saved: {mc_csv}")
 
@@ -509,7 +521,7 @@ def run_pipeline(
     df_oos_out = pd.DataFrame(oos_rows)
     for k, v in run_meta.items():
         df_oos_out[k] = v
-    oos_csv    = os.path.join(REPORTS_DIR, f'OOS_{strategy_name}_{sym_safe}_{ts}.csv')
+    oos_csv    = os.path.join(strategy_dir, f'OOS_{strategy_name}_{sym_safe}_{ts}.csv')
     df_oos_out.to_csv(oos_csv, index=False)
     print(f"\n  OOS results saved: {oos_csv}")
     _print_top(df_oos_out, param_keys, n=OOS_TOP_N, label="OOS Validation")
