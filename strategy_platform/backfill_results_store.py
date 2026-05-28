@@ -150,7 +150,7 @@ def backfill_optimizer_runs() -> int:
 
 def backfill_backtests() -> int:
     count = 0
-    for name in os.listdir(REPORTS_DIR):
+    for name, path in _scan_all_reports():
         match = BT_RE.match(name)
         if not match:
             continue
@@ -160,7 +160,6 @@ def backfill_backtests() -> int:
         if split is None:
             continue
         strategy_name, sym_safe = split
-        path = os.path.join(REPORTS_DIR, name)
         try:
             with open(path) as f:
                 payload = json.load(f)
