@@ -15,12 +15,37 @@ from typing import Dict, Optional, Tuple
 import pandas as pd
 
 import strategy_platform  # noqa: F401 - ensure strategies register
-from strategy_platform.optimize.pipeline import REPORTS_DIR
+from strategy_platform.optimize.pipeline import REPORTS_DIR, strategy_reports_dir
 from strategy_platform.registry import StrategyRegistry
 from strategy_platform import results_store
 
 RUN_RE = re.compile(r'^(IS|MC|OOS)_(.+)_(\d{8}_\d{4})\.csv$')
 BT_RE = re.compile(r'^BT_(.+)_(\d{8}_\d{6})\.json$')
+
+
+def _scan_all_reports() -> list[tuple[str, str]]:
+    """Yield (name, full_path) for every file in REPORTS_DIR (root + 1-level subdirs).
+
+    Strategy-tagged files live under reports/<strategy>/ after the 2026-05 reorg;
+    we also scan the flat root for files migrated mid-flight or backwards-compat.
+    """
+    out = []
+    if not os.path.isdir(REPORTS_DIR):
+        return out
+    for name in os.listdir(REPORTS_DIR):
+        full = os.path.join(REPORTS_DIR, name)
+        if os.path.isfile(full):
+            out.append((name, full))
+        elif os.path.isdir(full) and not name.startswith("_") and name != "configs":
+            # strategy subfolder — scan its files only (not its sub-sub)
+            try:
+                for nm in os.listdir(full):
+                    fp = os.path.join(full, nm)
+                    if os.path.isfile(fp):
+                        out.append((nm, fp))
+            except Exception:
+                pass
+    return out
 
 
 def _strategy_names() -> list[str]:
@@ -42,11 +67,22 @@ def _symbol_from_sym_safe(sym_safe: str) -> str:
 
 
 def _run_label_path(strategy_name: str, sym_safe: str, run_ts: str) -> str:
-    return os.path.join(REPORTS_DIR, f"RUN_{strategy_name}_{sym_safe}_{run_ts}.label")
+    # Check new strategy subfolder first, fall back to flat root.
+    name = f"RUN_{strategy_name}_{sym_safe}_{run_ts}.label"
+    for d in (strategy_reports_dir(strategy_name), REPORTS_DIR):
+        p = os.path.join(d, name)
+        if os.path.exists(p):
+            return p
+    return os.path.join(strategy_reports_dir(strategy_name), name)
 
 
 def _bt_label_path(strategy_name: str, sym_safe: str, bt_ts: str) -> str:
-    return os.path.join(REPORTS_DIR, f"BT_{strategy_name}_{sym_safe}_{bt_ts}.label")
+    name = f"BT_{strategy_name}_{sym_safe}_{bt_ts}.label"
+    for d in (strategy_reports_dir(strategy_name), REPORTS_DIR):
+        p = os.path.join(d, name)
+        if os.path.exists(p):
+            return p
+    return os.path.join(strategy_reports_dir(strategy_name), name)
 
 
 def _read_label(path: str) -> str:
@@ -60,9 +96,12 @@ def _read_label(path: str) -> str:
 def _load_stage_frames(strategy_name: str, sym_safe: str, run_ts: str) -> Dict[str, pd.DataFrame]:
     out: Dict[str, pd.DataFrame] = {}
     for stage in ["IS", "MC", "OOS"]:
-        path = os.path.join(REPORTS_DIR, f"{stage}_{strategy_name}_{sym_safe}_{run_ts}.csv")
-        if os.path.exists(path):
-            out[stage] = pd.read_csv(path)
+        name = f"{stage}_{strategy_name}_{sym_safe}_{run_ts}.csv"
+        for d in (strategy_reports_dir(strategy_name), REPORTS_DIR):
+            path = os.path.join(d, name)
+            if os.path.exists(path):
+                out[stage] = pd.read_csv(path)
+                break
     return out
 
 
@@ -77,7 +116,7 @@ def _run_meta_from_frames(stage_frames: Dict[str, pd.DataFrame]) -> dict:
 def backfill_optimizer_runs() -> int:
     count = 0
     seen = set()
-    for name in os.listdir(REPORTS_DIR):
+    for name, _full in _scan_all_reports():
         match = RUN_RE.match(name)
         if not match or match.group(1) != "IS":
             continue
