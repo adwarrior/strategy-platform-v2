@@ -561,7 +561,7 @@ def run_pipeline(
         os.remove(checkpoint_path)
         print(f"\n  Checkpoint removed.")
 
-    print(f"\nDone. Reports saved to {REPORTS_DIR}/")
+    print(f"\nDone. Reports saved to {strategy_dir}/")
 
     return {
         'is_results':  df_valid,
@@ -614,7 +614,7 @@ def _save_heatmap(
         ax.set_ylabel(y_key)
         ax.set_title(f"{symbol} {strategy_name} — Avg {metric_label} by {y_key} × {x_key} (IS)")
         plt.colorbar(im, ax=ax, label=f'Avg {metric_label}')
-        path = os.path.join(REPORTS_DIR, f'heatmap_{strategy_name}_{symbol.replace("=","_")}_{ts}.png')
+        path = os.path.join(strategy_reports_dir(strategy_name), f'heatmap_{strategy_name}_{symbol.replace("=","_")}_{ts}.png')
         plt.savefig(path, bbox_inches='tight', dpi=150)
         plt.close()
         print(f"  Heatmap saved: {path}")

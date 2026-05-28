@@ -44,9 +44,18 @@ from strategy_platform.data.loader import (
     load_1m, load_5m, load_tick_bars,
 )
 from strategy_platform.registry import StrategyRegistry
-from strategy_platform.optimize.pipeline import _deduplicated_combinations
+from strategy_platform.optimize.pipeline import _deduplicated_combinations, strategy_reports_dir
 
 REPORTS_DIR = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'reports'))
+
+
+def _strat_dir(strategy_name: str) -> str:
+    """Per-strategy subfolder under REPORTS_DIR. Created on demand.
+
+    Wraps strategy_reports_dir() from pipeline.py to keep all dashboard
+    path-construction sites consistent with the pipeline writer.
+    """
+    return strategy_reports_dir(strategy_name)
 
 DF_ROW_HEIGHT_PX = 35   # pixel height per dataframe row
 SCATTER_CAP = 500       # max rows shown in scatter plots
@@ -423,8 +432,13 @@ def _cmp_section_break() -> None:
     st.markdown("---")
 
 def load_latest_csv(prefix: str) -> Optional[pd.DataFrame]:
-    """Return the most recently modified CSV matching prefix*.csv, or None."""
-    files = glob.glob(os.path.join(REPORTS_DIR, f"{prefix}*.csv"))
+    """Return the most recently modified CSV matching prefix*.csv, or None.
+
+    Searches per-strategy subfolders first, then falls back to the flat root
+    so files migrated mid-flight still load.
+    """
+    files = (glob.glob(os.path.join(REPORTS_DIR, "*", f"{prefix}*.csv"))
+             + glob.glob(os.path.join(REPORTS_DIR, f"{prefix}*.csv")))
     if not files:
         return None
     return pd.read_csv(max(files, key=os.path.getmtime))
@@ -436,7 +450,7 @@ def list_run_timestamps(strategy_name: str, sym_safe: str) -> List[str]:
 
     Timestamps are extracted from IS_<strategy>_<sym>_<YYYYMMDD_HHMM>.csv filenames.
     """
-    pattern = os.path.join(REPORTS_DIR, f"IS_{strategy_name}_{sym_safe}_*.csv")
+    pattern = os.path.join(_strat_dir(strategy_name), f"IS_{strategy_name}_{sym_safe}_*.csv")
     files   = glob.glob(pattern)
     tss = []
     prefix_len = len(f"IS_{strategy_name}_{sym_safe}_")
@@ -455,7 +469,7 @@ def load_run_csv(strategy_name: str, sym_safe: str, stage: str, ts: str) -> Opti
     db_df = results_store.load_optimizer_stage(strategy_name, sym_safe, ts, stage)
     if db_df is not None:
         return db_df
-    path = os.path.join(REPORTS_DIR, f"{stage}_{strategy_name}_{sym_safe}_{ts}.csv")
+    path = os.path.join(_strat_dir(strategy_name), f"{stage}_{strategy_name}_{sym_safe}_{ts}.csv")
     if not os.path.exists(path):
         return None
     return pd.read_csv(path)
@@ -911,7 +925,7 @@ def _unique_existing_columns(df: pd.DataFrame, columns: List[str]) -> List[str]:
 
 
 def _bt_save_path(strategy_name: str, sym_safe: str, ts: str) -> str:
-    return os.path.join(REPORTS_DIR, f"BT_{strategy_name}_{sym_safe}_{ts}.json")
+    return os.path.join(_strat_dir(strategy_name), f"BT_{strategy_name}_{sym_safe}_{ts}.json")
 
 
 def _bt_db_token(bt_ts: str) -> str:
@@ -931,7 +945,7 @@ def _list_saved_backtests(strategy_name: str, sym_safe: str) -> List[str]:
     """Return saved single-backtest JSON files, newest first."""
     db_tokens = [_bt_db_token(ts) for ts in results_store.list_backtests(strategy_name, sym_safe)]
     db_ts = {_bt_token_ts(token) for token in db_tokens}
-    pattern = os.path.join(REPORTS_DIR, f"BT_{strategy_name}_{sym_safe}_*.json")
+    pattern = os.path.join(_strat_dir(strategy_name), f"BT_{strategy_name}_{sym_safe}_*.json")
     prefix_len = len(f"BT_{strategy_name}_{sym_safe}_")
     files = []
     for f in glob.glob(pattern):
@@ -944,7 +958,7 @@ def _list_saved_backtests(strategy_name: str, sym_safe: str) -> List[str]:
 @st.cache_data(ttl=15)
 def _list_wf_runs(strategy_name: str, sym_safe: str) -> List[str]:
     """Return WF JSON files for strategy+symbol, sorted newest first."""
-    pattern = os.path.join(REPORTS_DIR, f"WF_{strategy_name}_{sym_safe}_*.json")
+    pattern = os.path.join(_strat_dir(strategy_name), f"WF_{strategy_name}_{sym_safe}_*.json")
     prefix_len = len(f"WF_{strategy_name}_{sym_safe}_")
     files = []
     for f in glob.glob(pattern):
@@ -993,7 +1007,7 @@ def _save_backtest(strategy_name: str, symbol: str, params: dict,
         'trades':  trades_list,
         'ts':      ts,
     }
-    os.makedirs(REPORTS_DIR, exist_ok=True)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     db_token = None
     try:
         with open(path, 'w') as f:
@@ -1039,7 +1053,7 @@ def _set_bt_label(bt_json_path: str, label: str, strategy_name: str, sym_safe: s
 
 
 def _run_label_path(strategy_name: str, sym_safe: str, ts: str) -> str:
-    return os.path.join(REPORTS_DIR, f"RUN_{strategy_name}_{sym_safe}_{ts}.label")
+    return os.path.join(_strat_dir(strategy_name), f"RUN_{strategy_name}_{sym_safe}_{ts}.label")
 
 
 @st.cache_data(ttl=60)
@@ -1086,7 +1100,7 @@ def _wf_data_coverage(symbol: str, bar_type: str, start_iso: str, end_iso: str) 
 
 
 def _wf_label_path(strategy_name: str, sym_safe: str, ts: str) -> str:
-    return os.path.join(REPORTS_DIR, f"WF_{strategy_name}_{sym_safe}_{ts}.label")
+    return os.path.join(_strat_dir(strategy_name), f"WF_{strategy_name}_{sym_safe}_{ts}.label")
 
 
 @st.cache_data(ttl=60)
