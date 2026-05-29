@@ -3407,12 +3407,23 @@ with tab_cmp:
             df = load_run_csv(selected_name, sym_safe, stage_name, run_ts)
             return df is not None and not df.empty
 
-        preferred_stage = "IS"
-        if compare_runs:
-            if all(_has_stage_rows("OOS", ts) for ts in compare_runs):
-                preferred_stage = "OOS"
-            elif all(_has_stage_rows("MC", ts) for ts in compare_runs):
-                preferred_stage = "MC"
+        # Memoize preferred_stage per (strategy, symbol, selected runs).
+        # Without this, every Compare rerun re-loads each run's IS/MC/OOS CSVs
+        # just to detect which stage to default to.
+        _pref_cache_key = f"_cmp_pref_stage_{selected_name}_{sym_safe}"
+        _pref_runs_key = f"_cmp_pref_runs_{selected_name}_{sym_safe}"
+        _runs_sig = tuple(compare_runs)
+        if st.session_state.get(_pref_runs_key) == _runs_sig and _pref_cache_key in st.session_state:
+            preferred_stage = st.session_state[_pref_cache_key]
+        else:
+            preferred_stage = "IS"
+            if compare_runs:
+                if all(_has_stage_rows("OOS", ts) for ts in compare_runs):
+                    preferred_stage = "OOS"
+                elif all(_has_stage_rows("MC", ts) for ts in compare_runs):
+                    preferred_stage = "MC"
+            st.session_state[_pref_cache_key] = preferred_stage
+            st.session_state[_pref_runs_key] = _runs_sig
 
         cmp_stage_key = f"cmp_stage_{selected_name}_{sym_safe}"
         if cmp_stage_key not in st.session_state:
