@@ -1462,7 +1462,7 @@ def _render_param_input(
             st.session_state[_shadow_key] = _list_to_opt(st.session_state[widget_key])
 
         if _shadow_key not in st.session_state:
-            _saved = (prefs or _load_prefs()).get(f"saved_sel_{selected_name}_{key}")
+            _saved = (prefs or {}).get(f"saved_sel_{selected_name}_{key}")
             st.session_state[_shadow_key] = _list_to_opt(_saved) if _saved is not None else \
                 ("True" if default_val is True else "False")
 
@@ -1503,7 +1503,7 @@ def _render_param_input(
 
         # Init shadow from prefs if not set
         if _t_shadow not in st.session_state:
-            _saved_t = (prefs or _load_prefs()).get(f"saved_sel_{selected_name}_{key}")
+            _saved_t = (prefs or {}).get(f"saved_sel_{selected_name}_{key}")
             st.session_state[_t_shadow] = _saved_t[0] if (_saved_t and _saved_t[0] in values) else _default_t
 
         _cur_t = st.session_state.get(_t_shadow, _default_t)
@@ -1558,7 +1558,7 @@ def _render_param_input(
         if pending_key in st.session_state:
             st.session_state[widget_key] = st.session_state.pop(pending_key)
         if widget_key not in st.session_state:
-            _saved_sel = (prefs or _load_prefs()).get(f"saved_sel_{selected_name}_{key}")
+            _saved_sel = (prefs or {}).get(f"saved_sel_{selected_name}_{key}")
             if _saved_sel is not None:
                 _valid = [v for v in _saved_sel if v in values]
                 st.session_state[widget_key] = _valid if _valid else list(_checkable)
@@ -4524,7 +4524,7 @@ with tab_bt:
     if bar_type == 'tick':
         _sb_calc_mode = st.session_state.get(
             f"sidebar_calc_mode_{selected_name}",
-            _load_prefs().get(f"calc_mode_{selected_name}", "on_bar_close"),
+            _prefs_cache.get(f"calc_mode_{selected_name}", "on_bar_close"),
         )
         bt_params["calculate_mode"] = _sb_calc_mode
 
