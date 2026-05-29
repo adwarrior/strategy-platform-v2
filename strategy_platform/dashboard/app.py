@@ -1322,7 +1322,7 @@ def _render_param_input(
 
         # Initialise shadow: saved prefs → single default value → empty
         if _bp_shadow not in st.session_state:
-            _saved_bp = (prefs or _load_prefs()).get(f"saved_sel_{selected_name}_{key}")
+            _saved_bp = (prefs or {}).get(f"saved_sel_{selected_name}_{key}")
             if _saved_bp:
                 st.session_state[_bp_shadow] = ", ".join(str(int(v)) for v in _saved_bp)
             elif default_val is not None:
@@ -1849,10 +1849,16 @@ def _load_prefs() -> dict:
     except Exception:
         return {}
 
+_PREFS_LAST_WRITTEN: dict = {}
+
 def _save_prefs(prefs: dict):
+    global _PREFS_LAST_WRITTEN
+    if prefs == _PREFS_LAST_WRITTEN:
+        return
     try:
         with open(_PREFS_FILE, 'w') as f:
             json.dump(prefs, f)
+        _PREFS_LAST_WRITTEN = dict(prefs)
     except Exception:
         pass
 
