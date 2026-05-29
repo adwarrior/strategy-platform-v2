@@ -67,7 +67,12 @@ def _strategy_path(strategy_name: str) -> Path:
     p = STRATEGY_BASE / strategy_name / 'strategy.py'
     if p.exists():
         return p
-    # Fallback: strip trailing _variant suffix (e.g. goldbot6_tick → goldbot6)
+    # Lowercase fallback: registered name may be CamelCase (e.g. WaeJurikPro)
+    # while the on-disk directory is lowercase (waejurikpro).
+    p = STRATEGY_BASE / strategy_name.lower() / 'strategy.py'
+    if p.exists():
+        return p
+    # Variant fallback: strip trailing _variant suffix (e.g. goldbot6_tick → goldbot6)
     base = strategy_name.rsplit('_', 1)[0]
     return STRATEGY_BASE / base / 'strategy.py'
 
