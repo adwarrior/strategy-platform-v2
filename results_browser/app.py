@@ -8,6 +8,8 @@ Run:  streamlit run results_browser/app.py   (from the repo root)
 """
 from __future__ import annotations
 
+import json
+import math
 import os
 import sys
 from datetime import datetime
@@ -60,22 +62,29 @@ def catalog_runs() -> pd.DataFrame:
 
 @st.cache_data(ttl=30, show_spinner=False)
 def catalog_backtests() -> pd.DataFrame:
-    def m(field, typ="DECIMAL(18,4)"):
-        return f"CAST(JSON_UNQUOTE(JSON_EXTRACT(payload_json,'$.metrics.{field}')) AS {typ})"
-    sql = text(f"""
-        SELECT strategy_name, symbol, sym_safe, bt_ts, label, created_at,
-               {m('net_pnl','DECIMAL(18,2)')}    AS net_pnl,
-               {m('profit_factor')}              AS profit_factor,
-               {m('sharpe')}                     AS sharpe,
-               {m('sortino')}                    AS sortino,
-               {m('max_drawdown','DECIMAL(18,2)')} AS max_drawdown,
-               {m('total_trades','SIGNED')}      AS total_trades,
-               {m('win_rate')}                   AS win_rate
+    # Parse metrics in Python: payloads may contain NaN/Infinity, which MySQL's
+    # JSON_EXTRACT rejects but json.loads tolerates.
+    sql = text("""
+        SELECT strategy_name, symbol, sym_safe, bt_ts, label, created_at, payload_json
         FROM sp_backtests
         ORDER BY bt_ts DESC
     """)
     with _results_engine().connect() as c:
-        return pd.read_sql(sql, c)
+        rows = c.execute(sql).mappings().all()
+    wanted = ("net_pnl", "profit_factor", "sharpe", "sortino",
+              "max_drawdown", "total_trades", "win_rate")
+    out = []
+    for r in rows:
+        try:
+            m = json.loads(r["payload_json"]).get("metrics", {})
+        except Exception:  # noqa: BLE001
+            m = {}
+        rec = {k: r[k] for k in ("strategy_name", "symbol", "sym_safe", "bt_ts",
+                                 "label", "created_at")}
+        for w in wanted:
+            rec[w] = finite(m.get(w))
+        out.append(rec)
+    return pd.DataFrame(out)
 
 
 @st.cache_data(ttl=30, show_spinner=False)
@@ -91,6 +100,15 @@ def backtest_payload(strategy: str, sym_safe: str, bt_ts: str) -> dict | None:
 # --------------------------------------------------------------------------- #
 # Helpers
 # --------------------------------------------------------------------------- #
+def finite(v):
+    """Return a real number or None (NaN/Inf/non-numeric -> None)."""
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    return f if math.isfinite(f) else None
+
+
 def fmt_ts(ts: str) -> str:
     for fmt in ("%Y%m%d_%H%M%S", "%Y%m%d_%H%M", "%Y%m%d"):
         try:
@@ -317,8 +335,8 @@ with tab_bt:
         ]
         cols = st.columns(6)
         for i, (k, lbl, fmt) in enumerate(keys):
-            v = metrics.get(k)
-            cols[i % 6].metric(lbl, fmt % v if isinstance(v, (int, float)) else "—")
+            v = finite(metrics.get(k))
+            cols[i % 6].metric(lbl, fmt % v if v is not None else "—")
 
         # --- equity curve ---
         if trades:
@@ -338,8 +356,9 @@ with tab_bt:
         with left:
             st.subheader("Parameters")
             st.dataframe(
-                pd.DataFrame(sorted(params.items()), columns=["param", "value"]),
-                use_container_width=True, hide_index=True, height=320,
+                pd.DataFrame([(k, str(v)) for k, v in sorted(params.items())],
+                             columns=["param", "value"]),
+                width="stretch", hide_index=True, height=320,
             )
         with right:
             st.subheader("Day of week")
@@ -366,6 +385,7 @@ with tab_bt:
 
         with st.expander("Raw metrics (all 44)"):
             st.dataframe(
-                pd.DataFrame(sorted(metrics.items()), columns=["metric", "value"]),
-                use_container_width=True, hide_index=True,
+                pd.DataFrame([(k, str(v)) for k, v in sorted(metrics.items())],
+                             columns=["metric", "value"]),
+                width="stretch", hide_index=True,
             )
