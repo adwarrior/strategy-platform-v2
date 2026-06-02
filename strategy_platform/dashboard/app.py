@@ -4402,6 +4402,56 @@ with tab_bt:
         st.session_state[_bt_shadow] = val
         return val
 
+    # Trade-window / session params: one column per session, start/stop stacked.
+    _BT_WINDOW_RE        = _re.compile(r'^trade_window(\d+)_(start|stop|end)$')
+    _BT_WINDOW_ENABLE_RE = _re.compile(r'^enable_trade_window(\d+)$')
+
+    def _bt_render_session_windows(group_keys):
+        """Render trade-window params as one column per session (start on top,
+        stop below, with the session's enable toggle at the top of its column).
+
+        Returns (rendered_dict, handled_keys), or (None, set()) if the group has
+        no trade-window params (caller then falls back to the normal grid).
+        """
+        windows: Dict[int, Dict[str, str]] = {}
+        for k in group_keys:
+            m = _BT_WINDOW_RE.match(k)
+            if m:
+                windows.setdefault(int(m.group(1)), {})[m.group(2)] = k
+                continue
+            m = _BT_WINDOW_ENABLE_RE.match(k)
+            if m:
+                windows.setdefault(int(m.group(1)), {})['enable'] = k
+        has_times = any(('start' in w or 'stop' in w or 'end' in w) for w in windows.values())
+        if not windows or not has_times:
+            return None, set()
+
+        out: Dict[str, Any] = {}
+        handled: set = set()
+
+        # Non-window keys (master toggle, EOD exit, etc.) in a row above the columns.
+        other = [k for k in group_keys
+                 if k in param_grid and k not in _BT_EXCLUDED_KEYS
+                 and not _BT_WINDOW_RE.match(k) and not _BT_WINDOW_ENABLE_RE.match(k)]
+        if other:
+            ocols = st.columns(min(len(other), 4))
+            for i, k in enumerate(other):
+                out[k] = _bt_render_param(k, ocols[i % len(ocols)])
+                handled.add(k)
+
+        # One column per session, in numeric order. Widgets stack vertically.
+        nums = sorted(windows)
+        wcols = st.columns(len(nums))
+        for col, n in zip(wcols, nums):
+            w = windows[n]
+            col.markdown(f"**Session {n}**")
+            for slot in ('enable', 'start', 'stop', 'end'):
+                key = w.get(slot)
+                if key and key in param_grid:
+                    out[key] = _bt_render_param(key, col)
+                    handled.add(key)
+        return out, handled
+
     # Groups to render as rows-of-related-params (bool + sub-params on one line)
     # Each entry: (bool_key, [sub_param_keys...])
     _BT_FILTER_ROWS = {
@@ -4438,9 +4488,19 @@ with tab_bt:
         elif _bt_grp:
             _bt_grp_keys = [k for k in _strat_groups[_bt_grp] if k in param_grid and k not in _BT_EXCLUDED_KEYS]
             if _bt_grp_keys:
-                bt_gcols = st.columns(min(len(_bt_grp_keys), 4))
-                for i, key in enumerate(_bt_grp_keys):
-                    bt_params[key] = _bt_render_param(key, bt_gcols[i % len(bt_gcols)])
+                _win_out, _win_handled = _bt_render_session_windows(_bt_grp_keys)
+                if _win_out is not None:
+                    # Session group: rendered one column per session.
+                    bt_params.update(_win_out)
+                    _rest = [k for k in _bt_grp_keys if k not in _win_handled]
+                    if _rest:
+                        bt_gcols = st.columns(min(len(_rest), 4))
+                        for i, key in enumerate(_rest):
+                            bt_params[key] = _bt_render_param(key, bt_gcols[i % len(bt_gcols)])
+                else:
+                    bt_gcols = st.columns(min(len(_bt_grp_keys), 4))
+                    for i, key in enumerate(_bt_grp_keys):
+                        bt_params[key] = _bt_render_param(key, bt_gcols[i % len(bt_gcols)])
             else:
                 st.caption("No configurable parameters in this group.")
 
