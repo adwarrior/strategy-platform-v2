@@ -15,6 +15,7 @@ import re
 import sys
 from datetime import datetime
 
+import altair as alt
 import pandas as pd
 import streamlit as st
 from sqlalchemy import text
@@ -241,6 +242,23 @@ def apply_filters(df: pd.DataFrame, key: str) -> pd.DataFrame:
     return out
 
 
+def ordered_bar(df: pd.DataFrame, x_col: str, order: list, height: int = 260):
+    """P&L bar chart with an explicit category order and green/red by sign."""
+    chart = (
+        alt.Chart(df)
+        .mark_bar()
+        .encode(
+            x=alt.X(f"{x_col}:N", sort=order, title=x_col),
+            y=alt.Y("P&L:Q", title="P&L ($)"),
+            color=alt.condition(alt.datum["P&L"] >= 0,
+                                alt.value("#2e7d32"), alt.value("#c62828")),
+            tooltip=[x_col, alt.Tooltip("P&L:Q", format="$,.0f"), "Trades"],
+        )
+        .properties(width="container", height=height)
+    )
+    st.altair_chart(chart)
+
+
 def clear_caches():
     catalog_runs.clear()
     catalog_backtests.clear()
@@ -462,20 +480,21 @@ with tab_bt:
             v = finite(metrics.get(k))
             cols[i % 6].metric(lbl, fmt % v if v is not None else "—")
 
-        # --- equity curve ---
-        if trades:
-            tdf = pd.DataFrame(trades)
-            if "entry_time" in tdf.columns:
-                tdf["entry_time"] = pd.to_datetime(tdf["entry_time"], errors="coerce")
-                tdf = tdf.sort_values("entry_time")
-            if "pnl" in tdf.columns:
-                tdf["equity"] = tdf["pnl"].cumsum()
-                st.subheader("Equity curve")
-                eq = tdf.set_index("entry_time")["equity"] if "entry_time" in tdf.columns \
-                    else tdf["equity"]
-                st.area_chart(eq, height=260)
+        # --- trades frame (shared by equity curve + time breakdowns) ---
+        tdf = pd.DataFrame(trades) if trades else pd.DataFrame()
+        if not tdf.empty and "entry_time" in tdf.columns:
+            tdf["entry_time"] = pd.to_datetime(tdf["entry_time"], errors="coerce")
+            tdf = tdf.sort_values("entry_time")
 
-        # --- breakdowns ---
+        # --- equity curve ---
+        if not tdf.empty and "pnl" in tdf.columns:
+            tdf["equity"] = tdf["pnl"].cumsum()
+            st.subheader("Equity curve")
+            eq = (tdf.set_index("entry_time")["equity"]
+                  if "entry_time" in tdf.columns else tdf["equity"])
+            st.area_chart(eq, height=260)
+
+        # --- breakdowns: parameters + day of week ---
         left, right = st.columns(2)
         with left:
             st.subheader("Parameters")
@@ -486,11 +505,38 @@ with tab_bt:
             )
         with right:
             st.subheader("Day of Week P&L")
-            dow = [(_DAY[d], metrics.get(f"{d}_pnl"), metrics.get(f"{d}_trades"))
+            dow = [(_DAY[d], finite(metrics.get(f"{d}_pnl")), finite(metrics.get(f"{d}_trades")))
                    for d in ("mon", "tue", "wed", "thu", "fri")]
-            dow_df = pd.DataFrame(dow, columns=["Day", "P&L", "Trades"]).dropna(how="all", subset=["P&L"])
+            dow_df = pd.DataFrame(dow, columns=["Day", "P&L", "Trades"]).dropna(
+                how="all", subset=["P&L"])
             if not dow_df.empty:
-                st.bar_chart(dow_df.set_index("Day")["P&L"], height=260)
+                ordered_bar(dow_df, "Day",
+                            ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"])
+            else:
+                st.caption("No day-of-week data stored.")
+
+        # --- time of day ---
+        st.subheader("Time of Day P&L")
+        if (not tdf.empty and "entry_time" in tdf.columns and "pnl" in tdf.columns
+                and tdf["entry_time"].notna().any()):
+            gran = st.radio("Bucket size", ["Hour", "Half-hour"],
+                            horizontal=True, key="tod_gran")
+            et = tdf["entry_time"]
+            if gran == "Hour":
+                bucket = et.dt.strftime("%H:00")
+            else:
+                bucket = et.dt.strftime("%H:") + (et.dt.minute // 30 * 30).map(
+                    lambda m: f"{int(m):02d}" if pd.notna(m) else "")
+            tod = tdf.assign(_bucket=bucket).dropna(subset=["_bucket"])
+            tod = tod[tod["_bucket"] != ""]
+            g = (tod.groupby("_bucket")
+                 .agg(**{"P&L": ("pnl", "sum"), "Trades": ("pnl", "size")})
+                 .reset_index().rename(columns={"_bucket": "Time"}))
+            ordered_bar(g, "Time", sorted(g["Time"]), height=280)
+            st.caption("Bucketed by trade entry time (Eastern, matching the source "
+                       "data). Green = net-profitable, red = net-losing. Hover for totals.")
+        else:
+            st.caption("No entry-time data on these trades for a time-of-day breakdown.")
 
         st.caption(
             f"Data: {meta.get('data_source','?')} · {meta.get('start','?')} → "
