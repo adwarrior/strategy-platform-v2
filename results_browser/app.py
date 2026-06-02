@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import re
 import sys
 from datetime import datetime
 
@@ -46,7 +47,7 @@ STAGE_ORDER = ["IS", "MC", "OOS"]
 def catalog_runs() -> pd.DataFrame:
     sql = text("""
         SELECT r.strategy_name, r.symbol, r.sym_safe, r.run_ts, r.label,
-               r.created_at,
+               r.created_at, r.run_meta_json, r.settings_json,
                GROUP_CONCAT(s.stage ORDER BY s.stage SEPARATOR ',') AS stages,
                MAX(CASE WHEN s.stage='IS'  THEN s.row_count END) AS is_rows,
                MAX(CASE WHEN s.stage='MC'  THEN s.row_count END) AS mc_rows,
@@ -57,7 +58,27 @@ def catalog_runs() -> pd.DataFrame:
         ORDER BY r.run_ts DESC
     """)
     with _results_engine().connect() as c:
-        return pd.read_sql(sql, c)
+        df = pd.read_sql(sql, c)
+
+    def _tf(rec):
+        try:
+            s = json.loads(rec["settings_json"]) if rec["settings_json"] else {}
+        except Exception:  # noqa: BLE001
+            s = {}
+        return infer_run_timeframe(rec["strategy_name"], s)
+
+    def _window(rec):
+        try:
+            m = json.loads(rec["run_meta_json"]) if rec["run_meta_json"] else {}
+        except Exception:  # noqa: BLE001
+            m = {}
+        a, b = m.get("_data_start"), m.get("_data_end")
+        return f"{a} → {b}" if a and b else ""
+
+    if not df.empty:
+        df["timeframe"] = df.apply(_tf, axis=1)
+        df["data_window"] = df.apply(_window, axis=1)
+    return df
 
 
 @st.cache_data(ttl=30, show_spinner=False)
@@ -76,11 +97,14 @@ def catalog_backtests() -> pd.DataFrame:
     out = []
     for r in rows:
         try:
-            m = json.loads(r["payload_json"]).get("metrics", {})
+            payload = json.loads(r["payload_json"])
         except Exception:  # noqa: BLE001
-            m = {}
+            payload = {}
+        m = payload.get("metrics", {})
+        meta = payload.get("meta", {})
         rec = {k: r[k] for k in ("strategy_name", "symbol", "sym_safe", "bt_ts",
                                  "label", "created_at")}
+        rec["bar_type"] = meta.get("data_source") or "—"
         for w in wanted:
             rec[w] = finite(m.get(w))
         out.append(rec)
@@ -107,6 +131,79 @@ def finite(v):
     except (TypeError, ValueError):
         return None
     return f if math.isfinite(f) else None
+
+
+# --- human-friendly labels -------------------------------------------------- #
+# Explicit overrides; anything not listed falls back to a generic prettifier.
+PRETTY = {
+    # performance metrics
+    "net_pnl": "Net P&L", "gross_profit": "Gross Profit", "gross_loss": "Gross Loss",
+    "profit_factor": "Profit Factor", "max_drawdown": "Max Drawdown",
+    "win_rate": "Win Rate", "avg_trade": "Avg Trade", "avg_win": "Avg Win",
+    "avg_loss": "Avg Loss", "ratio_win_loss": "Win / Loss Ratio",
+    "largest_win": "Largest Win", "largest_loss": "Largest Loss",
+    "num_wins": "Wins", "num_losses": "Losses", "num_even": "Scratch",
+    "total_trades": "Total Trades", "total_commission": "Total Commission",
+    "max_consec_winners": "Max Consecutive Winners",
+    "max_consec_losers": "Max Consecutive Losers", "max_consec": "Max Consecutive",
+    "sharpe": "Sharpe Ratio", "sortino": "Sortino Ratio", "r_squared": "R²",
+    "profit_per_month": "P&L per Month", "pct_months_profit": "% Months Profitable",
+    "avg_trades_per_day": "Avg Trades / Day", "longest_flat_days": "Longest Flat (days)",
+    "max_time_to_recover": "Max Recovery Time", "start_date": "Start Date",
+    "end_date": "End Date",
+    # params
+    "stop_loss_ticks": "Stop Loss (ticks)", "profit_target_ticks": "Profit Target (ticks)",
+    "trailing_trigger_ticks": "Trailing Trigger (ticks)",
+    "trailing_stop_ticks": "Trailing Stop (ticks)",
+    "breakout_offset_ticks": "Breakout Offset (ticks)", "sl_ticks": "Stop Loss (ticks)",
+    "tp_ticks": "Profit Target (ticks)", "qty": "Quantity", "direction": "Direction",
+    "minute_bar_period": "Bar Period (min)", "htf_minutes": "Higher Timeframe (min)",
+    "range_bars_minutes": "Range Bars (min)", "range_duration_minutes": "Range Duration (min)",
+    "use_pd_levels": "Use Prior-Day Levels", "use_prev_session": "Use Previous Session",
+    "start_trading": "Start Trading", "stop_trading": "Stop Trading",
+    "ps_window_start": "Prior-Session Window Start", "ps_window_end": "Prior-Session Window End",
+    "block_ps_while_forming": "Block While Forming",
+    "atr_period": "ATR Period", "atr_multiplier": "ATR Multiplier",
+    "fractal_length": "Fractal Length", "eod_exit_time": "End-of-Day Exit Time",
+    "bars_between_trades": "Bars Between Trades", "rr_ratio": "Risk:Reward Ratio",
+}
+_ABBR = {"pnl": "P&L", "atr": "ATR", "tp": "TP", "sl": "SL", "tf": "TF", "pct": "%",
+         "ps": "PS", "pd": "PD", "fvg": "FVG", "poi": "POI", "htf": "HTF",
+         "rr": "R:R", "eod": "EOD", "ny": "NY", "mc": "MC", "oos": "OOS",
+         "is": "IS", "wae": "WAE", "id": "ID", "ema": "EMA", "rsi": "RSI"}
+_DAY = {"mon": "Monday", "tue": "Tuesday", "wed": "Wednesday",
+        "thu": "Thursday", "fri": "Friday", "sat": "Saturday", "sun": "Sunday"}
+
+
+def pretty(key) -> str:
+    """snake_case / code key -> human-friendly Title Case label."""
+    k = str(key)
+    if k in PRETTY:
+        return PRETTY[k]
+    # day-of-week metrics: mon_pnl, tue_trades, ...
+    parts = k.split("_")
+    if parts and parts[0] in _DAY:
+        tail = " ".join(_ABBR.get(p.lower(), p.capitalize()) for p in parts[1:])
+        return f"{_DAY[parts[0]]} {tail}".strip()
+    if k.startswith("bs_"):  # bootstrap percentiles
+        return "Bootstrap " + " ".join(
+            _ABBR.get(p.lower(), p.upper() if p.startswith("p") and p[1:].isdigit() else p.capitalize())
+            for p in parts[1:])
+    return " ".join(_ABBR.get(p.lower(), p.capitalize()) for p in parts)
+
+
+_TF_RE = re.compile(r"_(\d+)\s*(m|min|s|h)\b", re.I)
+
+
+def infer_run_timeframe(strategy_name: str, settings: dict) -> str:
+    """Best-effort timeframe for an optimizer run (not stored explicitly)."""
+    m = _TF_RE.search(strategy_name) or re.search(r"(\d+)(m|min)$", strategy_name, re.I)
+    if m:
+        return f"{m.group(1)}-min (from name)"
+    core = settings.get("core")
+    if isinstance(core, int):
+        return f"{core}-min? (settings.core)"
+    return "not recorded"
 
 
 def fmt_ts(ts: str) -> str:
@@ -180,18 +277,21 @@ with tab_runs:
         disp = runs.copy()
         disp["when"] = disp["run_ts"].map(fmt_ts)
         st.dataframe(
-            disp[["strategy_name", "symbol", "when", "label", "stages",
-                  "is_rows", "mc_rows", "oos_rows", "run_ts"]],
+            disp[["strategy_name", "symbol", "timeframe", "data_window", "when",
+                  "label", "stages", "is_rows", "mc_rows", "oos_rows", "run_ts"]],
             width="stretch", hide_index=True,
             column_config={
-                "strategy_name": "Strategy", "symbol": "Symbol", "when": "When",
-                "label": "Label", "stages": "Stages",
-                "is_rows": st.column_config.NumberColumn("IS rows"),
-                "mc_rows": st.column_config.NumberColumn("MC rows"),
-                "oos_rows": st.column_config.NumberColumn("OOS rows"),
+                "strategy_name": "Strategy", "symbol": "Symbol",
+                "timeframe": "Timeframe", "data_window": "Data Window",
+                "when": "Run At", "label": "Label", "stages": "Stages",
+                "is_rows": st.column_config.NumberColumn("IS Combos"),
+                "mc_rows": st.column_config.NumberColumn("MC Rows"),
+                "oos_rows": st.column_config.NumberColumn("OOS Rows"),
                 "run_ts": None,
             },
         )
+        st.caption("ℹ️ Timeframe for optimizer runs is inferred (strategy name / "
+                   "settings) — it isn't stored explicitly. Saved backtests record it exactly.")
 
         # --- select a run ---
         labels = [
@@ -237,18 +337,21 @@ with tab_runs:
                                    if c in df.columns]
                     if metric_cols:
                         cards = st.columns(len(metric_cols) + 1)
-                        cards[0].metric("Combos", f"{len(df):,}")
+                        cards[0].metric("Param Combos", f"{len(df):,}")
                         for col, mc in zip(cards[1:], metric_cols):
                             best = df[mc].max() if mc != "max_drawdown" else df[mc].min()
-                            col.metric(f"best {mc}", f"{best:,.2f}")
+                            col.metric(f"Best {pretty(mc)}", f"{best:,.2f}")
                     sort_col = st.selectbox(
                         "Sort by", df.columns.tolist(),
                         index=(df.columns.tolist().index("net_pnl")
                                if "net_pnl" in df.columns else 0),
-                        key=f"sort_{stage}",
+                        format_func=pretty, key=f"sort_{stage}",
                     )
                     df = df.sort_values(sort_col, ascending=False)
-                    st.dataframe(df, width="stretch", hide_index=True, height=360)
+                    st.dataframe(
+                        df, width="stretch", hide_index=True, height=360,
+                        column_config={c: pretty(c) for c in df.columns},
+                    )
                     st.download_button(
                         f"⬇ Download {stage} CSV", df.to_csv(index=False),
                         file_name=f"{stage}_{row.strategy_name}_{row.sym_safe}_{row.run_ts}.csv",
@@ -270,19 +373,19 @@ with tab_bt:
         disp = bts.copy()
         disp["when"] = disp["bt_ts"].map(fmt_ts)
         st.dataframe(
-            disp[["strategy_name", "symbol", "when", "label", "net_pnl",
+            disp[["strategy_name", "symbol", "bar_type", "when", "label", "net_pnl",
                   "profit_factor", "sharpe", "sortino", "max_drawdown",
                   "win_rate", "total_trades", "bt_ts"]],
             width="stretch", hide_index=True,
             column_config={
-                "strategy_name": "Strategy", "symbol": "Symbol", "when": "When",
-                "label": "Label",
+                "strategy_name": "Strategy", "symbol": "Symbol",
+                "bar_type": "Bar Type", "when": "Run At", "label": "Label",
                 "net_pnl": st.column_config.NumberColumn("Net P&L", format="$%.2f"),
-                "profit_factor": st.column_config.NumberColumn("PF", format="%.2f"),
+                "profit_factor": st.column_config.NumberColumn("Profit Factor", format="%.2f"),
                 "sharpe": st.column_config.NumberColumn("Sharpe", format="%.2f"),
                 "sortino": st.column_config.NumberColumn("Sortino", format="%.2f"),
-                "max_drawdown": st.column_config.NumberColumn("Max DD", format="$%.2f"),
-                "win_rate": st.column_config.NumberColumn("Win %", format="%.1f"),
+                "max_drawdown": st.column_config.NumberColumn("Max Drawdown", format="$%.2f"),
+                "win_rate": st.column_config.NumberColumn("Win Rate %", format="%.1f"),
                 "total_trades": st.column_config.NumberColumn("Trades"),
                 "bt_ts": None,
             },
@@ -323,6 +426,16 @@ with tab_bt:
         params = payload.get("params", {})
         trades = payload.get("trades", [])
 
+        # --- setup / bar type ---
+        st.info(
+            f"**Bar type:** {meta.get('data_source','—')}  ·  "
+            f"**Period:** {meta.get('start','?')} → {meta.get('end','?')}  ·  "
+            f"**Bars:** {meta.get('bars','?'):,}" if isinstance(meta.get('bars'), int)
+            else f"**Bar type:** {meta.get('data_source','—')}  ·  "
+                 f"**Period:** {meta.get('start','?')} → {meta.get('end','?')}",
+            icon="🧱",
+        )
+
         # --- headline stats ---
         st.subheader("Performance")
         keys = [
@@ -356,17 +469,17 @@ with tab_bt:
         with left:
             st.subheader("Parameters")
             st.dataframe(
-                pd.DataFrame([(k, str(v)) for k, v in sorted(params.items())],
-                             columns=["param", "value"]),
+                pd.DataFrame([(pretty(k), str(v)) for k, v in sorted(params.items())],
+                             columns=["Parameter", "Value"]),
                 width="stretch", hide_index=True, height=320,
             )
         with right:
-            st.subheader("Day of week")
-            dow = [(d, metrics.get(f"{d}_pnl"), metrics.get(f"{d}_trades"))
+            st.subheader("Day of Week P&L")
+            dow = [(_DAY[d], metrics.get(f"{d}_pnl"), metrics.get(f"{d}_trades"))
                    for d in ("mon", "tue", "wed", "thu", "fri")]
-            dow_df = pd.DataFrame(dow, columns=["day", "pnl", "trades"]).dropna(how="all", subset=["pnl"])
+            dow_df = pd.DataFrame(dow, columns=["Day", "P&L", "Trades"]).dropna(how="all", subset=["P&L"])
             if not dow_df.empty:
-                st.bar_chart(dow_df.set_index("day")["pnl"], height=260)
+                st.bar_chart(dow_df.set_index("Day")["P&L"], height=260)
 
         st.caption(
             f"Data: {meta.get('data_source','?')} · {meta.get('start','?')} → "
@@ -376,16 +489,20 @@ with tab_bt:
 
         with st.expander(f"Trades ({len(trades)})"):
             if trades:
-                st.dataframe(pd.DataFrame(trades), width="stretch", hide_index=True)
+                tr_df = pd.DataFrame(trades)
+                st.dataframe(
+                    tr_df, width="stretch", hide_index=True,
+                    column_config={c: pretty(c) for c in tr_df.columns},
+                )
                 st.download_button(
                     "⬇ Download trades CSV", pd.DataFrame(trades).to_csv(index=False),
                     file_name=f"trades_{row.strategy_name}_{row.sym_safe}_{row.bt_ts}.csv",
                     mime="text/csv",
                 )
 
-        with st.expander("Raw metrics (all 44)"):
+        with st.expander(f"All metrics ({len(metrics)})"):
             st.dataframe(
-                pd.DataFrame([(k, str(v)) for k, v in sorted(metrics.items())],
-                             columns=["metric", "value"]),
+                pd.DataFrame([(pretty(k), str(v)) for k, v in sorted(metrics.items())],
+                             columns=["Metric", "Value"]),
                 width="stretch", hide_index=True,
             )
