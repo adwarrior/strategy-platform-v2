@@ -157,7 +157,7 @@ with st.sidebar:
     st.caption(f"**Host:** {cfg['host']}:{cfg['port']}")
     st.caption(f"**DB:** {cfg['database']}")
     st.caption(f"**User:** {cfg['user']}")
-    if st.button("🔄 Refresh data", use_container_width=True):
+    if st.button("🔄 Refresh data", width="stretch"):
         clear_caches()
         st.rerun()
 
@@ -182,7 +182,7 @@ with tab_runs:
         st.dataframe(
             disp[["strategy_name", "symbol", "when", "label", "stages",
                   "is_rows", "mc_rows", "oos_rows", "run_ts"]],
-            use_container_width=True, hide_index=True,
+            width="stretch", hide_index=True,
             column_config={
                 "strategy_name": "Strategy", "symbol": "Symbol", "when": "When",
                 "label": "Label", "stages": "Stages",
@@ -248,7 +248,7 @@ with tab_runs:
                         key=f"sort_{stage}",
                     )
                     df = df.sort_values(sort_col, ascending=False)
-                    st.dataframe(df, use_container_width=True, hide_index=True, height=360)
+                    st.dataframe(df, width="stretch", hide_index=True, height=360)
                     st.download_button(
                         f"⬇ Download {stage} CSV", df.to_csv(index=False),
                         file_name=f"{stage}_{row.strategy_name}_{row.sym_safe}_{row.run_ts}.csv",
@@ -273,7 +273,7 @@ with tab_bt:
             disp[["strategy_name", "symbol", "when", "label", "net_pnl",
                   "profit_factor", "sharpe", "sortino", "max_drawdown",
                   "win_rate", "total_trades", "bt_ts"]],
-            use_container_width=True, hide_index=True,
+            width="stretch", hide_index=True,
             column_config={
                 "strategy_name": "Strategy", "symbol": "Symbol", "when": "When",
                 "label": "Label",
@@ -376,7 +376,7 @@ with tab_bt:
 
         with st.expander(f"Trades ({len(trades)})"):
             if trades:
-                st.dataframe(pd.DataFrame(trades), use_container_width=True, hide_index=True)
+                st.dataframe(pd.DataFrame(trades), width="stretch", hide_index=True)
                 st.download_button(
                     "⬇ Download trades CSV", pd.DataFrame(trades).to_csv(index=False),
                     file_name=f"trades_{row.strategy_name}_{row.sym_safe}_{row.bt_ts}.csv",
