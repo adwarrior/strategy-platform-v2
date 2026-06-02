@@ -271,6 +271,18 @@ def run_pipeline(
     if tick_bar_sizes is not None:
         param_keys = ['tick_bar_size'] + param_keys
 
+    # Human-readable bar-type descriptor, persisted so the results browser can
+    # show the timeframe a run used (mirrors the backtest `meta.data_source`).
+    if is_tick_strategy:
+        _sizes = tick_bar_sizes or []
+        bar_type_desc = ("Tick bars (" + ", ".join(f"{s}t" for s in _sizes) + ")"
+                         if _sizes else "Tick bars")
+        bar_period = None
+    elif is_1m_strategy:
+        bar_type_desc, bar_period = "MySQL 1M", "1m"
+    else:
+        bar_type_desc, bar_period = "MySQL 5M", "5m"
+
     print(f"\n[1/4] Loading {symbol} data for '{strategy_name}'...")
 
     if is_tick_strategy:
@@ -534,6 +546,10 @@ def run_pipeline(
             run_ts=ts,
             run_meta=run_meta,
             settings={
+                "data_source": bar_type_desc,
+                "bar_type": _bar_type,
+                "bar_period": bar_period,
+                "tick_bar_sizes": tick_bar_sizes,
                 "data_start": data_start,
                 "data_end": data_end,
                 "refresh": refresh,

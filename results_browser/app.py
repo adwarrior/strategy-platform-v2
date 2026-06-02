@@ -196,7 +196,17 @@ _TF_RE = re.compile(r"_(\d+)\s*(m|min|s|h)\b", re.I)
 
 
 def infer_run_timeframe(strategy_name: str, settings: dict) -> str:
-    """Best-effort timeframe for an optimizer run (not stored explicitly)."""
+    """Timeframe for an optimizer run.
+
+    Newer runs persist it explicitly (settings.data_source / bar_period); older
+    runs fall back to best-effort inference from the strategy name or core.
+    """
+    ds = settings.get("data_source")
+    if ds:
+        return str(ds)
+    bp = settings.get("bar_period")
+    if bp:
+        return str(bp)
     m = _TF_RE.search(strategy_name) or re.search(r"(\d+)(m|min)$", strategy_name, re.I)
     if m:
         return f"{m.group(1)}-min (from name)"
@@ -290,8 +300,9 @@ with tab_runs:
                 "run_ts": None,
             },
         )
-        st.caption("ℹ️ Timeframe for optimizer runs is inferred (strategy name / "
-                   "settings) — it isn't stored explicitly. Saved backtests record it exactly.")
+        st.caption("ℹ️ New optimizer runs record their bar type exactly (e.g. "
+                   "*MySQL 5M*). Older runs predating this show an inferred value "
+                   "(from the strategy name / settings).")
 
         # --- select a run ---
         labels = [
