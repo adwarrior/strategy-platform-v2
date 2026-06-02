@@ -4441,10 +4441,16 @@ with tab_bt:
 
         # One column per session, in numeric order. Widgets stack vertically.
         nums = sorted(windows)
+        any_enable = any('enable' in windows[n] for n in nums)
         wcols = st.columns(len(nums))
         for col, n in zip(wcols, nums):
             w = windows[n]
             col.markdown(f"**Session {n}**")
+            # Keep start/stop rows aligned across columns: a session with no
+            # enable toggle (always-on, e.g. window 1) gets a disabled placeholder.
+            if 'enable' not in w and any_enable:
+                col.checkbox("Always on", value=True, disabled=True,
+                             key=f"_bt_win_always_{selected_name}_{n}")
             for slot in ('enable', 'start', 'stop', 'end'):
                 key = w.get(slot)
                 if key and key in param_grid:
