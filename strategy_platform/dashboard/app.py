@@ -963,7 +963,8 @@ def _list_wf_runs(strategy_name: str, sym_safe: str) -> List[str]:
     files = []
     for f in glob.glob(pattern):
         ts = os.path.basename(f)[prefix_len:-5]
-        if len(ts) == 15:
+        # WF writer uses %Y%m%d_%H%M (13 chars); accept 15-char (with seconds) too.
+        if len(ts) in (13, 15):
             files.append(f)
     return sorted(files, reverse=True)
 
