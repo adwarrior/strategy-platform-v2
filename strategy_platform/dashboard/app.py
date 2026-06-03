@@ -957,16 +957,26 @@ def _list_saved_backtests(strategy_name: str, sym_safe: str) -> List[str]:
 
 @st.cache_data(ttl=15)
 def _list_wf_runs(strategy_name: str, sym_safe: str) -> List[str]:
-    """Return WF JSON files for strategy+symbol, sorted newest first."""
-    pattern = os.path.join(_strat_dir(strategy_name), f"WF_{strategy_name}_{sym_safe}_*.json")
-    prefix_len = len(f"WF_{strategy_name}_{sym_safe}_")
-    files = []
-    for f in glob.glob(pattern):
-        ts = os.path.basename(f)[prefix_len:-5]
-        # WF writer uses %Y%m%d_%H%M (13 chars); accept 15-char (with seconds) too.
-        if len(ts) in (13, 15):
-            files.append(f)
-    return sorted(files, reverse=True)
+    """Return WF JSON files for strategy+symbol, sorted newest first.
+
+    Checks both the per-strategy subfolder (current writer location) and the
+    flat reports/ root (where older WF runs were written), de-duplicating by
+    filename so a run is listed once even if present in both.
+    """
+    strat_dir = _strat_dir(strategy_name)
+    flat_dir  = os.path.dirname(strat_dir)  # reports/ root
+    prefix    = f"WF_{strategy_name}_{sym_safe}_"
+    prefix_len = len(prefix)
+    by_name: Dict[str, str] = {}
+    for d in (strat_dir, flat_dir):
+        for f in glob.glob(os.path.join(d, f"{prefix}*.json")):
+            base = os.path.basename(f)
+            ts = base[prefix_len:-5]
+            # WF writer uses %Y%m%d_%H%M (13 chars); accept 15-char (with seconds) too.
+            if len(ts) in (13, 15):
+                by_name.setdefault(base, f)  # first wins → subfolder preferred
+    return sorted(by_name.values(),
+                  key=lambda p: os.path.basename(p), reverse=True)
 
 
 def _fmt_bt_file(path: str, strategy_name: str, sym_safe: str) -> str:
@@ -4060,7 +4070,9 @@ with tab_wf:
         def _fmt_wf_file(path: str) -> str:
             ts = os.path.basename(path)[_wf_prefix_len:-5]
             try:
-                date_part = f"{ts[:4]}-{ts[4:6]}-{ts[6:8]} {ts[9:11]}:{ts[11:13]}:{ts[13:15]}"
+                date_part = f"{ts[:4]}-{ts[4:6]}-{ts[6:8]} {ts[9:11]}:{ts[11:13]}"
+                if len(ts) >= 15:  # seconds present
+                    date_part += f":{ts[13:15]}"
             except Exception:
                 date_part = ts
             label = _get_wf_label(selected_name, sym_safe, ts)
