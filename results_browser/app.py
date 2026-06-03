@@ -621,3 +621,138 @@ with tab_bt:
                              columns=["Metric", "Value"]),
                 width="stretch", hide_index=True,
             )
+
+
+# --------------------------------------------------------------------------- #
+# TAB 3 — Walk-forward runs (read from reports/<strategy>/WF_*.json)
+# --------------------------------------------------------------------------- #
+with tab_wf:
+    wf = catalog_wf_runs()
+    st.caption(f"{len(wf)} walk-forward runs on disk")
+    wf = apply_filters(wf, "wf")
+
+    if wf.empty:
+        st.info("No walk-forward runs found under reports/*/WF_*.json.")
+    else:
+        disp = wf.copy()
+        disp["when"] = disp["run_ts"].map(fmt_ts)
+        st.dataframe(
+            disp[["strategy_name", "symbol", "bar_type", "data_window", "when",
+                  "is_window_days", "oos_window_days", "step_days", "n_slices",
+                  "wfe", "rank_by"]],
+            width="stretch", hide_index=True,
+            column_config={
+                "strategy_name": "Strategy", "symbol": "Symbol",
+                "bar_type": "Bar Type", "data_window": "Data Window", "when": "Run At",
+                "is_window_days": st.column_config.NumberColumn("IS Days"),
+                "oos_window_days": st.column_config.NumberColumn("OOS Days"),
+                "step_days": st.column_config.NumberColumn("Step Days"),
+                "n_slices": st.column_config.NumberColumn("Slices"),
+                "wfe": st.column_config.NumberColumn("WFE", format="%.3f"),
+                "rank_by": "Ranked By",
+            },
+        )
+
+        labels = [
+            f"{r.strategy_name} · {r.symbol} · {fmt_ts(r.run_ts)}"
+            for r in wf.itertuples()
+        ]
+        idx = st.selectbox("Inspect walk-forward run", range(len(labels)),
+                           format_func=lambda i: labels[i], key="wf_pick")
+        row = wf.iloc[idx]
+        data = wf_payload(row.path)
+
+        st.divider()
+        if not data:
+            st.warning("Could not load this walk-forward file.")
+            st.stop()
+
+        meta = data.get("meta", {})
+        slices = data.get("slices", [])
+
+        # --- WFE banner: OOS efficiency vs IS (1.0 = OOS matches IS) ---
+        wfe = finite(meta.get("wfe"))
+        b1, b2 = st.columns([1, 3])
+        with b1:
+            st.metric("Walk-Forward Efficiency",
+                      f"{wfe:.3f}" if wfe is not None else "—")
+        with b2:
+            st.info(
+                f"**{meta.get('strategy','?')} · {meta.get('symbol','?')}**  ·  "
+                f"{meta.get('n_slices','?')} slices  ·  "
+                f"IS {meta.get('is_window_days','?')}d / OOS {meta.get('oos_window_days','?')}d "
+                f"step {meta.get('step_days','?')}d  ·  ranked by {meta.get('rank_by','?')}  ·  "
+                f"{meta.get('data_start','?')} → {meta.get('data_end','?')}",
+                icon="🔄",
+            )
+
+        if not slices:
+            st.warning("No slices recorded in this run.")
+            st.stop()
+
+        # --- flatten slices: one row per OOS fold ---
+        srows = []
+        for s in slices:
+            om = s.get("oos_metrics", {}) or {}
+            im = s.get("is_metrics", {}) or {}
+            srows.append({
+                "Slice": s.get("slice_idx"),
+                "OOS Start": s.get("oos_start"), "OOS End": s.get("oos_end"),
+                "OOS P&L": finite(om.get("net_pnl")),
+                "OOS Sharpe": finite(om.get("sharpe")),
+                "OOS PF": finite(om.get("profit_factor")),
+                "OOS Win %": (finite(om.get("win_rate")) or 0) * 100,
+                "OOS Trades": finite(om.get("total_trades")),
+                "IS Sharpe": finite(im.get("sharpe")),
+            })
+        sdf = pd.DataFrame(srows)
+
+        # --- aggregate OOS stats across slices ---
+        oos_pnls = sdf["OOS P&L"].dropna()
+        total_oos_pnl = float(oos_pnls.sum()) if not oos_pnls.empty else 0.0
+        pos_slices = int((oos_pnls > 0).sum())
+        mean_oos_sharpe = float(sdf["OOS Sharpe"].dropna().mean()) if sdf["OOS Sharpe"].notna().any() else None
+        total_oos_trades = int(sdf["OOS Trades"].dropna().sum())
+
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Total OOS P&L", f"${total_oos_pnl:,.0f}")
+        m2.metric("Profitable Slices", f"{pos_slices}/{len(sdf)}")
+        m3.metric("Mean OOS Sharpe",
+                  f"{mean_oos_sharpe:.2f}" if mean_oos_sharpe is not None else "—")
+        m4.metric("Total OOS Trades", f"{total_oos_trades:,}")
+
+        # --- stitched OOS equity curve (cumulative OOS P&L across slices) ---
+        st.subheader("Stitched OOS equity (cumulative P&L across slices)")
+        eq = sdf.dropna(subset=["OOS P&L"]).copy()
+        if not eq.empty:
+            eq["Cumulative P&L"] = eq["OOS P&L"].cumsum()
+            eq_idx = eq.set_index("OOS End")["Cumulative P&L"]
+            st.area_chart(eq_idx, height=260)
+
+        # --- per-slice table ---
+        st.subheader("Per-slice OOS results")
+        st.dataframe(
+            sdf, width="stretch", hide_index=True, height=400,
+            column_config={
+                "OOS P&L": st.column_config.NumberColumn("OOS P&L", format="$%.0f"),
+                "OOS Sharpe": st.column_config.NumberColumn("OOS Sharpe", format="%.2f"),
+                "OOS PF": st.column_config.NumberColumn("OOS PF", format="%.2f"),
+                "OOS Win %": st.column_config.NumberColumn("OOS Win %", format="%.1f"),
+                "IS Sharpe": st.column_config.NumberColumn("IS Sharpe", format="%.2f"),
+            },
+        )
+        st.download_button(
+            "⬇ Download slices CSV", sdf.to_csv(index=False),
+            file_name=f"WF_{row.strategy_name}_{row.sym_safe}_{row.run_ts}_slices.csv",
+            mime="text/csv", key="wf_dl",
+        )
+
+        # --- chosen params per slice (parameter stability across folds) ---
+        with st.expander("Best params per slice (parameter stability)"):
+            prows = []
+            for s in slices:
+                bp = s.get("best_params", {}) or {}
+                prows.append({"Slice": s.get("slice_idx"),
+                              "OOS Start": s.get("oos_start"),
+                              **{pretty(k): v for k, v in bp.items()}})
+            st.dataframe(pd.DataFrame(prows), width="stretch", hide_index=True)
