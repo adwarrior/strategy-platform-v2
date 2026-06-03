@@ -40,6 +40,11 @@ st.set_page_config(page_title="Results Browser", page_icon="📊", layout="wide"
 
 STAGE_ORDER = ["IS", "MC", "OOS"]
 
+# Walk-forward runs are JSON files on disk (reports/<strategy>/WF_*.json), not in
+# the results DB. The browser reads them directly — see catalog_wf_runs().
+_WF_REPORTS_GLOB = os.path.join(_REPO_ROOT, "reports", "*", "WF_*.json")
+_WF_FNAME_RE = re.compile(r"^WF_(?P<strategy>.+)_(?P<sym>[^_]+)_(?P<ts>\d{8}_\d{4,6})\.json$")
+
 
 # --------------------------------------------------------------------------- #
 # Data access (read-only catalog queries; cached)
@@ -120,6 +125,56 @@ def stage_df(strategy: str, sym_safe: str, run_ts: str, stage: str) -> pd.DataFr
 @st.cache_data(ttl=30, show_spinner=False)
 def backtest_payload(strategy: str, sym_safe: str, bt_ts: str) -> dict | None:
     return load_backtest(strategy, sym_safe, bt_ts)
+
+
+@st.cache_data(ttl=30, show_spinner=False)
+def catalog_wf_runs() -> pd.DataFrame:
+    """Catalog of walk-forward runs read from reports/<strategy>/WF_*.json.
+
+    WF runs are not persisted to the results DB — they live as JSON on disk.
+    We read each file's `meta` block (cheap) to build the listing; the heavy
+    `slices` array is only loaded when a run is inspected (wf_payload()).
+    """
+    rows = []
+    for path in glob.glob(_WF_REPORTS_GLOB):
+        base = os.path.basename(path)
+        m = _WF_FNAME_RE.match(base)
+        if not m:
+            continue
+        try:
+            with open(path) as fh:
+                meta = json.load(fh).get("meta", {})
+        except Exception:  # noqa: BLE001
+            meta = {}
+        rows.append({
+            "strategy_name": meta.get("strategy", m.group("strategy")),
+            "symbol":        meta.get("symbol", m.group("sym")),
+            "sym_safe":      m.group("sym"),
+            "run_ts":        meta.get("ts", m.group("ts")),
+            "bar_type":      meta.get("bar_type", "—"),
+            "data_window":   (f"{meta.get('data_start')} → {meta.get('data_end')}"
+                              if meta.get("data_start") else ""),
+            "is_window_days":  meta.get("is_window_days"),
+            "oos_window_days": meta.get("oos_window_days"),
+            "step_days":       meta.get("step_days"),
+            "n_slices":        meta.get("n_slices"),
+            "wfe":             finite(meta.get("wfe")),
+            "rank_by":         meta.get("rank_by", ""),
+            "path":            path,
+        })
+    df = pd.DataFrame(rows)
+    if not df.empty:
+        df = df.sort_values("run_ts", ascending=False).reset_index(drop=True)
+    return df
+
+
+@st.cache_data(ttl=30, show_spinner=False)
+def wf_payload(path: str) -> dict | None:
+    try:
+        with open(path) as fh:
+            return json.load(fh)
+    except Exception:  # noqa: BLE001
+        return None
 
 
 # --------------------------------------------------------------------------- #
@@ -264,6 +319,8 @@ def clear_caches():
     catalog_backtests.clear()
     stage_df.clear()
     backtest_payload.clear()
+    catalog_wf_runs.clear()
+    wf_payload.clear()
 
 
 # --------------------------------------------------------------------------- #
@@ -288,7 +345,8 @@ with st.sidebar:
 
 st.title("📊 Strategy Results Browser")
 
-tab_runs, tab_bt = st.tabs(["⚙️ Optimizer Runs", "💾 Saved Backtests"])
+tab_runs, tab_bt, tab_wf = st.tabs(
+    ["⚙️ Optimizer Runs", "💾 Saved Backtests", "🔄 Walk-Forward"])
 
 
 # --------------------------------------------------------------------------- #
