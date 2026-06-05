@@ -51,37 +51,25 @@ class NYBreakout(BaseStrategy):
     supported_bar_types = ['time', '1m']     # 1m is auto-resampled to 5M internally
 
     default_params: Dict[str, Any] = {
-        # Anchor
-        'anchor_start_hour':       9,
-        'anchor_end_hour':         10,
-
-        # FVG Detection
-        'min_fvg_ticks':           3,
-        'enable_rebalance':        False,
+        'anchor_start_hour': 9,
+        'anchor_end_hour': 10,
+        'min_fvg_ticks': 4,
         'include_pre_trigger_fvgs': True,
-
-        # Entry / Selection
-        'prefer_overlap':          True,
-        'prefer_outside':          True,
-        'prefer_closest':          True,
-        'allow_limit_retarget':    True,
-        'bos_cancel_enabled':      False,
-        'bos_cancel_count':        3,
-        'max_trades_per_day':      3,
-        'entry_cutoff_time':       '12:00',
+        'prefer_overlap': True,
+        'prefer_outside': True,
+        'prefer_closest': True,
+        'allow_limit_retarget': True,
+        'bos_cancel_enabled': False,
+        'bos_cancel_count': 3,
+        'max_trades_per_day': 3,
+        'entry_cutoff_time': '13:00',
         'cancel_pending_at_cutoff': False,
-
-        # Exit
-        'rr_target':               1.0,
-        'eod_exit_time':           '16:55',
-
-        # Direction
-        'direction':               'Both',
-
-        # Risk
-        'use_risk_sizing':         True,
-        'max_risk':                100.0,
-        'qty':                     1,
+        'rr_target': 1,
+        'eod_exit_time': '16:55',
+        'direction': 'Both',
+        'use_risk_sizing': False,
+        'max_risk': 300,
+        'qty': 1,
     }
 
     # MES defaults — overridden by dashboard when symbol changes
@@ -99,13 +87,12 @@ class NYBreakout(BaseStrategy):
     @property
     def param_grid(self) -> Dict[str, Any]:
         return {
-            # Anchor
-            'anchor_start_hour':       (7, 11, 1),
-            'anchor_end_hour':         (8, 12, 1),
+            # Anchor — fixed at 9-10am ET (NY institutional positioning hour); not swept
+            'anchor_start_hour':       [9],
+            'anchor_end_hour':         [10],
 
             # FVG Detection
             'min_fvg_ticks':           (1, 20, 1),
-            'enable_rebalance':        [True, False],
             'include_pre_trigger_fvgs': [True, False],
 
             # Entry / Selection
@@ -143,7 +130,7 @@ class NYBreakout(BaseStrategy):
     def param_groups(self) -> Dict[str, List[str]]:
         return {
             "1. Anchor Range":  ['anchor_start_hour', 'anchor_end_hour'],
-            "2. FVG Detection": ['min_fvg_ticks', 'enable_rebalance', 'include_pre_trigger_fvgs'],
+            "2. FVG Detection": ['min_fvg_ticks', 'include_pre_trigger_fvgs'],
             "3. Entry":         ['prefer_overlap', 'prefer_outside', 'prefer_closest',
                                  'allow_limit_retarget', 'bos_cancel_enabled', 'bos_cancel_count',
                                  'max_trades_per_day', 'entry_cutoff_time', 'cancel_pending_at_cutoff'],
@@ -158,7 +145,6 @@ class NYBreakout(BaseStrategy):
             'anchor_start_hour':       'Anchor Start Hour (ET)',
             'anchor_end_hour':         'Anchor End Hour (ET)',
             'min_fvg_ticks':           'Min FVG Ticks',
-            'enable_rebalance':        'Enable Rebalance (V2 reserved)',
             'include_pre_trigger_fvgs': 'Include Pre-Trigger FVGs',
             'prefer_overlap':          'Prefer Overlap',
             'prefer_outside':          'Prefer Outside',
@@ -574,21 +560,18 @@ def _run_backtest_loop(
                     if high[i] > anchor_high: anchor_high = high[i]
                     if low[i]  < anchor_low:  anchor_low  = low[i]
             elif hour == anchor_end and ts.minute == 0:
-                # The bar stamped exactly at anchor_end:00 (e.g. the 09:56-10:00
-                # bar) is still part of the anchor range — include its H/L before
-                # locking, matching NYBreakout.cs and the platform-v2 port.
+                # With right/right resampling, Python's 10:00 bar aggregates the same
+                # 1m bars as NT's close-stamped 10:00 bar (09:56–10:00). NT includes
+                # this bar in anchor accumulation before locking — so must Python.
                 if anchor_high == 0.0 and anchor_low == 0.0:
                     anchor_high = high[i]
                     anchor_low  = low[i]
                 else:
                     if high[i] > anchor_high: anchor_high = high[i]
                     if low[i]  < anchor_low:  anchor_low  = low[i]
-                # Accumulation is now done — lock.
                 if anchor_high > 0 and anchor_low > 0 and anchor_high > anchor_low:
                     anchor_locked = True
-                # IMPORTANT: do NOT continue — fall through and let this bar
-                # participate in FVG detection / entry. Bias is skipped on this
-                # exact 10:00:00 lock bar (see bias block below), matching NT.
+                # IMPORTANT: do NOT continue — fall through to FVG/bias/entry.
             else:
                 continue
             if not anchor_locked:
@@ -669,7 +652,7 @@ def _run_backtest_loop(
                 })
 
         # ---- Bias engagement / flip (only when flat + no pending limit)
-        # NT skips bias on the anchor-lock bar (anchor_end:00 exactly) — mirror that.
+        # NT skips bias on the anchor-lock bar (10:00:00 exactly) — mirror that.
         if not in_trade and pending_side is None and not (ts.hour == anchor_end and ts.minute == 0):
             if close[i] > anchor_high:
                 if bias != 'Long':

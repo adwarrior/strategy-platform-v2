@@ -48,6 +48,7 @@ from strategy_platform.optimize.pipeline import (
     _grid_combinations,  # noqa: F401 — imported for completeness; _deduplicated_combinations wraps it
     _init_worker,
     _run_combo,
+    strategy_reports_dir,
 )
 
 # ---------------------------------------------------------------------------
@@ -57,31 +58,31 @@ from strategy_platform.optimize.pipeline import (
 class _SafeEncoder(json.JSONEncoder):
     """Convert Timestamps → ISO strings and NaN/Inf → null."""
 
-    def default(self, obj: Any) -> Any:
-        if isinstance(obj, pd.Timestamp):
-            return obj.isoformat()
-        if isinstance(obj, (datetime, date)):
-            return obj.isoformat()
-        if isinstance(obj, (np.bool_,)):
-            return bool(obj)
-        if isinstance(obj, (np.integer,)):
-            return int(obj)
-        if isinstance(obj, (np.floating,)):
-            v = float(obj)
+    def default(self, o: Any) -> Any:
+        if isinstance(o, pd.Timestamp):
+            return o.isoformat()
+        if isinstance(o, (datetime, date)):
+            return o.isoformat()
+        if isinstance(o, (np.integer,)):
+            return int(o)
+        if isinstance(o, (np.floating,)):
+            v = float(o)
             return None if (math.isnan(v) or math.isinf(v)) else v
-        if isinstance(obj, (np.ndarray,)):
-            return obj.tolist()
-        return super().default(obj)
+        if isinstance(o, (np.bool_,)):
+            return bool(o)
+        if isinstance(o, (np.ndarray,)):
+            return o.tolist()
+        return super().default(o)
 
-    def encode(self, obj: Any) -> str:
+    def encode(self, o: Any) -> str:
         # Intercept float NaN/Inf at the top level too
-        if isinstance(obj, float) and (math.isnan(obj) or math.isinf(obj)):
+        if isinstance(o, float) and (math.isnan(o) or math.isinf(o)):
             return "null"
-        return super().encode(obj)
+        return super().encode(o)
 
-    def iterencode(self, obj: Any, _one_shot: bool = False):
+    def iterencode(self, o: Any, _one_shot: bool = False):
         # Recursively sanitise dicts/lists
-        return super().iterencode(self._sanitise(obj), _one_shot)
+        return super().iterencode(self._sanitise(o), _one_shot)
 
     def _sanitise(self, obj: Any) -> Any:
         if isinstance(obj, dict):
@@ -94,8 +95,6 @@ class _SafeEncoder(json.JSONEncoder):
             return obj.isoformat()
         if isinstance(obj, (datetime, date)):
             return obj.isoformat()
-        if isinstance(obj, (np.bool_,)):
-            return bool(obj)
         if isinstance(obj, (np.integer,)):
             return int(obj)
         if isinstance(obj, (np.floating,)):
@@ -187,16 +186,17 @@ def _trades_to_records(trades: Any) -> List[Dict[str, Any]]:
     for rec in records:
         row: Dict[str, Any] = {}
         for k, v in rec.items():
+            key = str(k)
             if isinstance(v, pd.Timestamp):
-                row[k] = v.isoformat()
+                row[key] = v.isoformat()
             elif isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
-                row[k] = None
+                row[key] = None
             elif isinstance(v, (np.integer,)):
-                row[k] = int(v)
+                row[key] = int(v)
             elif isinstance(v, (np.floating,)):
-                row[k] = None if (math.isnan(float(v)) or math.isinf(float(v))) else float(v)
+                row[key] = None if (math.isnan(float(v)) or math.isinf(float(v))) else float(v)
             else:
-                row[k] = v
+                row[key] = v
         safe.append(row)
     return safe
 
@@ -252,7 +252,7 @@ def _run_is_sweep(
     best_row  = df_valid.iloc[0]
     param_keys = list(param_grid.keys())
     best_params = {k: best_row[k] for k in param_keys if k in best_row}
-    best_metrics = _extract_metrics(best_row.to_dict())
+    best_metrics = _extract_metrics({str(k): v for k, v in best_row.to_dict().items()})
     return best_params, best_metrics, n_combos
 
 
@@ -302,7 +302,10 @@ def run_walk_forward(
     ------
     ValueError  if fewer than 2 slices can be formed from the given date range.
     """
-    os.makedirs(REPORTS_DIR, exist_ok=True)
+    if data_start is None or data_end is None:
+        raise ValueError("data_start and data_end are required.")
+
+    strategy_dir = strategy_reports_dir(strategy_name)
     ts = datetime.now().strftime("%Y%m%d_%H%M")
 
     # ------------------------------------------------------------------
@@ -365,6 +368,7 @@ def run_walk_forward(
     print(f"\n[WFO] Loading full-range {symbol} data ({data_start} → {data_end})...")
 
     if is_tick_strategy:
+        assert tick_bar_size is not None  # set above when is_tick_strategy
         df_full = load_tick_bars(symbol, bar_size=tick_bar_size,
                                  start=data_start, end=data_end, host=db_host)
     elif is_1m_strategy:
@@ -543,7 +547,7 @@ def run_walk_forward(
     # ------------------------------------------------------------------
     # Save JSON report
     # ------------------------------------------------------------------
-    report_path = os.path.join(REPORTS_DIR, f"WF_{strategy_name}_{sym_safe}_{ts}.json")
+    report_path = os.path.join(strategy_dir, f"WF_{strategy_name}_{sym_safe}_{ts}.json")
     with open(report_path, "w", encoding="utf-8") as fh:
         json.dump(output, fh, cls=_SafeEncoder, indent=2)
     print(f"[WFO] Report saved: {report_path}")
