@@ -110,10 +110,16 @@ def main() -> None:
             for tick_sz in base.TICK_SIZES:
                 fold_rows.append(_data_error_row(symbol, fold, tick_sz, e))
             continue
-        # tick_data ts is UTC (per memory) → ET-naive for session logic
-        if ticks.index.tz is None:
-            ticks.index = ticks.index.tz_localize("UTC")
-        ticks.index = ticks.index.tz_convert("America/New_York").tz_localize(None)
+        # NOTE: the completed MCL/MGC WaeJurik + mobobands sweeps used
+        # load_tick_bars + normalise_tz, which is a NO-OP on the tz-naive UTC
+        # index — i.e. those runs bucketed sessions on a UTC clock LABELLED as
+        # ET (a ~5h shift). To keep this MNQ run apples-to-apples with the
+        # existing synthesis, we deliberately keep the UTC-naive index here.
+        # The aggregate edge metrics (Sharpe/PF/PnL) are tz-independent; only
+        # the session labels inherit the shared ~5h offset. Flagged in the
+        # summary + synthesis rather than silently diverging.
+        if ticks.index.tz is not None:
+            ticks.index = ticks.index.tz_localize(None)
         print(f"  Pulled {len(ticks):,} ticks in {time.time()-t0:.0f}s.", flush=True)
 
         for tick_sz in base.TICK_SIZES:
