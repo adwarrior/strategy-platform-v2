@@ -20,12 +20,17 @@ from __future__ import annotations
 
 import gc
 import sys
+import time
 from pathlib import Path
+
+import numpy as np
+import pandas as pd
 
 ROOT = Path("/home/ad/strategy-platform-v2")
 sys.path.insert(0, str(ROOT))
 
 import wf_waejurikpro as base  # noqa: E402  (reuse all helpers)
+from strategy_platform.data.loader import load_ticks_raw  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Trim MNQ to 4 folds (drop fold 5 — the 2025-08→10 window — to cut compute).
@@ -33,6 +38,41 @@ import wf_waejurikpro as base  # noqa: E402  (reuse all helpers)
 # against the partial 233-tick result we already have for folds 1-2.
 # ---------------------------------------------------------------------------
 MNQ_TRIMMED_FOLDS = base.FOLDS_BY_SYMBOL["MNQ"][:4]
+
+
+def aggregate_ticks(ticks: pd.DataFrame, bar_size: int) -> pd.DataFrame:
+    """Aggregate raw ticks to fixed-N tick bars.
+
+    Identical bucketing to loader.load_tick_bars: open=first, high=max,
+    low=min, close=last, ts stamped at the first tick of each bar. Operates
+    on the already-loaded tick frame so we pull the DB once per fold window
+    and derive all 5 bar sizes locally (DB transfer is the real bottleneck:
+    ~9M ticks/month at ~200s each over the LAN).
+    """
+    if ticks is None or len(ticks) == 0:
+        return pd.DataFrame(columns=["open", "high", "low", "close", "volume", "tick_count"])
+    prices = ticks["price"].to_numpy(dtype=np.float64)
+    volumes = ticks["volume"].to_numpy(dtype=np.int64)
+    times = ticks.index.to_numpy()  # datetime64[ns]
+    n = len(prices)
+    n_complete = (n // bar_size) * bar_size
+    rows = []
+    for i in range(0, n_complete, bar_size):
+        bp = prices[i:i + bar_size]
+        bv = volumes[i:i + bar_size]
+        rows.append((times[i], float(bp[0]), float(bp.max()),
+                     float(bp.min()), float(bp[-1]), int(bv.sum()), bar_size))
+    if n_complete < n:  # final partial bar
+        bp = prices[n_complete:]
+        bv = volumes[n_complete:]
+        rows.append((times[n_complete], float(bp[0]), float(bp.max()),
+                     float(bp.min()), float(bp[-1]), int(bv.sum()), n - n_complete))
+    if not rows:
+        return pd.DataFrame(columns=["open", "high", "low", "close", "volume", "tick_count"])
+    df = pd.DataFrame(rows, columns=["ts", "open", "high", "low", "close",
+                                     "volume", "tick_count"]).set_index("ts")
+    df.index = pd.to_datetime(df.index)
+    return df
 
 
 def main() -> None:
@@ -45,7 +85,9 @@ def main() -> None:
     print(f"{symbol} meta: tick_size={meta['tick_size']}, "
           f"tick_value={meta['tick_value']}, commission_rt={meta['commission']}")
     print(f"Trimmed run: {len(MNQ_TRIMMED_FOLDS)} folds, "
-          f"tick sizes {base.TICK_SIZES}\n", flush=True)
+          f"tick sizes {base.TICK_SIZES}", flush=True)
+    print("Strategy: pull raw ticks ONCE per fold window, aggregate all "
+          "5 bar sizes locally (cuts 20 DB pulls → 4).\n", flush=True)
 
     reports_dir = ROOT / "reports"
     reports_dir.mkdir(exist_ok=True)
@@ -55,41 +97,54 @@ def main() -> None:
     strat = base.build_strategy(symbol, meta)
     db_host = base.os.getenv("DB_HOST", "192.168.1.228")
 
-    for tick_sz in base.TICK_SIZES:
-        print(f"\n{'='*60}\n  Tick size: {tick_sz}  |  symbol: {symbol}\n{'='*60}",
-              flush=True)
-        for fold in MNQ_TRIMMED_FOLDS:
-            print(f"  Loading {fold['is_start']} → {fold['oos_end']} ...", flush=True)
-            try:
-                full_data = base.load_tick_bars(
-                    symbol=symbol, bar_size=tick_sz,
-                    start=fold["is_start"], end=fold["oos_end"], host=db_host)
-            except Exception as e:  # noqa: BLE001
-                print(f"  ERROR: {e}")
-                fold_rows.append({
-                    "instrument": symbol, "strategy": base.STRATEGY,
-                    "fold": fold["fold"], "tick_size": tick_sz,
-                    "is_start": fold["is_start"], "is_end": fold["is_end"],
-                    "oos_start": fold["oos_start"], "oos_end": fold["oos_end"],
-                    "is_sharpe": None, "is_pf": None, "is_net_pnl": None,
-                    "is_trades": None, "is_max_dd": None,
-                    "oos_sharpe": None, "oos_pf": None, "oos_net_pnl": None,
-                    "oos_trades": None, "oos_max_dd": None, "oos_win_rate": None,
-                    "flag": f"DATA_ERROR:{e}",
-                })
-                continue
-            full_data = base.normalise_tz(full_data)
-            print(f"    Loaded {len(full_data)} bars.", flush=True)
-            base.run_one_combo(strat, tick_sz, fold, full_data, symbol,
+    # Outer loop = fold (one DB pull each); inner loop = tick size (local agg).
+    for fold in MNQ_TRIMMED_FOLDS:
+        print(f"\n{'='*60}\n  Fold {fold['fold']}: pulling raw ticks "
+              f"{fold['is_start']} → {fold['oos_end']}\n{'='*60}", flush=True)
+        t0 = time.time()
+        try:
+            ticks = load_ticks_raw(symbol=symbol, start=fold["is_start"],
+                                   end=fold["oos_end"], host=db_host)
+        except Exception as e:  # noqa: BLE001
+            print(f"  DATA_ERROR: {e}", flush=True)
+            for tick_sz in base.TICK_SIZES:
+                fold_rows.append(_data_error_row(symbol, fold, tick_sz, e))
+            continue
+        # tick_data ts is UTC (per memory) → ET-naive for session logic
+        if ticks.index.tz is None:
+            ticks.index = ticks.index.tz_localize("UTC")
+        ticks.index = ticks.index.tz_convert("America/New_York").tz_localize(None)
+        print(f"  Pulled {len(ticks):,} ticks in {time.time()-t0:.0f}s.", flush=True)
+
+        for tick_sz in base.TICK_SIZES:
+            bars = aggregate_ticks(ticks, tick_sz)
+            print(f"    tick_size={tick_sz}: {len(bars):,} bars", flush=True)
+            base.run_one_combo(strat, tick_sz, fold, bars, symbol,
                                fold_rows, session_rows)
-            del full_data
+            del bars
             gc.collect()
 
-        # Incremental write after each tick size so progress survives a crash.
+        del ticks
+        gc.collect()
+        # Incremental write after each fold so progress survives a crash.
         _write(reports_dir, symbol, fold_rows, session_rows, interim=True)
 
     _write(reports_dir, symbol, fold_rows, session_rows, interim=False)
     print("\nDone.")
+
+
+def _data_error_row(symbol, fold, tick_sz, e):
+    return {
+        "instrument": symbol, "strategy": base.STRATEGY,
+        "fold": fold["fold"], "tick_size": tick_sz,
+        "is_start": fold["is_start"], "is_end": fold["is_end"],
+        "oos_start": fold["oos_start"], "oos_end": fold["oos_end"],
+        "is_sharpe": None, "is_pf": None, "is_net_pnl": None,
+        "is_trades": None, "is_max_dd": None,
+        "oos_sharpe": None, "oos_pf": None, "oos_net_pnl": None,
+        "oos_trades": None, "oos_max_dd": None, "oos_win_rate": None,
+        "flag": f"DATA_ERROR:{e}",
+    }
 
 
 def _write(reports_dir, symbol, fold_rows, session_rows, interim):
