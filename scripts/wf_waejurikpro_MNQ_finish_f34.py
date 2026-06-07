@@ -45,6 +45,35 @@ SESS_TSV = REPORTS / "wf_waejurikpro_MNQ_trimmed_sessions.tsv"
 REMAINING_FOLDS = base.FOLDS_BY_SYMBOL["MNQ"][2:4]  # folds 3 and 4
 
 
+def _load_bars_monthly(symbol, tick_sz, start, end, host):
+    """Load tick bars one calendar month at a time and concat.
+
+    Fold 3 spans 46M ticks (Apr 2025 alone = 18.5M) — a single load_tick_bars
+    call buffers enough to OOM the 11GB box. Per-month loads cap peak RAM at
+    ~4GB. Minor caveat: the fixed-N tick counter restarts each month, so a
+    handful of bars at month boundaries differ from one continuous load. Out of
+    ~100k bars this is negligible and does not affect the edge verdict.
+    """
+    months = pd.date_range(pd.Timestamp(start).replace(day=1),
+                           pd.Timestamp(end), freq="MS")
+    pieces = []
+    for ms in months:
+        m_start = max(pd.Timestamp(start), ms)
+        m_end = min(pd.Timestamp(end), ms + pd.offsets.MonthEnd(1))
+        df = base.load_tick_bars(symbol=symbol, bar_size=tick_sz,
+                                 start=str(m_start.date()),
+                                 end=str(m_end.date()), host=host)
+        if len(df):
+            pieces.append(df)
+        del df
+        gc.collect()
+    if not pieces:
+        return pd.DataFrame(columns=["open", "high", "low", "close",
+                                     "volume", "tick_count"])
+    out = pd.concat(pieces).sort_index()
+    return out
+
+
 def main() -> None:
     symbol = "MNQ"
     # Restore the 4-fold list so the summary writer reports all four.
@@ -63,11 +92,10 @@ def main() -> None:
               flush=True)
         for tick_sz in base.TICK_SIZES:
             print(f"  tick_size={tick_sz}: loading {fold['is_start']}→{fold['oos_end']} "
-                  f"via streaming loader...", flush=True)
+                  f"in monthly chunks...", flush=True)
             try:
-                bars = base.load_tick_bars(
-                    symbol=symbol, bar_size=tick_sz,
-                    start=fold["is_start"], end=fold["oos_end"], host=host)
+                bars = _load_bars_monthly(symbol, tick_sz, fold["is_start"],
+                                          fold["oos_end"], host)
             except Exception as e:  # noqa: BLE001
                 print(f"    DATA_ERROR: {e}", flush=True)
                 fold_rows.append(trim._data_error_row(symbol, fold, tick_sz, e))
