@@ -260,18 +260,23 @@ class ATRCandleBreakout(BaseStrategy):
         'sr_min_touches':          2,
 
         # ---- Risk Management ----
-        'stop_loss_ticks':         20,            # stop loss in ticks
-        'take_profit_ticks':       40,            # take profit in ticks
         'risk_per_trade':          300.0,         # fixed $ risk per trade
-        'sl_by_atr':               False,         # if True, SL = ATR * sl_atr_mult (override stop_loss_ticks)
-        'sl_atr_mult':             1.0,           # ATR multiplier for SL when sl_by_atr=True
-        'tp_by_atr':               False,         # if True, TP = ATR * tp_atr_mult (override take_profit_ticks)
-        'tp_atr_mult':             2.0,           # ATR multiplier for TP when tp_by_atr=True
+        'sl_mode':                 'Ticks',       # 'Ticks' | 'ATR' | 'PctOfPrice'
+        'stop_loss_ticks':         20,            # SL distance in ticks      (sl_mode='Ticks')
+        'sl_atr_mult':             1.0,           # SL = ATR * this           (sl_mode='ATR')
+        'sl_pct':                  0.50,          # SL = entry * this/100     (sl_mode='PctOfPrice'); spec: % of price
+        'tp_mode':                 'Ticks',       # 'Ticks' | 'ATR' | 'PctOfPrice'
+        'take_profit_ticks':       40,            # TP distance in ticks      (tp_mode='Ticks')
+        'tp_atr_mult':             2.0,           # TP = ATR * this           (tp_mode='ATR')
+        'tp_pct':                  1.00,          # TP = entry * this/100     (tp_mode='PctOfPrice'); spec: % of price
 
         # ---- Trailing Stop ----
         'enable_trailing':         False,
-        'trail_activate_ticks':    20,            # activate trailing after X ticks profit
-        'trail_step_ticks':        10,            # trail distance in ticks
+        'trail_mode':              'Ticks',       # 'Ticks' | 'PctOfPrice'
+        'trail_activate_ticks':    20,            # activate after X ticks profit  (trail_mode='Ticks')
+        'trail_step_ticks':        10,            # trail distance in ticks         (trail_mode='Ticks')
+        'trail_activate_pct':      0.50,          # activate after profit reaches this % of price (trail_mode='PctOfPrice')
+        'trail_step_pct':          0.25,          # trail distance as % of price                  (trail_mode='PctOfPrice')
 
         # ---- General ----
         'direction':               'Both',        # 'Both', 'Long Only', 'Short Only'
@@ -326,18 +331,23 @@ class ATRCandleBreakout(BaseStrategy):
             'sr_min_touches':          (1, 5, 1),
 
             # Risk Management
-            'stop_loss_ticks':         (5, 100, 5),
-            'take_profit_ticks':       (10, 200, 10),
             'risk_per_trade':          (50.0, 2000.0, 50.0),
-            'sl_by_atr':               [True, False],
+            'sl_mode':                 ['Ticks', 'ATR', 'PctOfPrice'],
+            'stop_loss_ticks':         (5, 100, 5),
             'sl_atr_mult':             (0.5, 3.0, 0.25),
-            'tp_by_atr':               [True, False],
+            'sl_pct':                  (0.1, 3.0, 0.1),
+            'tp_mode':                 ['Ticks', 'ATR', 'PctOfPrice'],
+            'take_profit_ticks':       (10, 200, 10),
             'tp_atr_mult':             (0.5, 5.0, 0.25),
+            'tp_pct':                  (0.2, 5.0, 0.1),
 
             # Trailing Stop
             'enable_trailing':         [True, False],
+            'trail_mode':              ['Ticks', 'PctOfPrice'],
             'trail_activate_ticks':    (5, 100, 5),
             'trail_step_ticks':        (5, 50, 5),
+            'trail_activate_pct':      (0.1, 3.0, 0.1),
+            'trail_step_pct':          (0.1, 2.0, 0.1),
 
             # General
             'direction':               ['Both', 'Long Only', 'Short Only'],
@@ -363,12 +373,19 @@ class ATRCandleBreakout(BaseStrategy):
         'sr_lookback_bars':     ('enable_sr_filter', True),
         'sr_zone_width_mult':   ('enable_sr_filter', True),
         'sr_min_touches':       ('enable_sr_filter', True),
-        # SL/TP ATR deps
-        'sl_atr_mult':          ('sl_by_atr', True),
-        'tp_atr_mult':          ('tp_by_atr', True),
+        # SL/TP mode deps
+        'stop_loss_ticks':      ('sl_mode', 'Ticks'),
+        'sl_atr_mult':          ('sl_mode', 'ATR'),
+        'sl_pct':               ('sl_mode', 'PctOfPrice'),
+        'take_profit_ticks':    ('tp_mode', 'Ticks'),
+        'tp_atr_mult':          ('tp_mode', 'ATR'),
+        'tp_pct':               ('tp_mode', 'PctOfPrice'),
         # Trailing deps
+        'trail_mode':           ('enable_trailing', True),
         'trail_activate_ticks': ('enable_trailing', True),
         'trail_step_ticks':     ('enable_trailing', True),
+        'trail_activate_pct':   ('enable_trailing', True),
+        'trail_step_pct':       ('enable_trailing', True),
     }
 
     @property
@@ -393,11 +410,14 @@ class ATRCandleBreakout(BaseStrategy):
                 'sr_zone_width_mult', 'sr_min_touches'
             ],
             "6. Risk Management": [
-                'stop_loss_ticks', 'take_profit_ticks', 'risk_per_trade',
-                'sl_by_atr', 'sl_atr_mult', 'tp_by_atr', 'tp_atr_mult'
+                'risk_per_trade',
+                'sl_mode', 'stop_loss_ticks', 'sl_atr_mult', 'sl_pct',
+                'tp_mode', 'take_profit_ticks', 'tp_atr_mult', 'tp_pct'
             ],
             "7. Trailing Stop": [
-                'enable_trailing', 'trail_activate_ticks', 'trail_step_ticks'
+                'enable_trailing', 'trail_mode',
+                'trail_activate_ticks', 'trail_step_ticks',
+                'trail_activate_pct', 'trail_step_pct'
             ],
             "8. General": [
                 'direction'
@@ -430,16 +450,21 @@ class ATRCandleBreakout(BaseStrategy):
             'sr_lookback_bars':       'S/R Lookback Bars',
             'sr_zone_width_mult':     'S/R Zone Width (×ATR)',
             'sr_min_touches':         'S/R Min Touches',
-            'stop_loss_ticks':        'Stop Loss (ticks)',
-            'take_profit_ticks':      'Take Profit (ticks)',
             'risk_per_trade':         'Risk Per Trade ($)',
-            'sl_by_atr':              'SL by ATR',
+            'sl_mode':                'SL Mode',
+            'stop_loss_ticks':        'Stop Loss (ticks)',
             'sl_atr_mult':            'SL ATR Multiplier',
-            'tp_by_atr':              'TP by ATR',
+            'sl_pct':                 'Stop Loss (% of price)',
+            'tp_mode':                'TP Mode',
+            'take_profit_ticks':      'Take Profit (ticks)',
             'tp_atr_mult':            'TP ATR Multiplier',
+            'tp_pct':                 'Take Profit (% of price)',
             'enable_trailing':        'Enable Trailing Stop',
+            'trail_mode':             'Trail Mode',
             'trail_activate_ticks':   'Trail Activate (ticks)',
             'trail_step_ticks':       'Trail Step (ticks)',
+            'trail_activate_pct':     'Trail Activate (% of price)',
+            'trail_step_pct':         'Trail Step (% of price)',
             'direction':              'Direction',
         }
 
@@ -541,17 +566,18 @@ class ATRCandleBreakout(BaseStrategy):
 
     def run_monte_carlo(
         self,
-        prepared: pd.DataFrame,  # unused; we reload inside
+        prepared: Any,
         params: Dict[str, Any],
         n_sims: int = 200,
         seed: int = 42,
     ) -> Dict[str, Any]:
-        """Day-shuffle Monte Carlo on the signal timeframe.
+        """Monte Carlo via daily-P&L bootstrap.
 
-        Operates on the prepared frames (output of prepare_data) — the correct
-        IS slice and symbol — never reloading. NOTE: only the signal TF is
-        shuffled while higher-TF filter frames stay in original order, so MC is
-        an approximation when filters are enabled (tracked as a separate item).
+        Runs the real backtest once on the prepared frames (correct IS slice
+        and symbol — never reloading), then resamples per-session P&L with
+        replacement. Unlike a bar-shuffle, this preserves every cross-timeframe
+        relationship (trend/MTF/S/R filters, ATR continuity) so the result is
+        coherent regardless of which filters are enabled.
         """
         merged = {**self.default_params, **params}
         all_tfs = prepared if isinstance(prepared, dict) else self.prepare_data(prepared)
@@ -561,49 +587,57 @@ class ATRCandleBreakout(BaseStrategy):
             return {'mc_stability': 0.0, 'mc_sharpe_p5': float('nan'),
                     'mc_pnl_p5': float('nan'), 'mc_pnl_p50': float('nan')}
 
-        # Group by date for shuffling
-        groups = [(d, grp) for d, grp in signal_df.groupby(signal_df.index.date)]
-        rng = np.random.default_rng(seed)
-        n = len(groups)
+        # Build indicators once and run the real (unshuffled) backtest.
+        tfs_needed = {merged['signal_timeframe']}
+        if merged['enable_trend_filter']:
+            tfs_needed.add(merged['trend_timeframe'])
+        if merged['enable_mtf_atr']:
+            tfs_needed.add(merged['mtf_timeframe'])
+        if merged['enable_sr_filter']:
+            tfs_needed.add(merged['sr_timeframe'])
 
-        net_pnls = []
-        sharpes = []
+        tf_data = {}
+        for tf in tfs_needed:
+            df = all_tfs.get(tf)
+            if df is None or len(df) < 50:
+                continue
+            df = df.copy()
+            df['atr'] = _compute_atr(df, merged['atr_period'] if tf == merged['signal_timeframe']
+                                        else (merged['mtf_atr_period'] if tf == merged['mtf_timeframe']
+                                              else 14))
+            if merged['enable_trend_filter'] and tf == merged['trend_timeframe']:
+                df['trend_ma'] = _ma(df['close'], merged['trend_ma_period'], merged['trend_ma_method'])
+            tf_data[tf] = df
 
-        for _ in range(n_sims):
-            order = rng.permutation(n)
-            shuffled_df = pd.concat([groups[i][1] for i in order]).copy()
-
-            # Rebuild multi-TF data for shuffled signal (simplified: just shuffle signal TF).
-            tf_data = {}
-            for tf_key, df_tf in all_tfs.items():
-                df = df_tf.copy()
-                df['atr'] = _compute_atr(df, merged['atr_period'])
-                if merged['enable_trend_filter'] and tf_key == merged['trend_timeframe']:
-                    df['trend_ma'] = _ma(df['close'], merged['trend_ma_period'], merged['trend_ma_method'])
-                tf_data[tf_key] = df
-
-            # Replace signal TF with shuffled version
-            shuffled_df['atr'] = _compute_atr(shuffled_df, merged['atr_period'])
-            if merged['enable_trend_filter'] and merged['signal_timeframe'] == merged['trend_timeframe']:
-                shuffled_df['trend_ma'] = _ma(shuffled_df['close'], merged['trend_ma_period'], merged['trend_ma_method'])
-            tf_data[merged['signal_timeframe']] = shuffled_df
-
-            trades = self._run_simulation(tf_data, merged)
-            stats = _summarise(trades)
-            if stats.get('trades', 0) >= 5:
-                net_pnls.append(stats['net_pnl'])
-                sharpes.append(stats['sharpe'])
-
-        if not net_pnls:
+        trades = self._run_simulation(tf_data, merged)
+        if len(trades) < 5:
             return {'mc_stability': 0.0, 'mc_sharpe_p5': float('nan'),
                     'mc_pnl_p5': float('nan'), 'mc_pnl_p50': float('nan')}
 
-        arr = np.array(net_pnls)
+        # Aggregate to per-session P&L, padding non-trading sessions with zero.
+        daily: Dict[Any, float] = {}
+        for t in trades:
+            daily[t['session_date']] = daily.get(t['session_date'], 0.0) + t['pnl']
+        pnls = np.array(list(daily.values()), dtype=float)
+        total_sessions = int(signal_df['close'].resample('D').last().count())
+        n_zero = max(0, total_sessions - len(pnls))
+        if n_zero > 0:
+            pnls = np.concatenate([pnls, np.zeros(n_zero)])
+        n = len(pnls)
+
+        rng = np.random.default_rng(seed)
+        idx = rng.integers(0, n, size=(n_sims, n))
+        s_pnls = pnls[idx]
+        net_pnls = s_pnls.sum(axis=1)
+        stds = s_pnls.std(axis=1, ddof=1)
+        means = s_pnls.mean(axis=1)
+        sharpes = np.where(stds > 0, (means / stds) * np.sqrt(252), 0.0)
+
         return {
-            'mc_stability': float((arr > 0).mean()),
-            'mc_sharpe_p5': float(np.percentile(sharpes, 5)),
-            'mc_pnl_p5':    float(np.percentile(arr,     5)),
-            'mc_pnl_p50':   float(np.percentile(arr,    50)),
+            'mc_stability': float((net_pnls > 0).mean()),
+            'mc_sharpe_p5': float(np.percentile(sharpes,  5)),
+            'mc_pnl_p5':    float(np.percentile(net_pnls, 5)),
+            'mc_pnl_p50':   float(np.percentile(net_pnls, 50)),
         }
 
     # -----------------------------------------------------------------------
@@ -631,7 +665,6 @@ class ATRCandleBreakout(BaseStrategy):
         low_a   = df['low'].to_numpy()
         close_a = df['close'].to_numpy()
         atr_a   = df['atr'].to_numpy()
-        vol_a   = df['volume'].to_numpy() if 'volume' in df.columns else np.zeros(len(df))
         n = len(df)
 
         # Trend MA (if enabled)
@@ -672,10 +705,14 @@ class ATRCandleBreakout(BaseStrategy):
         min_body_pct      = float(params['min_body_to_range_pct']) / 100.0
         sl_ticks          = int(params['stop_loss_ticks'])
         tp_ticks          = int(params['take_profit_ticks'])
-        sl_by_atr         = bool(params.get('sl_by_atr', False))
+        # SL/TP mode — accept the new enum, falling back to the legacy
+        # sl_by_atr/tp_by_atr bools so older saved configs still resolve.
+        sl_mode = str(params.get('sl_mode') or ('ATR' if params.get('sl_by_atr') else 'Ticks'))
+        tp_mode = str(params.get('tp_mode') or ('ATR' if params.get('tp_by_atr') else 'Ticks'))
         sl_atr_mult       = float(params.get('sl_atr_mult', 1.0))
-        tp_by_atr         = bool(params.get('tp_by_atr', False))
         tp_atr_mult       = float(params.get('tp_atr_mult', 2.0))
+        sl_pct            = float(params.get('sl_pct', 0.5)) / 100.0
+        tp_pct            = float(params.get('tp_pct', 1.0)) / 100.0
         risk_per_trade    = float(params['risk_per_trade'])
         direction         = str(params['direction'])
         can_long  = direction in ('Both', 'Long Only', 'both', 'long_only')
@@ -690,8 +727,11 @@ class ATRCandleBreakout(BaseStrategy):
 
         # Trailing
         enable_trail = params['enable_trailing']
+        trail_mode = str(params.get('trail_mode', 'Ticks'))
         trail_act_ticks = int(params.get('trail_activate_ticks', 20))
         trail_step_ticks = int(params.get('trail_step_ticks', 10))
+        trail_act_pct = float(params.get('trail_activate_pct', 0.5)) / 100.0
+        trail_step_pct = float(params.get('trail_step_pct', 0.25)) / 100.0
 
         point_value = self.tick_value / self.tick_size
 
