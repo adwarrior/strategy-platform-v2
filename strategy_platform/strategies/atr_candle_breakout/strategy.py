@@ -356,10 +356,12 @@ class ATRCandleBreakout(BaseStrategy):
         'sr_lookback_bars':     ('enable_sr_filter', True),
         'sr_zone_width_mult':   ('enable_sr_filter', True),
         'sr_min_touches':       ('enable_sr_filter', True),
+        # SL/TP ATR deps
+        'sl_atr_mult':          ('sl_by_atr', True),
+        'tp_atr_mult':          ('tp_by_atr', True),
         # Trailing deps
-        'trail_activate_pct':   ('enable_trailing', True),
-        'trail_step_pct':       ('enable_trailing', True),
-        # Risk sizing: risk_per_trade only used when risk sizing is active (always on for this strat)
+        'trail_activate_ticks': ('enable_trailing', True),
+        'trail_step_ticks':     ('enable_trailing', True),
     }
 
     @property
