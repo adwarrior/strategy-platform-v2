@@ -253,14 +253,18 @@ class ATRCandleBreakout(BaseStrategy):
         'sr_min_touches':          2,
 
         # ---- Risk Management ----
-        'stop_loss_pct':           1.0,           # % of entry price
-        'take_profit_pct':         2.0,           # % of entry price
+        'stop_loss_ticks':         20,            # stop loss in ticks
+        'take_profit_ticks':       40,            # take profit in ticks
         'risk_per_trade':          300.0,         # fixed $ risk per trade
+        'sl_by_atr':               False,         # if True, SL = ATR * sl_atr_mult (override stop_loss_ticks)
+        'sl_atr_mult':             1.0,           # ATR multiplier for SL when sl_by_atr=True
+        'tp_by_atr':               False,         # if True, TP = ATR * tp_atr_mult (override take_profit_ticks)
+        'tp_atr_mult':             2.0,           # ATR multiplier for TP when tp_by_atr=True
 
         # ---- Trailing Stop ----
         'enable_trailing':         False,
-        'trail_activate_pct':      0.5,           # activate after X% profit
-        'trail_step_pct':          0.2,           # trail distance % of price
+        'trail_activate_ticks':    20,            # activate trailing after X ticks profit
+        'trail_step_ticks':        10,            # trail distance in ticks
 
         # ---- General ----
         'direction':               'Both',        # 'Both', 'Long Only', 'Short Only'
