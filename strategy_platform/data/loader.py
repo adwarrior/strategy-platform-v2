@@ -341,6 +341,43 @@ def load_all_timeframes(
     return result
 
 
+def resample_ohlcv(df: pd.DataFrame, minutes: int) -> pd.DataFrame:
+    """
+    Resample an OHLCV DataFrame to *minutes*-minute bars.
+
+    Uses the platform convention (label='right', closed='right') so the
+    output matches load_5m / load_1m / load_nt_csv exactly. Bars with no
+    underlying data are dropped.
+
+    A no-op (returns *df* unchanged) when *minutes* equals the native bar
+    size already present in *df*, detected from the median index spacing.
+
+    Parameters
+    ----------
+    df      : OHLCV DataFrame with a DatetimeIndex.
+    minutes : Target bar size in minutes (e.g. 15, 30, 60, 240).
+    """
+    if df.empty or minutes <= 0:
+        return df
+
+    native_min = int(round(df.index.to_series().diff().median().total_seconds() / 60))
+    if native_min == minutes:
+        return df
+    if native_min > minutes:
+        raise ValueError(
+            f"Cannot resample {native_min}M bars up to {minutes}M — "
+            f"target must be coarser than the source ({native_min}M)."
+        )
+
+    out = (
+        df.resample(f'{minutes}min', label='right', closed='right')
+          .agg({'open': 'first', 'high': 'max', 'low': 'min',
+                'close': 'last', 'volume': 'sum'})
+          .dropna(subset=['open'])
+    )
+    return out
+
+
 def is_oos_split(
     df:        pd.DataFrame,
     train_pct: float = 0.70,

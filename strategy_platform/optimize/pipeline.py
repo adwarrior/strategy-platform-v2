@@ -46,7 +46,7 @@ import numpy as np
 import pandas as pd
 
 import strategy_platform  # noqa: F401 — triggers auto-registration of all strategies
-from strategy_platform.data.loader import get_meta, is_oos_split, load_1m, load_5m, load_tick_bars
+from strategy_platform.data.loader import get_meta, is_oos_split, load_1m, load_5m, load_tick_bars, resample_ohlcv
 from strategy_platform.registry import StrategyRegistry
 from strategy_platform import results_store
 
@@ -191,6 +191,7 @@ def run_pipeline(
     strategy_name:      str,
     symbol:             Optional[str] = None,
     bar_type:           Optional[str] = None,
+    timeframe_mins:     Optional[int] = None,
     data_start:         Optional[str] = None,
     data_end:           Optional[str] = None,
     refresh:            bool = False,
@@ -303,10 +304,18 @@ def run_pipeline(
             "Check your date range, symbol name, and DB connection."
         )
 
+    # Resample the loaded base to the user-selected primary timeframe.
+    # Native base is 5M (time) / 1M (1m); a no-op when timeframe_mins matches.
+    # Tick strategies are unaffected — their timeframe is tick-count based.
+    if not is_tick_strategy and timeframe_mins:
+        df_sample = resample_ohlcv(df_sample, timeframe_mins)
+        bar_type_desc = f"{bar_type_desc} → {timeframe_mins}M"
+        bar_period    = f"{timeframe_mins}m"
+
     if is_1m_strategy:
-        print(f"      {len(df_sample):,} 1M bars  ({df_sample.index[0].date()} → {df_sample.index[-1].date()})")
+        print(f"      {len(df_sample):,} {timeframe_mins or 1}M bars  ({df_sample.index[0].date()} → {df_sample.index[-1].date()})")
     elif not is_tick_strategy:
-        print(f"      {len(df_sample):,} 5M bars  ({df_sample.index[0].date()} → {df_sample.index[-1].date()})")
+        print(f"      {len(df_sample):,} {timeframe_mins or 5}M bars  ({df_sample.index[0].date()} → {df_sample.index[-1].date()})")
 
     _, _, cutoff = is_oos_split(df_sample, train_pct=train_pct)
 
