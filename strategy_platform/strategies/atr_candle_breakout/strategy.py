@@ -850,14 +850,32 @@ class ATRCandleBreakout(BaseStrategy):
 
             # ---- All filters passed — ENTER TRADE ----
             entry = _round_tick(close_a[i-1], self.tick_size)
+            atr_val = atr_a[i-1]
+            
             if signal_dir == 'long':
-                sl = _round_tick(entry * (1 - sl_pct), self.tick_size)
-                tp = _round_tick(entry * (1 + tp_pct), self.tick_size)
-                sl_dist = entry - sl
+                if sl_by_atr:
+                    sl_dist = atr_val * sl_atr_mult
+                else:
+                    sl_dist = sl_ticks * self.tick_size
+                if tp_by_atr:
+                    tp_dist = atr_val * tp_atr_mult
+                else:
+                    tp_dist = tp_ticks * self.tick_size
+                
+                sl = _round_tick(entry - sl_dist, self.tick_size)
+                tp = _round_tick(entry + tp_dist, self.tick_size)
             else:
-                sl = _round_tick(entry * (1 + sl_pct), self.tick_size)
-                tp = _round_tick(entry * (1 - tp_pct), self.tick_size)
-                sl_dist = sl - entry
+                if sl_by_atr:
+                    sl_dist = atr_val * sl_atr_mult
+                else:
+                    sl_dist = sl_ticks * self.tick_size
+                if tp_by_atr:
+                    tp_dist = atr_val * tp_atr_mult
+                else:
+                    tp_dist = tp_ticks * self.tick_size
+                
+                sl = _round_tick(entry + sl_dist, self.tick_size)
+                tp = _round_tick(entry - tp_dist, self.tick_size)
 
             if sl_dist <= 0:
                 continue
