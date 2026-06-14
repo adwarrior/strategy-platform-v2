@@ -45,15 +45,46 @@ from strategy_platform.registry import register
 # FTFC (SequentialFTFCv3 port)
 # ---------------------------------------------------------------------------
 
+# Canonical timeframe ladder (key -> minutes). Daily ('D') is handled separately.
+_TF_LADDER = [('1T', 1), ('2T', 2), ('3T', 3), ('5T', 5),
+              ('15T', 15), ('30T', 30), ('60T', 60), ('240T', 240)]
+_TF_MINUTES = dict(_TF_LADDER)
+_TF_RULE = {'1T': '1min', '2T': '2min', '3T': '3min', '5T': '5min', '15T': '15min',
+            '30T': '30min', '60T': '60min', '240T': '240min', 'D': 'D'}
+
+# Retained for backwards compatibility (the 5M-base higher-TF stack).
 _HIGHER_TFS = ['15T', '30T', '60T', '240T', 'D']
 
 
-def _build_tf_dict(df_5m: pd.DataFrame) -> Dict[str, pd.DataFrame]:
-    """Resample 5M OHLCV into higher TF DataFrames."""
-    tf_dict: Dict[str, pd.DataFrame] = {'5T': df_5m}
-    rules = {'15T': '15min', '30T': '30min', '60T': '60min', '240T': '240min', 'D': 'D'}
-    for key, rule in rules.items():
-        tf_dict[key] = df_5m.resample(rule).agg(
+def _detect_base_key(df: pd.DataFrame) -> str:
+    """Infer the timeframe key of *df* from its median index spacing."""
+    minutes = int(round(df.index.to_series().diff().median().total_seconds() / 60))
+    for key, m in _TF_LADDER:
+        if m == minutes:
+            return key
+    return min(_TF_LADDER, key=lambda km: abs(km[1] - minutes))[0]
+
+
+def _higher_tfs(base_key: str) -> List[str]:
+    """Ordered timeframe keys strictly coarser than *base_key*, plus Daily."""
+    base_min = _TF_MINUTES[base_key]
+    higher = [k for k, m in _TF_LADDER if m > base_min]
+    higher.append('D')
+    return higher
+
+
+def _build_tf_dict(df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
+    """
+    Build a timeframe dict from *df*, treating its native bar size as the base.
+
+    Higher timeframes (strictly coarser than the base) plus Daily are resampled
+    from the base. Works for any base (5M, 15M, 30M, ...), not just 5M; at a 5M
+    base the output is identical to the original 5M-only implementation.
+    """
+    base_key = _detect_base_key(df)
+    tf_dict: Dict[str, pd.DataFrame] = {base_key: df}
+    for key in _higher_tfs(base_key):
+        tf_dict[key] = df.resample(_TF_RULE[key]).agg(
             open=('open', 'first'), high=('high', 'max'),
             low=('low', 'min'),    close=('close', 'last'),
         ).dropna()
@@ -66,18 +97,20 @@ def _compute_ftfc(
     skip_tf_count: int,
 ) -> Tuple[pd.Series, pd.Series]:
     """
-    Returns (is_bullish, is_bearish) boolean Series on the 5M index.
+    Returns (is_bullish, is_bearish) boolean Series on the base TF index.
     tfc_threshold=0 disables the filter (always True).
     """
-    index_5m = tf_dict['5T'].index
+    # Base = finest timeframe present in the dict.
+    base_key   = next(k for k, _ in _TF_LADDER if k in tf_dict)
+    base_index = tf_dict[base_key].index
     if tfc_threshold == 0:
-        ones = pd.Series(True, index=index_5m)
+        ones = pd.Series(True, index=base_index)
         return ones, ones
 
-    available = [tf for tf in _HIGHER_TFS if tf in tf_dict]
+    available = [tf for tf in _higher_tfs(base_key) if tf in tf_dict]
     selected = available[skip_tf_count: skip_tf_count + tfc_threshold]
     if len(selected) < tfc_threshold:
-        ones = pd.Series(True, index=index_5m)
+        ones = pd.Series(True, index=base_index)
         return ones, ones
 
     directions = []
