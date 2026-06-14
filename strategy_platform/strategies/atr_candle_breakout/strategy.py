@@ -386,10 +386,11 @@ class ATRCandleBreakout(BaseStrategy):
                 'sr_zone_width_mult', 'sr_min_touches'
             ],
             "6. Risk Management": [
-                'stop_loss_pct', 'take_profit_pct', 'risk_per_trade'
+                'stop_loss_ticks', 'take_profit_ticks', 'risk_per_trade',
+                'sl_by_atr', 'sl_atr_mult', 'tp_by_atr', 'tp_atr_mult'
             ],
             "7. Trailing Stop": [
-                'enable_trailing', 'trail_activate_pct', 'trail_step_pct'
+                'enable_trailing', 'trail_activate_ticks', 'trail_step_ticks'
             ],
             "8. General": [
                 'direction'
@@ -422,12 +423,16 @@ class ATRCandleBreakout(BaseStrategy):
             'sr_lookback_bars':       'S/R Lookback Bars',
             'sr_zone_width_mult':     'S/R Zone Width (×ATR)',
             'sr_min_touches':         'S/R Min Touches',
-            'stop_loss_pct':          'Stop Loss %',
-            'take_profit_pct':        'Take Profit %',
+            'stop_loss_ticks':        'Stop Loss (ticks)',
+            'take_profit_ticks':      'Take Profit (ticks)',
             'risk_per_trade':         'Risk Per Trade ($)',
+            'sl_by_atr':              'SL by ATR',
+            'sl_atr_mult':            'SL ATR Multiplier',
+            'tp_by_atr':              'TP by ATR',
+            'tp_atr_mult':            'TP ATR Multiplier',
             'enable_trailing':        'Enable Trailing Stop',
-            'trail_activate_pct':     'Trail Activate %',
-            'trail_step_pct':         'Trail Step %',
+            'trail_activate_ticks':   'Trail Activate (ticks)',
+            'trail_step_ticks':       'Trail Step (ticks)',
             'direction':              'Direction',
         }
 
