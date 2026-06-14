@@ -625,13 +625,17 @@ class ATRCandleBreakout(BaseStrategy):
                 )
 
         # Param unpack
-        atr_mult      = float(params['atr_multiplier'])
-        proximity_pct = float(params['close_proximity_pct']) / 100.0
-        min_body_pct  = float(params['min_body_to_range_pct']) / 100.0
-        sl_pct        = float(params['stop_loss_pct']) / 100.0
-        tp_pct        = float(params['take_profit_pct']) / 100.0
-        risk_per_trade = float(params['risk_per_trade'])
-        direction     = str(params['direction'])
+        atr_mult          = float(params['atr_multiplier'])
+        proximity_pct     = float(params['close_proximity_pct']) / 100.0
+        min_body_pct      = float(params['min_body_to_range_pct']) / 100.0
+        sl_ticks          = int(params['stop_loss_ticks'])
+        tp_ticks          = int(params['take_profit_ticks'])
+        sl_by_atr         = bool(params.get('sl_by_atr', False))
+        sl_atr_mult       = float(params.get('sl_atr_mult', 1.0))
+        tp_by_atr         = bool(params.get('tp_by_atr', False))
+        tp_atr_mult       = float(params.get('tp_atr_mult', 2.0))
+        risk_per_trade    = float(params['risk_per_trade'])
+        direction         = str(params['direction'])
         can_long  = direction in ('Both', 'Long Only', 'both', 'long_only')
         can_short = direction in ('Both', 'Short Only', 'both', 'short_only')
 
@@ -644,8 +648,8 @@ class ATRCandleBreakout(BaseStrategy):
 
         # Trailing
         enable_trail = params['enable_trailing']
-        trail_act_pct = float(params['trail_activate_pct']) / 100.0
-        trail_step_pct = float(params['trail_step_pct']) / 100.0
+        trail_act_ticks = int(params.get('trail_activate_ticks', 20))
+        trail_step_ticks = int(params.get('trail_step_ticks', 10))
 
         point_value = self.tick_value / self.tick_size
 
@@ -704,15 +708,15 @@ class ATRCandleBreakout(BaseStrategy):
                     # Trailing stop
                     if enable_trail:
                         if not trail_active:
-                            # Activate when profit reaches trail_act_pct of entry
+                            # Activate when profit reaches trail_act_ticks
                             unrealized_pts = close_a[i] - trade_entry
-                            unrealized_pct = unrealized_pts / trade_entry if trade_entry > 0 else 0
-                            if unrealized_pct >= trail_act_pct:
+                            unrealized_ticks = unrealized_pts / self.tick_size
+                            if unrealized_ticks >= trail_act_ticks:
                                 trail_active = True
-                                trail_price = close_a[i] - trail_step_pct * trade_entry
+                                trail_price = close_a[i] - trail_step_ticks * self.tick_size
                         else:
                             # Trail up
-                            new_trail = close_a[i] - trail_step_pct * trade_entry
+                            new_trail = close_a[i] - trail_step_ticks * self.tick_size
                             if new_trail > trail_price:
                                 trail_price = new_trail
                             # Check trail stop hit
@@ -749,12 +753,12 @@ class ATRCandleBreakout(BaseStrategy):
                     if enable_trail:
                         if not trail_active:
                             unrealized_pts = trade_entry - close_a[i]
-                            unrealized_pct = unrealized_pts / trade_entry if trade_entry > 0 else 0
-                            if unrealized_pct >= trail_act_pct:
+                            unrealized_ticks = unrealized_pts / self.tick_size
+                            if unrealized_ticks >= trail_act_ticks:
                                 trail_active = True
-                                trail_price = close_a[i] + trail_step_pct * trade_entry
+                                trail_price = close_a[i] + trail_step_ticks * self.tick_size
                         else:
-                            new_trail = close_a[i] + trail_step_pct * trade_entry
+                            new_trail = close_a[i] + trail_step_ticks * self.tick_size
                             if new_trail < trail_price:
                                 trail_price = new_trail
                             if high_a[i] >= trail_price:
