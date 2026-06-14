@@ -42,7 +42,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from strategy_platform.base_strategy import BaseStrategy
 from strategy_platform.registry import register
-from strategy_platform.data.loader import load_all_timeframes, INSTRUMENT_META, load_5m
+from strategy_platform.data.loader import INSTRUMENT_META, resample_ohlcv, RESAMPLE_MAP
 from strategy_platform.strategies.goldbot7.strategy import _summarise, _bootstrap_trades
 
 # ---------------------------------------------------------------------------
@@ -134,6 +134,7 @@ def _compute_swing_levels(
     highs = df['high'].to_numpy()
     lows = df['low'].to_numpy()
     atr_vals = atr_series.to_numpy()
+    idx = df.index
 
     n = len(df)
     if n < lookback + 2:
@@ -151,14 +152,18 @@ def _compute_swing_levels(
             zone = atr_vals[i] * zone_mult if not np.isnan(atr_vals[i]) else 0
             touches = np.sum(np.abs(highs[max(0,i-lookback):i+lookback+1] - level_price) <= zone)
             if touches >= min_touches:
-                resistance_levels.append({'price': float(level_price), 'touches': int(touches), 'zone': float(zone)})
+                # A right-anchored pivot is only confirmed `lookback` bars later;
+                # valid_from is when this level becomes usable live (no look-ahead).
+                resistance_levels.append({'price': float(level_price), 'touches': int(touches),
+                                          'zone': float(zone), 'valid_from': idx[i+lookback]})
         # Swing low
         if lows[i] == lows[i-lookback:i+lookback+1].min():
             level_price = lows[i]
             zone = atr_vals[i] * zone_mult if not np.isnan(atr_vals[i]) else 0
             touches = np.sum(np.abs(lows[max(0,i-lookback):i+lookback+1] - level_price) <= zone)
             if touches >= min_touches:
-                support_levels.append({'price': float(level_price), 'touches': int(touches), 'zone': float(zone)})
+                support_levels.append({'price': float(level_price), 'touches': int(touches),
+                                       'zone': float(zone), 'valid_from': idx[i+lookback]})
 
     # Deduplicate nearby levels (keep highest touches)
     def _dedup(levels: List[Dict]) -> List[Dict]:
@@ -178,19 +183,21 @@ def _is_near_sr(
     close: float,
     direction: str,  # 'long' or 'short'
     support: List[Dict],
-    resistance: List[Dict]
+    resistance: List[Dict],
+    now_ts: pd.Timestamp,
 ) -> bool:
     """
-    Check if a signal close is inside an S/R zone.
+    Check if a signal close is inside an S/R zone, considering only levels
+    that have already been confirmed at *now_ts* (no look-ahead).
     Long blocked by resistance zone; Short blocked by support zone.
     """
     if direction == 'long':
         for r in resistance:
-            if abs(close - r['price']) <= r['zone']:
+            if r['valid_from'] <= now_ts and abs(close - r['price']) <= r['zone']:
                 return True
     else:
         for s in support:
-            if abs(close - s['price']) <= s['zone']:
+            if s['valid_from'] <= now_ts and abs(close - s['price']) <= s['zone']:
                 return True
     return False
 
@@ -445,14 +452,60 @@ class ATRCandleBreakout(BaseStrategy):
     # Backtest entry points
     # -----------------------------------------------------------------------
 
-    def run_backtest(self, data: pd.DataFrame, params: Dict[str, Any]) -> Dict[str, Any]:
+    def prepare_data(self, df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
         """
-        Main backtest entry. Loads required timeframes, computes indicators,
-        runs single-pass simulation, returns metrics.
+        Resample the supplied OHLCV slice into the timeframe frames this
+        strategy may need ('5T'..'D'), keyed exactly like load_all_timeframes.
+
+        Runs ONCE per IS/OOS slice (the pipeline contract), so the per-combo
+        work in run_backtest_prepared is just indicators + simulation — no
+        reloading or re-resampling. Critically, the frames are derived from
+        the *passed-in* slice, so the IS/OOS split, selected symbol, and date
+        range supplied by the pipeline/dashboard are all respected.
+        """
+        if df is None or len(df) == 0:
+            return {}
+        # 5-minute base (no-op if df is already 5M; resampled up from 1M/tick).
+        try:
+            df5 = resample_ohlcv(df, 5)
+        except ValueError:
+            df5 = df
+        frames: Dict[str, pd.DataFrame] = {'5T': df5}
+        for tf_key, tf_rule in RESAMPLE_MAP.items():
+            frames[tf_key] = (
+                df5.resample(tf_rule, label='right', closed='right')
+                   .agg({'open': 'first', 'high': 'max', 'low': 'min',
+                         'close': 'last', 'volume': 'sum'})
+                   .dropna()
+            )
+        return frames
+
+    def run_backtest(self, data: pd.DataFrame, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Convenience entry: resample the supplied data, then run.
+
+        The optimization pipeline calls prepare_data + run_backtest_prepared
+        directly (preparing once per IS/OOS slice); this wrapper exists for
+        direct/dashboard callers that hand over a raw OHLCV DataFrame.
+        """
+        return self.run_backtest_prepared(self.prepare_data(data), params)
+
+    def run_backtest_prepared(self, prepared: Any, params: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Run a backtest from pre-resampled timeframe frames (output of
+        prepare_data). Computes per-combo indicators and runs the single-pass
+        simulation. Never reloads data — operates only on *prepared*.
         """
         merged = {**self.default_params, **params}
+        all_tfs = prepared if isinstance(prepared, dict) else self.prepare_data(prepared)
 
-        # Load all needed timeframes for this symbol
+        empty = {'net_pnl': 0, 'total_trades': 0, 'win_rate': 0, 'sharpe': 0, 'max_drawdown': 0,
+                 'trades': 0, 'mc_stability': 0, 'mc_sharpe_p5': np.nan, 'mc_pnl_p5': np.nan,
+                 'mc_pnl_p50': np.nan}
+
+        signal_df = all_tfs.get(merged['signal_timeframe'])
+        if signal_df is None or len(signal_df) < 50:
+            return empty
+
         # We need: signal_tf, trend_tf (if enabled), mtf_tf (if enabled), sr_tf (if enabled)
         tfs_needed = {merged['signal_timeframe']}
         if merged['enable_trend_filter']:
@@ -462,21 +515,7 @@ class ATRCandleBreakout(BaseStrategy):
         if merged['enable_sr_filter']:
             tfs_needed.add(merged['sr_timeframe'])
 
-        # Load multi-timeframe data
-        all_tfs = load_all_timeframes(
-            self.symbol,
-            start=None, end=None,  # use full range; IS/OOS split happens upstream
-            refresh=False,
-            host=self.db_host
-        )
-
-        # Extract signal timeframe data
-        signal_df = all_tfs.get(merged['signal_timeframe'])
-        if signal_df is None or len(signal_df) < 50:
-            return {'net_pnl': 0, 'total_trades': 0, 'win_rate': 0, 'sharpe': 0, 'max_drawdown': 0,
-                    'trades': 0, 'mc_stability': 0, 'mc_sharpe_p5': np.nan, 'mc_pnl_p5': np.nan, 'mc_pnl_p50': np.nan}
-
-        # Build indicator DataFrames for each needed TF
+        # Build indicator DataFrames for each needed TF (cheap part; per-combo)
         tf_data = {}
         for tf in tfs_needed:
             df = all_tfs.get(tf)
@@ -507,10 +546,16 @@ class ATRCandleBreakout(BaseStrategy):
         n_sims: int = 200,
         seed: int = 42,
     ) -> Dict[str, Any]:
-        """Day-shuffle Monte Carlo on signal timeframe."""
-        merged = {**self.default_params, **params}
+        """Day-shuffle Monte Carlo on the signal timeframe.
 
-        all_tfs = load_all_timeframes(self.symbol, host=self.db_host)
+        Operates on the prepared frames (output of prepare_data) — the correct
+        IS slice and symbol — never reloading. NOTE: only the signal TF is
+        shuffled while higher-TF filter frames stay in original order, so MC is
+        an approximation when filters are enabled (tracked as a separate item).
+        """
+        merged = {**self.default_params, **params}
+        all_tfs = prepared if isinstance(prepared, dict) else self.prepare_data(prepared)
+
         signal_df = all_tfs.get(merged['signal_timeframe'])
         if signal_df is None or len(signal_df) < 50:
             return {'mc_stability': 0.0, 'mc_sharpe_p5': float('nan'),
@@ -526,25 +571,22 @@ class ATRCandleBreakout(BaseStrategy):
 
         for _ in range(n_sims):
             order = rng.permutation(n)
-            shuffled_df = pd.concat([groups[i][1] for i in order])
+            shuffled_df = pd.concat([groups[i][1] for i in order]).copy()
 
-            # Rebuild multi-TF data for shuffled signal (simplified: just shuffle signal TF)
-            # For full MTF consistency we'd need to shuffle all TFs together — skip for speed.
-            # This approximates by shuffling only the signal TF entries.
+            # Rebuild multi-TF data for shuffled signal (simplified: just shuffle signal TF).
             tf_data = {}
-            for tf_key in ['5T', '15T', '30T', '60T', '240T', 'D']:
-                if tf_key in all_tfs:
-                    df = all_tfs[tf_key].copy()
-                    df['atr'] = _compute_atr(df, merged['atr_period'])
-                    if merged['enable_trend_filter'] and tf_key == merged['trend_timeframe']:
-                        df['trend_ma'] = _ma(df['close'], merged['trend_ma_period'], merged['trend_ma_method'])
-                    tf_data[tf_key] = df
+            for tf_key, df_tf in all_tfs.items():
+                df = df_tf.copy()
+                df['atr'] = _compute_atr(df, merged['atr_period'])
+                if merged['enable_trend_filter'] and tf_key == merged['trend_timeframe']:
+                    df['trend_ma'] = _ma(df['close'], merged['trend_ma_period'], merged['trend_ma_method'])
+                tf_data[tf_key] = df
 
             # Replace signal TF with shuffled version
-            tf_data[merged['signal_timeframe']] = shuffled_df
             shuffled_df['atr'] = _compute_atr(shuffled_df, merged['atr_period'])
             if merged['enable_trend_filter'] and merged['signal_timeframe'] == merged['trend_timeframe']:
                 shuffled_df['trend_ma'] = _ma(shuffled_df['close'], merged['trend_ma_period'], merged['trend_ma_method'])
+            tf_data[merged['signal_timeframe']] = shuffled_df
 
             trades = self._run_simulation(tf_data, merged)
             stats = _summarise(trades)
@@ -807,32 +849,33 @@ class ATRCandleBreakout(BaseStrategy):
                 continue  # doji or wrong direction
 
             # 4. Trend filter
+            # Use the HTF MA as known at the signal bar's close (index i-1), not i,
+            # to avoid peeking at a higher-TF bar that closes after the signal.
             if params['enable_trend_filter'] and trend_ma is not None:
-                if i >= len(trend_ma) or np.isnan(trend_ma[i]):
+                if (i - 1) >= len(trend_ma) or np.isnan(trend_ma[i-1]):
                     continue
-                trend_up = close_a[i-1] > trend_ma[i]
-                trend_dn = close_a[i-1] < trend_ma[i]
+                trend_up = close_a[i-1] > trend_ma[i-1]
+                trend_dn = close_a[i-1] < trend_ma[i-1]
                 if signal_dir == 'long' and not trend_up:
                     continue
                 if signal_dir == 'short' and not trend_dn:
                     continue
 
             # 5. MTF ATR confirmation
+            # The higher-TF candle must also be large and point the same way.
+            # Use the last HTF bar that has CLOSED at or before the signal bar
+            # (searchsorted on bar_ts), and read its ATR from that same bar — so
+            # we never reference a higher-TF bar that is still forming.
             if params['enable_mtf_atr'] and mtf_atr is not None:
-                if i >= len(mtf_atr) or np.isnan(mtf_atr[i]):
-                    continue
-                # Higher TF candle must also be large and same direction
-                # We approximate: check if MTF ATR * multiplier < current range (scaled)
-                # Simpler: require MTF candle range > MTF_ATR * MTF_multiplier
-                # Need MTF candle data — use the MTF close/open
                 mtf_df = tf_data.get(params['mtf_timeframe'])
                 if mtf_df is not None:
-                    # Find MTF bar that contains this signal bar
                     mtf_idx = mtf_df.index.searchsorted(bar_ts, side='right') - 1
                     if mtf_idx > 0:
                         mtf_bar = mtf_df.iloc[mtf_idx]
+                        mtf_atr_val = mtf_bar['atr']
+                        if np.isnan(mtf_atr_val):
+                            continue
                         mtf_range = mtf_bar['high'] - mtf_bar['low']
-                        mtf_atr_val = mtf_atr[i]
                         if mtf_range <= mtf_atr_val * params['mtf_atr_multiplier']:
                             continue
                         # Direction alignment
@@ -845,7 +888,7 @@ class ATRCandleBreakout(BaseStrategy):
 
             # 6. S/R filter
             if params['enable_sr_filter'] and (support_levels or resistance_levels):
-                if _is_near_sr(close_a[i-1], signal_dir, support_levels, resistance_levels):
+                if _is_near_sr(close_a[i-1], signal_dir, support_levels, resistance_levels, bar_ts):
                     continue
 
             # ---- All filters passed — ENTER TRADE ----
