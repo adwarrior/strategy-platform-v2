@@ -657,6 +657,8 @@ if __name__ == '__main__':
     parser.add_argument('--symbol',        default=None,        help='Symbol override (e.g. GC=F)')
     parser.add_argument('--bar-type',      default=None,        choices=['time', '1m', 'tick'],
                                                                  help='Override strategy bar type (time / 1m / tick)')
+    parser.add_argument('--timeframe-mins', type=int, default=None,
+                                                                 help='Primary timeframe in minutes; resamples the base (5M/1M) to this size (e.g. 15, 30, 60, 240)')
     parser.add_argument('--start',         default=None,        help='Data start date (ISO, e.g. 2024-03-01)')
     parser.add_argument('--end',           default=None,        help='Data end date (ISO)')
     parser.add_argument('--refresh',       action='store_true', help='Force MySQL reload')
@@ -678,6 +680,7 @@ if __name__ == '__main__':
         strategy_name       = args.strategy,
         symbol              = args.symbol,
         bar_type            = args.bar_type,
+        timeframe_mins      = args.timeframe_mins,
         data_start          = args.start,
         data_end            = args.end,
         refresh             = args.refresh,
