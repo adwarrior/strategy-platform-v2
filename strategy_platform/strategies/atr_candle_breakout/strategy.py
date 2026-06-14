@@ -768,7 +768,7 @@ class ATRCandleBreakout(BaseStrategy):
             # ---- Manage open trade ----
             if in_trade:
                 # Check stop / target / trailing
-                if trade_side == 'Long':
+                if trade_side == 'long':
                     # Stop hit
                     if low_a[i] <= trade_stop:
                         pnl_pts = trade_stop - trade_entry
@@ -789,16 +789,16 @@ class ATRCandleBreakout(BaseStrategy):
                         continue
                     # Trailing stop
                     if enable_trail:
+                        act_dist  = (trade_entry * trail_act_pct) if trail_mode == 'PctOfPrice' else (trail_act_ticks * self.tick_size)
+                        step_dist = (close_a[i]  * trail_step_pct) if trail_mode == 'PctOfPrice' else (trail_step_ticks * self.tick_size)
                         if not trail_active:
-                            # Activate when profit reaches trail_act_ticks
-                            unrealized_pts = close_a[i] - trade_entry
-                            unrealized_ticks = unrealized_pts / self.tick_size
-                            if unrealized_ticks >= trail_act_ticks:
+                            # Activate when profit reaches the activation distance
+                            if (close_a[i] - trade_entry) >= act_dist:
                                 trail_active = True
-                                trail_price = close_a[i] - trail_step_ticks * self.tick_size
+                                trail_price = close_a[i] - step_dist
                         else:
                             # Trail up
-                            new_trail = close_a[i] - trail_step_ticks * self.tick_size
+                            new_trail = close_a[i] - step_dist
                             if new_trail > trail_price:
                                 trail_price = new_trail
                             # Check trail stop hit
