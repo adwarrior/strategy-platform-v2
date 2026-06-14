@@ -634,7 +634,8 @@ class ATRCandleBreakout(BaseStrategy):
         net_pnls = s_pnls.sum(axis=1)
         stds = s_pnls.std(axis=1, ddof=1)
         means = s_pnls.mean(axis=1)
-        sharpes = np.where(stds > 0, (means / stds) * np.sqrt(252), 0.0)
+        with np.errstate(divide='ignore', invalid='ignore'):
+            sharpes = np.where(stds > 0, (means / stds) * np.sqrt(252), 0.0)
 
         return {
             'mc_stability': float((net_pnls > 0).mean()),
