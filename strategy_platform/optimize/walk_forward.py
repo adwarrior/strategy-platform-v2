@@ -37,7 +37,7 @@ import numpy as np
 import pandas as pd
 
 import strategy_platform  # noqa: F401 — triggers auto-registration of all strategies
-from strategy_platform.data.loader import get_meta, load_1m, load_5m, load_tick_bars
+from strategy_platform.data.loader import get_meta, load_1m, load_5m, load_tick_bars, resample_ohlcv
 from strategy_platform.registry import StrategyRegistry
 
 # Re-use helpers and constants from pipeline — no duplication.
@@ -264,6 +264,7 @@ def run_walk_forward(
     strategy_name: str,
     symbol: str,
     bar_type: Optional[str] = None,
+    timeframe_mins: Optional[int] = None,
     data_start: Optional[str] = None,
     data_end: Optional[str] = None,
     is_window_days: int = 180,
@@ -377,6 +378,12 @@ def run_walk_forward(
         raise ValueError(
             f"No data for '{symbol}' (bar_type='{_bar_type}') between {data_start} and {data_end}."
         )
+
+    # Resample the loaded base to the user-selected primary timeframe (no-op when
+    # it matches the native base). Tick strategies are timeframe-agnostic here.
+    if not is_tick_strategy and timeframe_mins:
+        df_full = resample_ohlcv(df_full, timeframe_mins)
+
     print(f"      {len(df_full):,} bars  ({df_full.index[0].date()} → {df_full.index[-1].date()})")
 
     # ------------------------------------------------------------------
@@ -563,6 +570,8 @@ if __name__ == "__main__":
     parser.add_argument("--symbol",          required=True,  help="Symbol (e.g. MNQ)")
     parser.add_argument("--bar-type",        default=None,   choices=["time", "1m", "tick"],
                                                              help="Override strategy bar_type")
+    parser.add_argument("--timeframe-mins",  type=int, default=None,
+                                                             help="Primary timeframe in minutes; resamples base (5M/1M) to this size")
     parser.add_argument("--start",           required=True,  help="Data start date (ISO, e.g. 2024-09-01)")
     parser.add_argument("--end",             required=True,  help="Data end date (ISO, e.g. 2026-01-01)")
     parser.add_argument("--is-window-days",  type=int, default=180, help="IS window length in days (default 180)")
@@ -583,6 +592,7 @@ if __name__ == "__main__":
         strategy_name       = args.strategy,
         symbol              = args.symbol,
         bar_type            = args.bar_type,
+        timeframe_mins      = args.timeframe_mins,
         data_start          = args.start,
         data_end            = args.end,
         is_window_days      = args.is_window_days,

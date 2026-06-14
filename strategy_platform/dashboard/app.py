@@ -1913,18 +1913,27 @@ with st.sidebar:
     )
 
     if _bar_category == 'Minute bars':
+        # Supported timeframes. 1–4M resample from the 1-minute DB (MES/MNQ/MGC only);
+        # 5M is the native deep-history base; 15M+ resample from the 5M base.
+        _TF_OPTIONS = [1, 2, 3, 4, 5, 15, 30, 60, 240]
         _prefs_min_key = f"last_minute_inc_{selected_name}"
         _last_min_inc  = int(_prefs.get(_prefs_min_key, 5))
-        _minute_inc = st.number_input(
+        _tf_idx = _TF_OPTIONS.index(_last_min_inc) if _last_min_inc in _TF_OPTIONS else _TF_OPTIONS.index(5)
+        _minute_inc = st.selectbox(
             "Minutes per bar",
-            min_value=1, max_value=5, step=1,
-            value=_last_min_inc,
+            options=_TF_OPTIONS,
+            index=_tf_idx,
+            format_func=lambda m: f"{m}M",
             key="sb_minute_inc",
-            help="1–5 minute bars. 5M uses the deep historical database; 1–4M uses the 1-minute database.",
+            help="1–4M resample from the 1-minute database (MES/MNQ/MGC only). "
+                 "5M is the native deep-history base. 15M+ resample from the 5M base.",
         )
-        _save_prefs({**_prefs, _prefs_btcat_key: _bar_category, _prefs_min_key: int(_minute_inc)})
-        bar_type = 'time' if _minute_inc == 5 else '1m'
-        bar_minute_inc = int(_minute_inc)
+        _minute_inc = int(_minute_inc)
+        _save_prefs({**_prefs, _prefs_btcat_key: _bar_category, _prefs_min_key: _minute_inc})
+        # bar_type selects the base DB table; timeframe_mins is the resample target.
+        bar_type       = 'time' if _minute_inc >= 5 else '1m'
+        timeframe_mins = _minute_inc
+        bar_minute_inc = _minute_inc
         bar_type_label = f"🕐 Time bars ({_minute_inc}M)"
     else:
         _prefs_tick_key = f"last_tick_inc_{selected_name}"
@@ -1940,6 +1949,7 @@ with st.sidebar:
         _save_prefs({**_prefs, _prefs_btcat_key: _bar_category, _prefs_tick_key: int(_tick_inc)})
         bar_type = 'tick'
         bar_minute_inc = None
+        timeframe_mins = None
         bar_type_label = f"📊 Tick bars ({int(_tick_inc)} ticks)"
 
     # Keep old prefs key in sync for legacy reads
@@ -2689,6 +2699,7 @@ with tab_run:
             "--strategy",   selected_name,
             "--symbol",     symbol,
             "--bar-type",   bar_type,
+            "--timeframe-mins", str(int(timeframe_mins)) if timeframe_mins else "0",
             "--train-pct",  str(train_pct_input),
             "--mc-sims",    str(int(mc_sims_input)),
             "--mc-top-n",   str(int(mc_top_n_input)),
