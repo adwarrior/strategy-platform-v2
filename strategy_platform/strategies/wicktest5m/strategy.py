@@ -119,7 +119,7 @@ def _compute_ftfc(
         dir_series = pd.Series(raw, index=tf_dict[tf].index)
         # Shift by 1 bar on the higher TF to avoid look-ahead (current bar not closed)
         shifted = dir_series.shift(1)
-        aligned = shifted.reindex(index_5m, method='ffill')
+        aligned = shifted.reindex(base_index, method='ffill')
         directions.append(aligned)
 
     stacked = pd.concat(directions, axis=1)
