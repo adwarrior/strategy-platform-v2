@@ -26,6 +26,9 @@ Session / Bar handling:
   - All timestamps are timezone-naive ET (as stored in MySQL)
 
 Port notes:
+  - Spec inputs "Magic Number" and "Slippage (points)" are deliberately
+    omitted: both are MetaTrader execution concepts with no meaning in this
+    bar-based backtest engine.
   - The EA uses "server time" for time filters; we map to ET-naive timestamps.
   - ATR is calculated via pandas rolling (Wilder's smoothing = EMA with alpha=1/period).
   - S/R levels: swing highs/lows over lookback bars on S/R detection timeframe.
@@ -833,14 +836,14 @@ class ATRCandleBreakout(BaseStrategy):
                         continue
                     # Trailing stop
                     if enable_trail:
+                        act_dist  = (trade_entry * trail_act_pct) if trail_mode == 'PctOfPrice' else (trail_act_ticks * self.tick_size)
+                        step_dist = (close_a[i]  * trail_step_pct) if trail_mode == 'PctOfPrice' else (trail_step_ticks * self.tick_size)
                         if not trail_active:
-                            unrealized_pts = trade_entry - close_a[i]
-                            unrealized_ticks = unrealized_pts / self.tick_size
-                            if unrealized_ticks >= trail_act_ticks:
+                            if (trade_entry - close_a[i]) >= act_dist:
                                 trail_active = True
-                                trail_price = close_a[i] + trail_step_ticks * self.tick_size
+                                trail_price = close_a[i] + step_dist
                         else:
-                            new_trail = close_a[i] + trail_step_ticks * self.tick_size
+                            new_trail = close_a[i] + step_dist
                             if new_trail < trail_price:
                                 trail_price = new_trail
                             if high_a[i] >= trail_price:
@@ -932,31 +935,30 @@ class ATRCandleBreakout(BaseStrategy):
                     continue
 
             # ---- All filters passed — ENTER TRADE ----
-            entry = _round_tick(close_a[i-1], self.tick_size)
+            # Fill at the NEXT bar's open (the signal candle has already closed;
+            # a resting/market order realistically fills on the following bar).
+            entry = _round_tick(open_a[i], self.tick_size)
             atr_val = atr_a[i-1]
-            
+
+            # SL/TP distances by mode (Ticks / ATR / PctOfPrice). PctOfPrice
+            # matches the EA spec ("% of price"); Ticks/ATR are futures-native.
+            if sl_mode == 'ATR':
+                sl_dist = atr_val * sl_atr_mult
+            elif sl_mode == 'PctOfPrice':
+                sl_dist = entry * sl_pct
+            else:
+                sl_dist = sl_ticks * self.tick_size
+            if tp_mode == 'ATR':
+                tp_dist = atr_val * tp_atr_mult
+            elif tp_mode == 'PctOfPrice':
+                tp_dist = entry * tp_pct
+            else:
+                tp_dist = tp_ticks * self.tick_size
+
             if signal_dir == 'long':
-                if sl_by_atr:
-                    sl_dist = atr_val * sl_atr_mult
-                else:
-                    sl_dist = sl_ticks * self.tick_size
-                if tp_by_atr:
-                    tp_dist = atr_val * tp_atr_mult
-                else:
-                    tp_dist = tp_ticks * self.tick_size
-                
                 sl = _round_tick(entry - sl_dist, self.tick_size)
                 tp = _round_tick(entry + tp_dist, self.tick_size)
             else:
-                if sl_by_atr:
-                    sl_dist = atr_val * sl_atr_mult
-                else:
-                    sl_dist = sl_ticks * self.tick_size
-                if tp_by_atr:
-                    tp_dist = atr_val * tp_atr_mult
-                else:
-                    tp_dist = tp_ticks * self.tick_size
-                
                 sl = _round_tick(entry + sl_dist, self.tick_size)
                 tp = _round_tick(entry - tp_dist, self.tick_size)
 
