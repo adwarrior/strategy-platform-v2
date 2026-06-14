@@ -307,8 +307,9 @@ def run_pipeline(
     # Resample the loaded base to the user-selected primary timeframe.
     # Native base is 5M (time) / 1M (1m); a no-op when timeframe_mins matches.
     # Tick strategies are unaffected — their timeframe is tick-count based.
-    if not is_tick_strategy and timeframe_mins:
-        df_sample = resample_ohlcv(df_sample, timeframe_mins)
+    _native_min = 1 if is_1m_strategy else 5
+    if not is_tick_strategy and timeframe_mins and timeframe_mins != _native_min:
+        df_sample     = resample_ohlcv(df_sample, timeframe_mins)
         bar_type_desc = f"{bar_type_desc} → {timeframe_mins}M"
         bar_period    = f"{timeframe_mins}m"
 

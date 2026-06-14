@@ -3991,6 +3991,7 @@ with tab_wf:
             "--strategy",        selected_name,
             "--symbol",          symbol,
             "--bar-type",        bar_type,
+            "--timeframe-mins",  str(int(timeframe_mins)) if timeframe_mins else "0",
             "--start",           str(wf_start),
             "--end",             str(wf_end),
             "--is-window-days",  str(int(wf_is_window)),
