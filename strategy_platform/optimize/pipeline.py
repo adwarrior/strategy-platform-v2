@@ -225,7 +225,9 @@ def run_pipeline(
 
     cls      = StrategyRegistry.get(strategy_name)
     strategy = cls()
-    param_grid  = param_grid_override if param_grid_override is not None else strategy.param_grid
+    # An empty override ({}) means the caller selected no parameter groups —
+    # fall back to the strategy's full grid rather than crashing on an empty grid.
+    param_grid  = param_grid_override if param_grid_override else strategy.param_grid
     param_keys  = list(param_grid.keys())
     db_host     = getattr(strategy, 'db_host', None)
 
