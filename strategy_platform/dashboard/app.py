@@ -45,6 +45,8 @@ from strategy_platform.data.loader import (
 )
 from strategy_platform.registry import StrategyRegistry
 from strategy_platform.optimize.pipeline import _deduplicated_combinations, strategy_reports_dir
+from strategy_platform.regime.data import load_daily as _regime_load_daily
+from strategy_platform.regime.markov_regime import compare_windows as _regime_compare
 
 REPORTS_DIR = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'reports'))
 
@@ -2640,6 +2642,86 @@ with tab_run:
             st.info(f"**{total_combos:,} combinations** selected.")
         else:
             st.success(f"**{total_combos:,} combinations** selected")
+
+    st.markdown("---")
+
+    # ── Regime Check (IS vs OOS) ──────────────────────────────────────────────
+    # Step 0 of the 3-period validation workflow: before sweeping, check whether
+    # the IS and OOS windows (derived from the dates + In-Sample split above)
+    # have comparable Bull/Bear/Sideways regime mix. If they don't, an OOS
+    # "winner" is likely regime exposure, not strategy edge. Non-blocking.
+    with st.expander("🎲 Regime Check (IS vs OOS) — run before sweeping", expanded=False):
+        st.caption(
+            "Compares the regime mix of your in-sample vs out-of-sample windows, "
+            "derived from the dates and In-Sample split set above. "
+            "PROCEED / WARN / RED FLAG is advisory — it never blocks the run."
+        )
+        _rc_key = "regime_check_result"
+        if st.button("Check regime mix", key="regime_check_btn"):
+            _rc_start = st.session_state.get("run_start")
+            _rc_end = st.session_state.get("run_end")
+            if not _rc_start or not _rc_end:
+                st.session_state[_rc_key] = {"ok": False,
+                    "error": "Set both data start and end dates above first."}
+            elif _rc_start >= _rc_end:
+                st.session_state[_rc_key] = {"ok": False,
+                    "error": "Start date must be before end date."}
+            else:
+                # IS = first train_pct of the span, OOS = the remainder.
+                _span_days = (_rc_end - _rc_start).days
+                _split = _rc_start + pd.Timedelta(days=int(_span_days * train_pct_input))
+                try:
+                    with st.spinner(f"Loading {symbol} daily history…"):
+                        _daily = _regime_load_daily(
+                            symbol, str(_rc_start), str(_rc_end))
+                    _res = _regime_compare(
+                        _daily,
+                        is_start=str(_rc_start), is_end=str(_split),
+                        oos_start=str(_split), oos_end=str(_rc_end))
+                    _res["_split"] = str(_split)
+                except Exception as exc:  # noqa: BLE001
+                    _res = {"ok": False, "error": f"Regime check failed: {exc}"}
+                st.session_state[_rc_key] = _res
+
+        _rc = st.session_state.get(_rc_key)
+        if _rc is not None:
+            if not _rc.get("ok"):
+                st.error(_rc.get("error", "Regime check failed."))
+            else:
+                _verdict = _rc["verdict"]
+                _vmsg = f"**{_verdict}** — {_rc['advice']}"
+                if _verdict == "PROCEED":
+                    st.success(_vmsg)
+                elif _verdict == "WARN":
+                    st.warning(_vmsg)
+                else:
+                    st.error(_vmsg)
+                st.caption(
+                    f"IS {_rc['is']['start']} → {_rc.get('_split','')}  ·  "
+                    f"OOS {_rc.get('_split','')} → {_rc['oos']['end']}  ·  "
+                    f"JSD {_rc['jsd']:.3f} (0=identical, 1=disjoint)"
+                )
+                _mix_df = pd.DataFrame(
+                    {
+                        "Bear %":     [_rc['is']['mix'][0]*100, _rc['oos']['mix'][0]*100],
+                        "Sideways %": [_rc['is']['mix'][1]*100, _rc['oos']['mix'][1]*100],
+                        "Bull %":     [_rc['is']['mix'][2]*100, _rc['oos']['mix'][2]*100],
+                        "Dominant":   [_rc['is']['dominant'][0], _rc['oos']['dominant'][0]],
+                        "Net return %": [
+                            None if _rc['is']['net_return'] is None else _rc['is']['net_return']*100,
+                            None if _rc['oos']['net_return'] is None else _rc['oos']['net_return']*100,
+                        ],
+                        "Days": [_rc['is']['n'], _rc['oos']['n']],
+                    },
+                    index=["In-Sample", "Out-of-Sample"],
+                )
+                st.dataframe(_mix_df, use_container_width=True)
+                if _rc.get("missing_regime"):
+                    st.caption(
+                        f"💡 To confirm edge over regime exposure, add a 3rd test "
+                        f"window dominated by **{_rc['missing_regime']}** "
+                        f"(under-represented in OOS vs IS)."
+                    )
 
     st.markdown("---")
 
