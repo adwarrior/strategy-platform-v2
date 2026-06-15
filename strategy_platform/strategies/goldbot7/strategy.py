@@ -534,12 +534,22 @@ def _summarise(trades: List[Dict[str, Any]], total_sessions: int = 0) -> dict:
     ulcer_idx  = float(np.sqrt(np.mean(dd_series ** 2)))
 
     # ── R Squared (linearity of equity curve) ────────────────────────────────
-    x      = np.arange(n, dtype=float)
-    coef   = np.polyfit(x, cum, 1)
-    y_hat  = np.polyval(coef, x)
-    ss_res = float(((cum - y_hat) ** 2).sum())
-    ss_tot = float(((cum - cum.mean()) ** 2).sum())
-    r_sq   = float(1.0 - ss_res / ss_tot) if ss_tot > 0 else 0.0
+    # np.polyfit can raise LinAlgError ("SVD did not converge") on degenerate
+    # equity curves (flat / too few points), which would otherwise kill the
+    # whole worker pool. Treat those combos as zero linearity.
+    x = np.arange(n, dtype=float)
+    if n >= 2:
+        try:
+            with np.errstate(invalid='ignore', divide='ignore'):
+                coef = np.polyfit(x, cum, 1)
+            y_hat  = np.polyval(coef, x)
+            ss_res = float(((cum - y_hat) ** 2).sum())
+            ss_tot = float(((cum - cum.mean()) ** 2).sum())
+            r_sq   = float(1.0 - ss_res / ss_tot) if ss_tot > 0 else 0.0
+        except (np.linalg.LinAlgError, ValueError):
+            r_sq = 0.0
+    else:
+        r_sq = 0.0
 
     # ── Longest flat period (calendar days between new equity highs) ──────────
     high_dates  = []
