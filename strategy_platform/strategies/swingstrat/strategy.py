@@ -7,7 +7,7 @@ Supports two variants: swingstrat_15m and swingstrat_5m.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple  # noqa: F401
 
 import numpy as np
 import pandas as pd
@@ -650,7 +650,11 @@ class SwingStrat15M(BaseStrategy):
             }
 
         # Compute HTF legs
-        htf_legs = compute_htf_legs(htf_df, params.get('swing_period', 10))
+        htf_legs = compute_htf_legs(
+            htf_df,
+            params.get('swing_period', 10),
+            params.get('sweep_lookback', 10),
+        )
         if htf_legs.empty:
             return {
                 'net_pnl': 0.0, 'total_trades': 0, 'win_rate': 0.0, 'sharpe': 0.0,
@@ -783,7 +787,11 @@ class SwingStrat5M(BaseStrategy):
             }
 
         # Compute HTF legs
-        htf_legs = compute_htf_legs(htf_df, params.get('swing_period', 10))
+        htf_legs = compute_htf_legs(
+            htf_df,
+            params.get('swing_period', 10),
+            params.get('sweep_lookback', 10),
+        )
         if htf_legs.empty:
             return {
                 'net_pnl': 0.0, 'total_trades': 0, 'win_rate': 0.0, 'sharpe': 0.0,
