@@ -71,10 +71,15 @@ resting liquidity. A *body close* beyond the level is a break (continuation), no
 For a leg confirmed at HTF bar index `c` with direction `dir`:
 - Look back over the `sweep_lookback` HTF bars **ending at the leg's BOS bar** (i.e. bars
   `[c - sweep_lookback, c]`).
-- Identify the relevant *prior* confirmed fractal to be swept:
-  - **SHORT leg** → the most recent confirmed **swing high** *before* this leg's origin
-    swing high (i.e. the high that price ran above to grab buy-side liquidity).
-  - **LONG leg** → the most recent confirmed **swing low** before this leg's origin swing low.
+- The level to be swept is **the leg's origin extreme** (`leg['origin']`):
+  - **SHORT leg** → origin = the swing **high** the impulse fell from (buy-side liquidity
+    that price ran above and rejected to kick off the down-move).
+  - **LONG leg** → origin = the swing **low** the impulse rose from (sell-side liquidity
+    that price ran below and rejected to kick off the up-move).
+  - Rationale: the origin extreme is the level whose liquidity grab *launched* the very
+    impulse that created the FVG — so it is both causally-correct (pre-dates the FVG, no
+    look-ahead) and the closest relevant extreme to the FVG/entry zone. Already computed in
+    `compute_htf_legs`, so no new pivot logic.
 - A **valid sweep** exists within the lookback if there is at least one HTF bar `k` where:
   - SHORT: `high[k] > swept_level` **AND** `close[k] <= swept_level`
     (wicked above the high, closed back below — buy-side sweep).
@@ -120,10 +125,10 @@ ranking. Sweep gate OFF for the first parity pass (matches current Python), then
 
 ## Open questions / risks
 
-- **Sweep "swept_level" selection** is the one remaining judgment call: spec uses *the most
-  recent confirmed fractal of the matching type before the leg's origin*. Alternative: the
-  leg's own origin extreme. Flagged for review — current choice matches the video's "ran the
-  high *before* reversing" narration.
+- **Sweep "swept_level" selection** — RESOLVED 2026-06-18: use the **leg's origin extreme**
+  (`leg['origin']`). It is the level whose liquidity grab launched the impulse that formed the
+  FVG → causally correct, no look-ahead, closest relevant extreme to the entry. Default-off +
+  sweepable, so the backtest will reveal whether the gate adds edge.
 - `tick_size` in `detect_fvgs` defaults 0.10 (Gold) — must be injected from `INSTRUMENT_META`
   at runtime for MNQ (0.25). Verify the pipeline/dashboard applies symbol meta (it does for
   other strategies; confirm during Phase 2).
