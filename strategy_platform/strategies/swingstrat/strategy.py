@@ -276,6 +276,7 @@ def _simulate_backtest(
     sl_mode = params.get('sl_mode', 'SwingExtreme')
     enable_tier2 = params.get('enable_tier2', True)
     direction = params.get('direction', 'both')
+    require_liquidity_sweep = bool(params.get('require_liquidity_sweep', False))
     qty = int(params.get('qty', 1))
 
     can_long = direction in ('both', 'long_only')
@@ -310,19 +311,32 @@ def _simulate_backtest(
             if new_leg_id != leg_id:
                 # New leg detected
                 leg_id = new_leg_id
-                current_leg = {
-                    'leg_id': new_leg_id,
-                    'direction': latest_leg['direction'],
-                    'origin': float(latest_leg['origin']),
-                    'destination': float(latest_leg['destination']),
-                }
-                fib_levels = compute_fib_levels(current_leg, fib_min, fib_max)
+                # Liquidity-sweep gate (opt-in, default off): skip legs whose origin
+                # liquidity was not swept before the BOS. See swingstrat_spec.md.
+                leg_swept = bool(latest_leg.get('swept', True)) \
+                    if hasattr(latest_leg, 'get') else bool(latest_leg['swept'])
+                if require_liquidity_sweep and not leg_swept:
+                    if open_position is None:
+                        state = 'idle'
+                        current_leg = None
+                        fib_levels = None
+                        armed_entry = None
+                        is_tier2 = False
+                    # else: leave the open position to manage itself; just ignore this leg
+                else:
+                    current_leg = {
+                        'leg_id': new_leg_id,
+                        'direction': latest_leg['direction'],
+                        'origin': float(latest_leg['origin']),
+                        'destination': float(latest_leg['destination']),
+                    }
+                    fib_levels = compute_fib_levels(current_leg, fib_min, fib_max)
 
-                if open_position is None:
-                    state = 'leg_active'
-                    armed_entry = None
-                    is_tier2 = False
-                # else: stay in_trade, don't reset
+                    if open_position is None:
+                        state = 'leg_active'
+                        armed_entry = None
+                        is_tier2 = False
+                    # else: stay in_trade, don't reset
 
         # ── Manage open position ─────────────────────────────────────────────
         if state == 'in_trade' and open_position is not None:
@@ -566,6 +580,8 @@ class SwingStrat15M(BaseStrategy):
         'sl_mode': 'SwingExtreme',
         'enable_tier2': True,
         'direction': 'both',
+        'require_liquidity_sweep': False,
+        'sweep_lookback': 10,
         'qty': 1,
     }
 
@@ -579,8 +595,15 @@ class SwingStrat15M(BaseStrategy):
             'sl_mode':             ['SwingExtreme', 'FVGInvalidation'],
             'enable_tier2':        [True, False],
             'direction':           ['both', 'long_only', 'short_only'],
+            'require_liquidity_sweep': [False, True],
+            'sweep_lookback':      (5, 20, 5),
             'qty':                 (1, 4, 1),
         }
+
+    @property
+    def param_conditional(self) -> Dict[str, Tuple[str, Any]]:
+        # sweep_lookback only shown/swept when the sweep gate is enabled.
+        return {'sweep_lookback': ('require_liquidity_sweep', True)}
 
     @property
     def description(self) -> str:
@@ -694,6 +717,8 @@ class SwingStrat5M(BaseStrategy):
         'sl_mode': 'SwingExtreme',
         'enable_tier2': True,
         'direction': 'both',
+        'require_liquidity_sweep': False,
+        'sweep_lookback': 10,
         'qty': 1,
     }
 
@@ -707,8 +732,15 @@ class SwingStrat5M(BaseStrategy):
             'sl_mode':             ['SwingExtreme', 'FVGInvalidation'],
             'enable_tier2':        [True, False],
             'direction':           ['both', 'long_only', 'short_only'],
+            'require_liquidity_sweep': [False, True],
+            'sweep_lookback':      (5, 20, 5),
             'qty':                 (1, 4, 1),
         }
+
+    @property
+    def param_conditional(self) -> Dict[str, Tuple[str, Any]]:
+        # sweep_lookback only shown/swept when the sweep gate is enabled.
+        return {'sweep_lookback': ('require_liquidity_sweep', True)}
 
     @property
     def description(self) -> str:

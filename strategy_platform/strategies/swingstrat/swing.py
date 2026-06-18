@@ -82,9 +82,42 @@ def detect_fractals(
     return fractals, confirmed_indices
 
 
+def _has_liquidity_sweep(
+    highs: np.ndarray,
+    lows: np.ndarray,
+    closes: np.ndarray,
+    bos_index: int,
+    swept_level: float,
+    direction: str,
+    sweep_lookback: int,
+) -> bool:
+    """
+    Detect a liquidity sweep of `swept_level` in the HTF bars ending at the BOS bar.
+
+    A sweep is a wick beyond the level with a body close back inside it (a grab, not a
+    break). See swingstrat_spec.md ("Liquidity-sweep gate").
+
+    SHORT leg (swept_level = leg origin swing HIGH = buy-side liquidity):
+        some bar k in [bos_index - sweep_lookback, bos_index] with
+        high[k] > swept_level AND close[k] <= swept_level.
+    LONG leg (swept_level = leg origin swing LOW = sell-side liquidity):
+        low[k] < swept_level AND close[k] >= swept_level.
+    """
+    start = max(0, bos_index - sweep_lookback)
+    for k in range(start, bos_index + 1):
+        if direction == 'short':
+            if highs[k] > swept_level and closes[k] <= swept_level:
+                return True
+        else:  # long
+            if lows[k] < swept_level and closes[k] >= swept_level:
+                return True
+    return False
+
+
 def compute_htf_legs(
     htf_df: pd.DataFrame,
     swing_period: int = 10,
+    sweep_lookback: int = 10,
 ) -> pd.DataFrame:
     """
     Compute HTF swing legs from fractal detection.
@@ -100,12 +133,14 @@ def compute_htf_legs(
     - 'destination': end price (last swing low for SHORT, last swing high for LONG)
     - 'confirmed_time': time when BOS bar closed
     - 'confirmed_index': index of BOS bar
+    - 'swept': bool, whether the leg origin liquidity was swept before the BOS
+              (see swingstrat_spec.md). Always populated; gating is opt-in in the caller.
     """
     fractals, confirmed_indices = detect_fractals(htf_df, swing_period)
 
     if not fractals:
         return pd.DataFrame(columns=['leg_id', 'direction', 'origin', 'destination',
-                                     'confirmed_time', 'confirmed_index'])
+                                     'confirmed_time', 'confirmed_index', 'swept'])
 
     # Track last confirmed swing high and low
     last_swing_high: Optional[Dict[str, Any]] = None
@@ -114,6 +149,8 @@ def compute_htf_legs(
     legs: List[Dict[str, Any]] = []
     leg_id = 0
 
+    highs = htf_df['high'].values
+    lows = htf_df['low'].values
     closes = htf_df['close'].values
     times = htf_df.index
 
@@ -129,17 +166,20 @@ def compute_htf_legs(
                     last_swing_low = frac.copy()
 
         # BOS DOWN: close below last swing low
-        if (last_swing_low is not None and 
+        if (last_swing_low is not None and
             last_swing_high is not None and
             close < last_swing_low['price']):
             leg_id += 1
+            origin = float(last_swing_high['price'])
             legs.append({
                 'leg_id': leg_id,
                 'direction': 'short',
-                'origin': float(last_swing_high['price']),
+                'origin': origin,
                 'destination': float(last_swing_low['price']),
                 'confirmed_time': times[i],
                 'confirmed_index': i,
+                'swept': _has_liquidity_sweep(highs, lows, closes, i, origin,
+                                              'short', sweep_lookback),
             })
             last_swing_low = None  # Prevent re-triggering
 
@@ -148,13 +188,16 @@ def compute_htf_legs(
               last_swing_low is not None and
               close > last_swing_high['price']):
             leg_id += 1
+            origin = float(last_swing_low['price'])
             legs.append({
                 'leg_id': leg_id,
                 'direction': 'long',
-                'origin': float(last_swing_low['price']),
+                'origin': origin,
                 'destination': float(last_swing_high['price']),
                 'confirmed_time': times[i],
                 'confirmed_index': i,
+                'swept': _has_liquidity_sweep(highs, lows, closes, i, origin,
+                                              'long', sweep_lookback),
             })
             last_swing_high = None  # Prevent re-triggering
 
