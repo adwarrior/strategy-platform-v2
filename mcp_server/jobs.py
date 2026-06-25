@@ -9,8 +9,7 @@ from __future__ import annotations
 import json
 import os
 import secrets
-import signal
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 
 # Repo root on sys.path so strategy_platform imports resolve when this module
@@ -37,7 +36,7 @@ def new_job_id() -> str:
 
 
 def make_run_ts() -> str:
-    return datetime.now().strftime("%Y%m%d_%H%M")
+    return datetime.now().strftime("%Y%m%d_%H%M")  # local wall-clock intentional: matches run_pipeline's datetime.now().strftime('%Y%m%d_%H%M') for run_ts parity
 
 
 def _ensure_dir() -> None:
@@ -66,7 +65,7 @@ def read_job(job_id: str) -> Optional[dict]:
         return None
 
 
-def all_jobs() -> list:
+def all_jobs() -> list[dict]:
     if not os.path.isdir(JOBS_DIR):
         return []
     out = []
@@ -94,7 +93,7 @@ def pid_alive(pid: int) -> bool:
 
 def count_combos(strategy: str, grid: Optional[dict]) -> int:
     inst = StrategyRegistry.get(strategy)()
-    effective = grid if grid else inst.param_grid
+    effective = grid if grid is not None else inst.param_grid
     deps = inst.param_dependencies
     return sum(1 for _ in _deduplicated_combinations(effective, deps))
 

@@ -56,6 +56,20 @@ def test_count_combos_small_grid(monkeypatch):
     assert jobs.count_combos("whatever", {"a": [1, 2], "b": [1, 2, 3]}) == 6
 
 
+def test_count_combos_uses_pipeline_dedup(monkeypatch):
+    called = {}
+    def fake_dedup(grid, deps):
+        called["yes"] = (grid, deps)
+        yield {}; yield {}; yield {}   # 3 combos
+    class FakeStrat:
+        param_grid = {"a": [1]}
+        param_dependencies = {"x": ("y", True)}
+    monkeypatch.setattr(jobs.StrategyRegistry, "get", staticmethod(lambda n: (lambda: FakeStrat())))
+    monkeypatch.setattr(jobs, "_deduplicated_combinations", fake_dedup)
+    assert jobs.count_combos("whatever", {"a": [1]}) == 3
+    assert "yes" in called
+
+
 def test_compute_status_running(monkeypatch):
     monkeypatch.setattr(jobs, "run_in_db", lambda *a, **k: False)
     monkeypatch.setattr(jobs, "pid_alive", lambda pid: True)
