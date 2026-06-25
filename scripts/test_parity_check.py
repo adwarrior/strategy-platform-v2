@@ -58,6 +58,9 @@ def test_parity_live_supertrendfractal(tmp_path):
         if "no ticks found" in msg.lower() or "DatetimeIndex" in msg or "RangeIndex" in msg:
             pytest.skip(f"NQ tick_data absent from DB (Tier-1 load returned empty bars): {e}")
         raise
+    # I3: structured data-blocked result when Tier-1 bars are absent (no exception raised)
+    if res.get("verdict") == "data-blocked" and res.get("tier2") is None:
+        pytest.skip(f"NQ tick_data absent from DB (Tier-1 data-blocked): {res.get('warnings')}")
     # Smoke only: assert it RAN end-to-end and produced a report + trade counts.
     # Do NOT assert verdict==pass (NQ-live vs MNQ-DB confound is documented).
     assert os.path.exists(res["report_path"])

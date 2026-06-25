@@ -221,8 +221,8 @@ def _load_platform_bars(symbol: str, timeframe_min: Optional[int],
 
 def _run_python(strategy_name: str, params: dict, bars: pd.DataFrame) -> pd.DataFrame:
     """Run a registered strategy on a prepared bars frame; return its trades frame."""
-    strat = StrategyRegistry.get(strategy_name)(params)
-    full = {**strat.params, **params}
+    strat = StrategyRegistry.get(strategy_name)()
+    full = {**strat.params, **(params or {})}
     result = strat.run_backtest(bars, full)
     trades = result.get("trades")
     return trades if isinstance(trades, pd.DataFrame) else pd.DataFrame()
@@ -244,6 +244,15 @@ def parity(strategy_name: str, params: dict, nt_trade_log: str, symbol: str,
 
     # Tier 1 — platform MySQL data
     bars1 = _load_platform_bars(symbol, timeframe_min, bar_size, start, end)
+    if bars1 is None or len(bars1) == 0:
+        tier1 = {"nt_trades": int(len(nt)), "py_trades": 0,
+                 "matched": 0, "nt_only": int(len(nt)), "py_only": 0}
+        report_path = _write_report(report_dir, strategy_name, symbol, tier1, None,
+                                     [f"DATA-BLOCKED: no platform bars for {symbol} "
+                                      f"{start}..{end} (Tier-1 data absent)"], "data-blocked")
+        return {"tier1": tier1, "tier2": None,
+                "warnings": [f"no Tier-1 data for {symbol}"],
+                "verdict": "data-blocked", "report_path": report_path}
     py1 = _run_python(strategy_name, params, bars1)
     m1 = match_trades(nt, py1, timeframe_min, tol["time_window_s"], tol["price"])
     tier1 = _diff_summary(nt, py1, m1)
@@ -282,10 +291,12 @@ def _write_report(report_dir, strategy, symbol, tier1, tier2, warns, verdict) ->
     report_dir = report_dir or os.path.join(_REPO_ROOT, "reports")
     os.makedirs(report_dir, exist_ok=True)
     path = os.path.join(report_dir, f"PARITY_REPORT_{strategy}_{symbol}.md")
+    tier2_block = ("_(no native export provided — Tier 2 not run)_"
+                   if tier2 is None else f"```\n{tier2}\n```")
     lines = [f"# Parity Report — {strategy} on {symbol}", "",
              f"**Verdict:** {verdict}", "", "## Tier 1 (platform MySQL data)",
              f"```\n{tier1}\n```", "", "## Tier 2 (NT native export)",
-             f"```\n{tier2}\n```", "", "## Pre-flight warnings"]
+             tier2_block, "", "## Pre-flight warnings"]
     lines += [f"- {w}" for w in warns] or ["- none"]
     with open(path, "w") as f:
         f.write("\n".join(lines) + "\n")
