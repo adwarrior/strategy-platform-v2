@@ -200,3 +200,117 @@ def preflight_guards(matched: pd.DataFrame, nt: pd.DataFrame, py: pd.DataFrame) 
             f"signals a data outage on one side, not a logic bug."
         )
     return warns
+
+
+from strategy_platform.registry import StrategyRegistry  # noqa: E402
+from strategy_platform.data import loader  # noqa: E402
+
+
+def _load_platform_bars(symbol: str, timeframe_min: Optional[int],
+                        bar_size: Optional[int], start: str, end: str) -> pd.DataFrame:
+    """Tier-1 data: load from the platform MySQL store at the right bar type."""
+    if bar_size is not None:               # tick-bar strategy
+        return loader.load_tick_bars(symbol, bar_size, start=start, end=end)
+    if timeframe_min == 1:
+        return loader.load_1m(symbol, start=start, end=end)
+    base = loader.load_5m(symbol, start=start, end=end)
+    if timeframe_min and timeframe_min != 5:
+        return loader.resample_ohlcv(base, timeframe_min)
+    return base
+
+
+def _run_python(strategy_name: str, params: dict, bars: pd.DataFrame) -> pd.DataFrame:
+    """Run a registered strategy on a prepared bars frame; return its trades frame."""
+    strat = StrategyRegistry.get(strategy_name)(params)
+    full = {**strat.params, **params}
+    result = strat.run_backtest(bars, full)
+    trades = result.get("trades")
+    return trades if isinstance(trades, pd.DataFrame) else pd.DataFrame()
+
+
+def _diff_summary(nt: pd.DataFrame, py: pd.DataFrame, m: dict) -> dict:
+    return {"nt_trades": int(len(nt)), "py_trades": int(len(py)),
+            "matched": int(len(m["matched"])),
+            "nt_only": int(len(m["nt_only"])), "py_only": int(len(m["py_only"]))}
+
+
+def parity(strategy_name: str, params: dict, nt_trade_log: str, symbol: str,
+           timeframe_min: Optional[int], start: str, end: str,
+           nt_export_file: Optional[str] = None, bar_size: Optional[int] = None,
+           tolerance: Optional[dict] = None, report_dir: Optional[str] = None) -> dict:
+    """Two-tier parity check. Tier 2 (native export) is required for a 'pass'."""
+    tol = tolerance or {"price": 1.0, "time_window_s": 5}
+    nt = parse_nt_trade_log(nt_trade_log)
+
+    # Tier 1 — platform MySQL data
+    bars1 = _load_platform_bars(symbol, timeframe_min, bar_size, start, end)
+    py1 = _run_python(strategy_name, params, bars1)
+    m1 = match_trades(nt, py1, timeframe_min, tol["time_window_s"], tol["price"])
+    tier1 = _diff_summary(nt, py1, m1)
+
+    # Tier 2 — NT native export
+    tier2, warns = None, []
+    if nt_export_file:
+        if bar_size is not None:
+            ticks = parse_nt_tick_export(nt_export_file)
+            bars2 = ticks_to_bars(ticks, bar_size)
+        else:
+            bars2 = parse_nt_ohlc_export(nt_export_file)
+            if timeframe_min and timeframe_min != 1:
+                bars2 = loader.resample_ohlcv(bars2, timeframe_min)
+        py2 = _run_python(strategy_name, params, bars2)
+        m2 = match_trades(nt, py2, timeframe_min, tol["time_window_s"], tol["price"])
+        tier2 = _diff_summary(nt, py2, m2)
+        warns = preflight_guards(m2["matched"], nt, py2)
+
+    # Verdict
+    if tier2 is None:
+        verdict = "data-blocked"        # no native export -> cannot prove logic parity
+    elif warns:
+        verdict = "data-blocked"        # a data confound is flagged; resolve before judging
+    elif tier2["nt_only"] == 0 and tier2["py_only"] == 0:
+        verdict = "pass"
+    else:
+        verdict = "fail"
+
+    report_path = _write_report(report_dir, strategy_name, symbol, tier1, tier2, warns, verdict)
+    return {"tier1": tier1, "tier2": tier2, "warnings": warns,
+            "verdict": verdict, "report_path": report_path}
+
+
+def _write_report(report_dir, strategy, symbol, tier1, tier2, warns, verdict) -> str:
+    report_dir = report_dir or os.path.join(_REPO_ROOT, "reports")
+    os.makedirs(report_dir, exist_ok=True)
+    path = os.path.join(report_dir, f"PARITY_REPORT_{strategy}_{symbol}.md")
+    lines = [f"# Parity Report — {strategy} on {symbol}", "",
+             f"**Verdict:** {verdict}", "", "## Tier 1 (platform MySQL data)",
+             f"```\n{tier1}\n```", "", "## Tier 2 (NT native export)",
+             f"```\n{tier2}\n```", "", "## Pre-flight warnings"]
+    lines += [f"- {w}" for w in warns] or ["- none"]
+    with open(path, "w") as f:
+        f.write("\n".join(lines) + "\n")
+    return path
+
+
+def main(argv=None) -> int:
+    import argparse
+    ap = argparse.ArgumentParser(description="NT<->platform parity check")
+    ap.add_argument("--strategy", required=True)
+    ap.add_argument("--symbol", required=True)
+    ap.add_argument("--nt-log", required=True)
+    ap.add_argument("--nt-export", default=None)
+    ap.add_argument("--timeframe-min", type=int, default=None)
+    ap.add_argument("--bar-size", type=int, default=None)
+    ap.add_argument("--start", required=True)
+    ap.add_argument("--end", required=True)
+    args = ap.parse_args(argv)
+    res = parity(strategy_name=args.strategy, params={}, nt_trade_log=args.nt_log,
+                 symbol=args.symbol, timeframe_min=args.timeframe_min,
+                 start=args.start, end=args.end, nt_export_file=args.nt_export,
+                 bar_size=args.bar_size)
+    print(f"verdict={res['verdict']} report={res['report_path']}")
+    return 0 if res["verdict"] in ("pass", "data-blocked") else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
