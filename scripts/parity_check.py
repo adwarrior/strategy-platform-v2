@@ -109,9 +109,8 @@ def ticks_to_bars(ticks: pd.DataFrame, bar_size: int) -> pd.DataFrame:
 
 
 def _norm_direction(df: pd.DataFrame) -> pd.Series:
-    if "direction" in df.columns:
-        return df["direction"].astype(str).str.strip()
-    return df["side"].astype(str).str.strip()
+    col = "direction" if "direction" in df.columns else "side"
+    return df[col].astype(str).str.strip().str.lower()
 
 
 def match_trades(nt: pd.DataFrame, py: pd.DataFrame,
@@ -210,7 +209,11 @@ def _load_platform_bars(symbol: str, timeframe_min: Optional[int],
                         bar_size: Optional[int], start: str, end: str) -> pd.DataFrame:
     """Tier-1 data: load from the platform MySQL store at the right bar type."""
     if bar_size is not None:               # tick-bar strategy
-        return loader.load_tick_bars(symbol, bar_size, start=start, end=end)
+        bars = loader.load_tick_bars(symbol, bar_size, start=start, end=end)
+        if bars is not None and not bars.empty:
+            bars.index = (pd.DatetimeIndex(bars.index)
+                          .tz_localize("UTC").tz_convert("America/New_York").tz_localize(None))
+        return bars
     if timeframe_min == 1:
         return loader.load_1m(symbol, start=start, end=end)
     base = loader.load_5m(symbol, start=start, end=end)
@@ -226,6 +229,17 @@ def _run_python(strategy_name: str, params: dict, bars: pd.DataFrame) -> pd.Data
     result = strat.run_backtest(bars, full)
     trades = result.get("trades")
     return trades if isinstance(trades, pd.DataFrame) else pd.DataFrame()
+
+
+def _decide_verdict(tier2: Optional[dict], warns: list) -> str:
+    """Pure verdict decision: only CONTRACT-SERIES warnings are data confounds."""
+    if tier2 is None:
+        return "data-blocked"
+    if any(w.startswith("CONTRACT-SERIES") for w in warns):
+        return "data-blocked"
+    if tier2["nt_only"] == 0 and tier2["py_only"] == 0:
+        return "pass"
+    return "fail"
 
 
 def _diff_summary(nt: pd.DataFrame, py: pd.DataFrame, m: dict) -> dict:
@@ -273,14 +287,7 @@ def parity(strategy_name: str, params: dict, nt_trade_log: str, symbol: str,
         warns = preflight_guards(m2["matched"], nt, py2)
 
     # Verdict
-    if tier2 is None:
-        verdict = "data-blocked"        # no native export -> cannot prove logic parity
-    elif warns:
-        verdict = "data-blocked"        # a data confound is flagged; resolve before judging
-    elif tier2["nt_only"] == 0 and tier2["py_only"] == 0:
-        verdict = "pass"
-    else:
-        verdict = "fail"
+    verdict = _decide_verdict(tier2, warns)
 
     report_path = _write_report(report_dir, strategy_name, symbol, tier1, tier2, warns, verdict)
     return {"tier1": tier1, "tier2": tier2, "warnings": warns,

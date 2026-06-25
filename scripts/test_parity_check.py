@@ -289,3 +289,55 @@ def test_preflight_coverage_warning():
     py = pd.DataFrame({"entry_time": pd.to_datetime(["2026-06-16 10:00"])})
     warns = pc.preflight_guards(matched, nt=nt, py=py)
     assert any("coverage" in w.lower() or "only" in w.lower() for w in warns)
+
+
+def test_match_trades_direction_casing():
+    """C1 regression: NT 'Long' must match Python 'long' (lowercase) after case-fold."""
+    nt = pd.DataFrame({
+        "entry_time": [pd.Timestamp("2026-06-16 10:00:00")],
+        "exit_time": [pd.Timestamp("2026-06-16 10:05:00")],
+        "direction": ["Long"],  # capitalized — from NT trade log parser
+        "entry_price": [100.0], "exit_price": [101.0], "pnl": [50.0],
+    })
+    py = pd.DataFrame({
+        "direction": ["long"],  # lowercase — from supertrendfractal strategy
+        "entry_time": [pd.Timestamp("2026-06-16 10:03:00")],
+        "exit_time": [pd.Timestamp("2026-06-16 10:05:00")],
+        "entry_price": [100.0], "exit_price": [101.0], "pnl_ticks": [4.0],
+    })
+    res = pc.match_trades(nt, py, timeframe_min=5, time_window_s=0, price_tol=1.0)
+    assert len(res["matched"]) == 1, (
+        "Case-fold failed: NT 'Long' did not match Python 'long'"
+    )
+
+
+def test_coverage_warning_does_not_force_data_blocked():
+    """IMPORTANT-1: COVERAGE warning must NOT force data-blocked; only CONTRACT-SERIES should."""
+    # Pure unit test of _decide_verdict — no DB or file I/O needed.
+
+    # Tier2 with unmatched trades (would be "fail" if verdict logic is correct)
+    tier2_fail = {"nt_trades": 2, "py_trades": 2, "matched": 1, "nt_only": 1, "py_only": 0}
+    tier2_pass = {"nt_trades": 1, "py_trades": 1, "matched": 1, "nt_only": 0, "py_only": 0}
+
+    coverage_warn = ["COVERAGE WARNING: 1 NT-only and 0 Python-only trading day(s). ..."]
+    contract_warn = ["CONTRACT-SERIES WARNING: matched entry prices differ by a large, "
+                     "near-constant amount (mean 500.0). ..."]
+    both_warns = coverage_warn + contract_warn
+
+    # Coverage-only → verdict must be "fail" (not "data-blocked")
+    assert pc._decide_verdict(tier2_fail, coverage_warn) == "fail", (
+        "COVERAGE-only warn should not force data-blocked"
+    )
+    # Coverage-only with passing tier2 → "pass"
+    assert pc._decide_verdict(tier2_pass, coverage_warn) == "pass"
+
+    # CONTRACT-SERIES → data-blocked regardless of tier2 counts
+    assert pc._decide_verdict(tier2_fail, contract_warn) == "data-blocked"
+    assert pc._decide_verdict(tier2_pass, contract_warn) == "data-blocked"
+
+    # Both warnings → data-blocked (contract-series wins)
+    assert pc._decide_verdict(tier2_fail, both_warns) == "data-blocked"
+
+    # No tier2 → always data-blocked
+    assert pc._decide_verdict(None, []) == "data-blocked"
+    assert pc._decide_verdict(None, coverage_warn) == "data-blocked"
