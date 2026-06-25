@@ -29,3 +29,42 @@ def test_parse_nt_trade_log(tmp_path):
     assert df.iloc[0]["direction"] == "Long"
     assert df.iloc[0]["entry_price"] == 30815.5
     assert df.iloc[1]["pnl"] == -213.98
+
+
+def test_parse_nt_ohlc_export(tmp_path):
+    # 'YYYYMMDD HHMMSS;O;H;L;C;V', UTC -> ET-naive (UTC-4 in June DST)
+    data = "20260616 140000;100.0;101.0;99.5;100.5;10\n20260616 140100;100.5;102.0;100.0;101.5;12\n"
+    p = tmp_path / "ohlc.txt"
+    p.write_text(data)
+    df = pc.parse_nt_ohlc_export(str(p))
+    assert list(df.columns) == ["open", "high", "low", "close", "volume"]
+    # 14:00 UTC in June = 10:00 ET
+    assert df.index[0] == pd.Timestamp("2026-06-16 10:00:00")
+    assert df.iloc[0]["high"] == 101.0
+
+
+def test_parse_nt_tick_export(tmp_path):
+    # 'YYYYMMDD HHMMSS<frac>;price;bid?;ask?;volume' — STF format: ts;price;...;vol
+    # Real lines look like '20260616 040003 0780000;30832.75;30832.75;30833.25;1'
+    data = ("20260616 140000 0000000;100.0;100.0;100.25;1\n"
+            "20260616 140000 5000000;100.5;100.25;100.5;2\n")
+    p = tmp_path / "ticks.txt"
+    p.write_text(data)
+    df = pc.parse_nt_tick_export(str(p))
+    assert list(df.columns) == ["price", "volume"]
+    assert df.iloc[0]["price"] == 100.0
+    assert df.index[0] == pd.Timestamp("2026-06-16 10:00:00")  # 14:00 UTC -> 10:00 ET
+
+
+def test_ticks_to_bars():
+    idx = pd.to_datetime([
+        "2026-06-16 10:00:00", "2026-06-16 10:00:01",
+        "2026-06-16 10:00:02", "2026-06-16 10:00:03",
+    ])
+    ticks = pd.DataFrame({"price": [100, 101, 99, 102], "volume": [1, 1, 1, 1]}, index=idx)
+    bars = pc.ticks_to_bars(ticks, bar_size=2)
+    assert len(bars) == 2
+    assert bars.iloc[0]["open"] == 100 and bars.iloc[0]["high"] == 101
+    assert bars.iloc[0]["low"] == 100 and bars.iloc[0]["close"] == 101
+    assert bars.iloc[1]["open"] == 99 and bars.iloc[1]["high"] == 102
+    assert bars.iloc[0]["volume"] == 2

@@ -42,3 +42,67 @@ def parse_nt_trade_log(path: str) -> pd.DataFrame:
         "pnl": raw["Profit"].map(_money),
     })
     return out
+
+
+def _utc_to_et_naive(idx: pd.DatetimeIndex) -> pd.DatetimeIndex:
+    """Localize a naive UTC index to UTC, convert to ET, drop tz (ET-naive)."""
+    return idx.tz_localize("UTC").tz_convert("America/New_York").tz_localize(None)
+
+
+def parse_nt_ohlc_export(path: str) -> pd.DataFrame:
+    """Parse NT 1-min OHLC export 'YYYYMMDD HHMMSS;O;H;L;C;V' (UTC) to ET-naive."""
+    df = pd.read_csv(path, sep=";", header=None,
+                     names=["ts", "open", "high", "low", "close", "volume"],
+                     dtype={"ts": str})
+    idx = pd.to_datetime(df["ts"], format="%Y%m%d %H%M%S")
+    df.index = _utc_to_et_naive(pd.DatetimeIndex(idx))
+    return df[["open", "high", "low", "close", "volume"]].astype(float)
+
+
+def parse_nt_tick_export(path: str) -> pd.DataFrame:
+    """Parse NT tick export 'YYYYMMDD HHMMSS<frac>;price;...;volume' (UTC) to ET-naive.
+
+    The timestamp field is 'YYYYMMDD HHMMSS NNNNNNN' (space-separated subsecond
+    fraction in 0.1-microsecond units). price is the first numeric after ';';
+    volume is the last field.
+    """
+    rows = []
+    with open(path, errors="replace") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            parts = line.split(";")
+            ts_field = parts[0]                       # 'YYYYMMDD HHMMSS NNNNNNN'
+            ymd_hms = ts_field[:15]                   # 'YYYYMMDD HHMMSS'
+            frac = ts_field[16:] if len(ts_field) > 15 else "0"
+            base = pd.to_datetime(ymd_hms, format="%Y%m%d %H%M%S")
+            ts = base + pd.to_timedelta(int(frac or 0) * 100, unit="ns")
+            price = float(parts[1])
+            vol = float(parts[-1]) if parts[-1] else 1.0
+            rows.append((ts, price, vol))
+    out = pd.DataFrame(rows, columns=["ts", "price", "volume"]).set_index("ts")
+    out.index = _utc_to_et_naive(pd.DatetimeIndex(out.index))
+    return out[["price", "volume"]]
+
+
+def ticks_to_bars(ticks: pd.DataFrame, bar_size: int) -> pd.DataFrame:
+    """Aggregate a tick frame (price, volume; time index) into N-tick OHLCV bars.
+
+    Each consecutive block of `bar_size` ticks becomes one bar; the bar's index
+    is its first tick's timestamp. A trailing partial block is dropped (matches
+    NT, which only forms complete bars).
+    """
+    n = len(ticks) // bar_size
+    bars = []
+    times = []
+    p = ticks["price"].to_numpy()
+    v = ticks["volume"].to_numpy()
+    t = ticks.index.to_numpy()
+    for i in range(n):
+        block = p[i * bar_size:(i + 1) * bar_size]
+        vblock = v[i * bar_size:(i + 1) * bar_size]
+        bars.append((block[0], block.max(), block.min(), block[-1], vblock.sum()))
+        times.append(t[i * bar_size])
+    return pd.DataFrame(bars, index=pd.DatetimeIndex(times),
+                        columns=["open", "high", "low", "close", "volume"])
