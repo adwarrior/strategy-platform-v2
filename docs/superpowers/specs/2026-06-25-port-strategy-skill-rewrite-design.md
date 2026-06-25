@@ -194,14 +194,26 @@ transient and no longer exist on disk.
      date-coverage warning.
    These run in CI-style isolation and are the harness's real regression test.
 
-2. **Best-effort integration check.** At implementation time, discover whether a
-   usable NT trade-log + NT native-export pair still exists for any ported
-   strategy (search `~/Scripts/Results/` and `~/Scripts/Results/NinjaResults/`,
-   e.g. the `Ninja*.txt` logs and `*.Last.txt` exports that ARE present). If a
-   matched pair is found, run `parity_check.py` end-to-end on it as a live smoke
-   test. If none is found, skip this layer (the synthetic tests are the gate)
-   and note in the harness README that a fresh NT export is needed to run a full
-   live parity check. Do not hard-code the absent ORB30 paths.
+2. **Live integration check — SuperTrendFractal.** A usable matched pair exists:
+   - NT per-trade log: `~/Scripts/Results/NinjaResults/STF_89Tick_Trades.csv`
+     (76 trades, NQ SEP26, 16–24 Jun 2026);
+   - NT native tick export: `~/Scripts/Results/NinjaResults/NQ 09-26_16-24.Last.txt`;
+   - registered Python port: `supertrendfractal` (tick-bar, NQ, $5/tick);
+   - live config in `STF_HANDOFF.md` (ATR mult 3, ATR period 10, fractal len 3,
+     Both, FixedTPTrailSL TP 80t / trail SL, cooldown 2, session 09:45–11:00,
+     EOD 16:55).
+
+   Run `parity_check.py` end-to-end on this as the live smoke test. It exercises
+   the harder paths: the CSV trade-log parser (day-first dates, `$` stripping),
+   tick-export → 89-tick-bar building, and the tick-bar matching rule.
+
+   **Caveat — treat result as a smoke signal, not a hard gate.** `STF_HANDOFF.md`
+   asserts "parity confirmed" but not bar-for-bar, and the live run was on NQ
+   while the platform's tick history is MNQ (a documented proxy with ~2.15×
+   tick tempo). A residual mismatch here may reflect that data confound rather
+   than a harness bug — which is exactly what the pre-flight contract-series /
+   coverage guards should surface. The synthetic unit tests (layer 1) remain the
+   hard gate; this layer proves the parsers and bar-builders work on real files.
 
 ## Out of scope (YAGNI)
 
