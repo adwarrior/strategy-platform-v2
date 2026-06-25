@@ -73,13 +73,13 @@ def parse_nt_tick_export(path: str) -> pd.DataFrame:
             if not line:
                 continue
             parts = line.split(";")
-            ts_field = parts[0]                       # 'YYYYMMDD HHMMSS NNNNNNN'
-            ymd_hms = ts_field[:15]                   # 'YYYYMMDD HHMMSS'
-            frac = ts_field[16:] if len(ts_field) > 15 else "0"
-            base = pd.to_datetime(ymd_hms, format="%Y%m%d %H%M%S")
+            ts_tokens = parts[0].split()              # ['YYYYMMDD', 'HHMMSS', 'FRACTION']
+            ymd, hms = ts_tokens[0], ts_tokens[1]
+            frac = ts_tokens[2] if len(ts_tokens) > 2 else "0"
+            base = pd.to_datetime(ymd + " " + hms, format="%Y%m%d %H%M%S")
             ts = base + pd.to_timedelta(int(frac or 0) * 100, unit="ns")
             price = float(parts[1])
-            vol = float(parts[-1]) if parts[-1] else 1.0
+            vol = float(parts[-1]) if parts[-1].strip() else 0.0
             rows.append((ts, price, vol))
     out = pd.DataFrame(rows, columns=["ts", "price", "volume"]).set_index("ts")
     out.index = _utc_to_et_naive(pd.DatetimeIndex(out.index))

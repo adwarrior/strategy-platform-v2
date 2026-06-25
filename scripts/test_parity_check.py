@@ -54,6 +54,8 @@ def test_parse_nt_tick_export(tmp_path):
     assert list(df.columns) == ["price", "volume"]
     assert df.iloc[0]["price"] == 100.0
     assert df.index[0] == pd.Timestamp("2026-06-16 10:00:00")  # 14:00 UTC -> 10:00 ET
+    assert df.iloc[1]["price"] == 100.5
+    assert df.iloc[1]["volume"] == 2
 
 
 def test_ticks_to_bars():
@@ -68,3 +70,29 @@ def test_ticks_to_bars():
     assert bars.iloc[0]["low"] == 100 and bars.iloc[0]["close"] == 101
     assert bars.iloc[1]["open"] == 99 and bars.iloc[1]["high"] == 102
     assert bars.iloc[0]["volume"] == 2
+    assert bars.iloc[1]["close"] == 102
+    assert bars.iloc[1]["low"] == 99
+    assert bars.iloc[1]["volume"] == 2
+
+
+def test_ticks_to_bars_drops_partial():
+    idx = pd.to_datetime([
+        "2026-06-16 10:00:00", "2026-06-16 10:00:01",
+        "2026-06-16 10:00:02", "2026-06-16 10:00:03",
+        "2026-06-16 10:00:04",
+    ])
+    ticks = pd.DataFrame({"price": [100, 101, 99, 102, 103], "volume": [1, 1, 1, 1, 1]}, index=idx)
+    bars = pc.ticks_to_bars(ticks, bar_size=2)
+    assert len(bars) == 2  # 5th tick is trailing partial, dropped
+
+
+def test_parse_nt_tick_export_real_format(tmp_path):
+    # Exact real-file format: YYYYMMDD HHMMSS FRACTION;price;bid;ask;volume
+    # 04:00:03.078 UTC in June (EDT=UTC-4) -> 00:00:03.078 ET
+    data = "20260616 040003 0780000;30832.75;30832.75;30833.25;1\n"
+    p = tmp_path / "ticks_real.txt"
+    p.write_text(data)
+    df = pc.parse_nt_tick_export(str(p))
+    assert df.iloc[0]["price"] == 30832.75
+    assert df.iloc[0]["volume"] == 1.0
+    assert df.index[0] == pd.Timestamp("2026-06-16 00:00:03.078")
