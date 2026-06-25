@@ -174,12 +174,12 @@ def get_strategy_params(strategy: str) -> dict:
     inst = cls()
     return {
         "strategy": strategy,
-        "description": getattr(inst, "description", lambda: "")(),
-        "default_params": {k: _jsonable(v) for k, v in inst.params().items()},
+        "description": getattr(inst, "description", ""),
+        "default_params": {k: _jsonable(v) for k, v in inst.params.items()},
         "param_grid": {
-            k: [_jsonable(x) for x in v] for k, v in inst.param_grid().items()
+            k: [_jsonable(x) for x in v] for k, v in inst.param_grid.items()
         },
-        "display_names": inst.display_names(),
+        "display_names": inst.display_names,
     }
 
 
@@ -266,7 +266,7 @@ def run_backtest(strategy: str, symbol: str, timeframe: str = "5m",
         return {"error": f"no {timeframe} data for {symbol} in that range"}
 
     # Merge defaults with overrides so the engine gets a complete param set.
-    full_params = {**inst.params(), **params}
+    full_params = {**inst.params, **params}
     result = inst.run_backtest(df, full_params)
     summary = _summarise_metrics(result)
     summary["strategy"] = strategy
