@@ -101,7 +101,7 @@ Behaviour:
 2. Resolve the effective grid (`param_grid` or the strategy's full grid) and
    count deduplicated combinations via the platform's
    `_deduplicated_combinations`. If the count exceeds **`MAX_COMBOS` (default
-   5000)** and `confirm_large` is not `True`, **refuse** with the count and a
+   10000)** and `confirm_large` is not `True`, **refuse** with the count and a
    message to re-call with `confirm_large=True`.
 3. Generate `job_id` and `run_ts` (`YYYYmmdd_HHMM`, matching `run_pipeline`).
 4. Write the grid override to a temp JSON file; spawn `opt_runner.py`
@@ -139,7 +139,7 @@ running?" works across sessions.
 
 ## Error handling & safety
 
-- **No accidental mega-sweeps.** Combination cap (`MAX_COMBOS=5000`) gates
+- **No accidental mega-sweeps.** Combination cap (`MAX_COMBOS=10000`) gates
   `start_optimization`; over the cap requires `confirm_large=True`.
 - **Fail fast.** Unknown strategy/symbol/rank_by errors in the parent before
   any subprocess is spawned.
