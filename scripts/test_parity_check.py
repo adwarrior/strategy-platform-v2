@@ -96,3 +96,66 @@ def test_parse_nt_tick_export_real_format(tmp_path):
     assert df.iloc[0]["price"] == 30832.75
     assert df.iloc[0]["volume"] == 1.0
     assert df.index[0] == pd.Timestamp("2026-06-16 00:00:03.078")
+
+
+def _py_frame(rows):
+    # platform trades frame: side, entry_time, exit_time, entry_price, exit_price, pnl_ticks
+    return pd.DataFrame(rows)
+
+
+def test_match_trades_time_bar():
+    # NT entry_time = bar OPEN (e.g. 10:00); Python sub-bar ts inside bar -> ceil(5min)-5min == 10:00
+    nt = pd.DataFrame({
+        "entry_time": [pd.Timestamp("2026-06-16 10:00:00")],
+        "exit_time": [pd.Timestamp("2026-06-16 10:05:00")],
+        "direction": ["Long"], "entry_price": [100.0],
+        "exit_price": [101.0], "pnl": [50.0],
+    })
+    py = _py_frame({
+        "side": ["Long"],
+        "entry_time": [pd.Timestamp("2026-06-16 10:03:00")],  # inside 10:00-10:05 bar
+        "exit_time": [pd.Timestamp("2026-06-16 10:05:00")],
+        "entry_price": [100.0], "exit_price": [101.0], "pnl_ticks": [4.0],
+    })
+    res = pc.match_trades(nt, py, timeframe_min=5, time_window_s=0, price_tol=1.0)
+    assert len(res["matched"]) == 1
+    assert len(res["nt_only"]) == 0 and len(res["py_only"]) == 0
+
+
+def test_match_trades_tick_bar_nearest():
+    nt = pd.DataFrame({
+        "entry_time": [pd.Timestamp("2026-06-16 10:00:00")],
+        "exit_time": [pd.Timestamp("2026-06-16 10:00:05")],
+        "direction": ["Short"], "entry_price": [200.0],
+        "exit_price": [199.0], "pnl": [40.0],
+    })
+    py = _py_frame({
+        "side": ["Short"],
+        "entry_time": [pd.Timestamp("2026-06-16 10:00:02")],  # 2s away
+        "exit_time": [pd.Timestamp("2026-06-16 10:00:06")],
+        "entry_price": [200.25], "exit_price": [199.0], "pnl_ticks": [3.0],
+    })
+    res = pc.match_trades(nt, py, timeframe_min=None, time_window_s=5, price_tol=1.0)
+    assert len(res["matched"]) == 1
+
+
+def test_preflight_contract_series_warning():
+    # all matched entry-price deltas ~ +500, near constant => contract series warning
+    matched = pd.DataFrame({
+        "nt_entry_price": [100.0, 110.0, 120.0],
+        "py_entry_price": [600.0, 610.0, 620.0],
+        "nt_entry_time": pd.to_datetime(["2026-06-16 10:00", "2026-06-16 11:00", "2026-06-17 10:00"]),
+    })
+    warns = pc.preflight_guards(matched,
+                                nt=pd.DataFrame({"entry_time": matched["nt_entry_time"]}),
+                                py=pd.DataFrame({"entry_time": matched["nt_entry_time"]}))
+    assert any("contract" in w.lower() or "series" in w.lower() for w in warns)
+
+
+def test_preflight_coverage_warning():
+    matched = pd.DataFrame({"nt_entry_price": [100.0], "py_entry_price": [100.0],
+                            "nt_entry_time": pd.to_datetime(["2026-06-16 10:00"])})
+    nt = pd.DataFrame({"entry_time": pd.to_datetime(["2026-06-16 10:00", "2026-06-18 10:00"])})  # 18th NT-only
+    py = pd.DataFrame({"entry_time": pd.to_datetime(["2026-06-16 10:00"])})
+    warns = pc.preflight_guards(matched, nt=nt, py=py)
+    assert any("coverage" in w.lower() or "only" in w.lower() for w in warns)

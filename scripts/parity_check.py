@@ -106,3 +106,82 @@ def ticks_to_bars(ticks: pd.DataFrame, bar_size: int) -> pd.DataFrame:
         times.append(t[i * bar_size])
     return pd.DataFrame(bars, index=pd.DatetimeIndex(times),
                         columns=["open", "high", "low", "close", "volume"])
+
+
+def _norm_direction(df: pd.DataFrame) -> pd.Series:
+    if "direction" in df.columns:
+        return df["direction"].astype(str).str.strip()
+    return df["side"].astype(str).str.strip()
+
+
+def match_trades(nt: pd.DataFrame, py: pd.DataFrame,
+                 timeframe_min: Optional[int], time_window_s: int,
+                 price_tol: float) -> dict:
+    """Pair Python trades to NT trades. See module docstring for the match key."""
+    nt = nt.reset_index(drop=True).copy()
+    py = py.reset_index(drop=True).copy()
+    nt["_dir"] = _norm_direction(nt)
+    py["_dir"] = _norm_direction(py)
+
+    if timeframe_min is not None:
+        freq = f"{timeframe_min}min"
+        py["_key_time"] = py["entry_time"].dt.ceil(freq) - pd.Timedelta(minutes=timeframe_min)
+    matched_rows, used_py = [], set()
+    nt_only = []
+    for i, ntr in nt.iterrows():
+        hit = None
+        for j, pyr in py.iterrows():
+            if j in used_py or pyr["_dir"] != ntr["_dir"]:
+                continue
+            if timeframe_min is not None:
+                if pyr["_key_time"] == ntr["entry_time"]:
+                    hit = j
+                    break
+            else:
+                dt = abs((pyr["entry_time"] - ntr["entry_time"]).total_seconds())
+                if dt <= time_window_s and abs(pyr["entry_price"] - ntr["entry_price"]) <= price_tol:
+                    hit = j
+                    break
+        if hit is None:
+            nt_only.append(ntr)
+        else:
+            used_py.add(hit)
+            pyr = py.loc[hit]
+            matched_rows.append({
+                "nt_entry_time": ntr["entry_time"], "py_entry_time": pyr["entry_time"],
+                "direction": ntr["_dir"],
+                "nt_entry_price": ntr["entry_price"], "py_entry_price": pyr["entry_price"],
+                "nt_exit_price": ntr["exit_price"], "py_exit_price": pyr["exit_price"],
+            })
+    py_only = py.loc[[j for j in py.index if j not in used_py]]
+    return {
+        "matched": pd.DataFrame(matched_rows),
+        "nt_only": pd.DataFrame(nt_only),
+        "py_only": py_only.reset_index(drop=True),
+    }
+
+
+def preflight_guards(matched: pd.DataFrame, nt: pd.DataFrame, py: pd.DataFrame) -> list:
+    warns = []
+    # (a) contract-series: large + low-variance entry-price deltas across matches
+    if not matched.empty and {"nt_entry_price", "py_entry_price"}.issubset(matched.columns):
+        delta = (matched["py_entry_price"] - matched["nt_entry_price"]).abs()
+        if len(delta) >= 2 and delta.mean() > 5.0 and delta.std(ddof=0) < 0.5 * delta.mean():
+            warns.append(
+                f"CONTRACT-SERIES WARNING: matched entry prices differ by a "
+                f"large, near-constant amount (mean {delta.mean():.1f}). The two "
+                f"sides may be on different contract series (e.g. continuous vs "
+                f"a dated month). Resolve data before attributing logic drift."
+            )
+    # (b) coverage: one-sided trading days
+    nt_days = set(pd.to_datetime(nt["entry_time"]).dt.normalize()) if not nt.empty else set()
+    py_days = set(pd.to_datetime(py["entry_time"]).dt.normalize()) if not py.empty else set()
+    nt_only_days = sorted(nt_days - py_days)
+    py_only_days = sorted(py_days - nt_days)
+    if nt_only_days or py_only_days:
+        warns.append(
+            f"COVERAGE WARNING: {len(nt_only_days)} NT-only and "
+            f"{len(py_only_days)} Python-only trading day(s). A one-sided block "
+            f"signals a data outage on one side, not a logic bug."
+        )
+    return warns
