@@ -9,9 +9,10 @@ import jobs  # mcp_server/ is the CWD when running these tests
 
 
 # A strategy + symbol + small date range known to produce a run quickly.
-# WaeJurikPro on MNQ 5m over one week ran in the local smoke test.
-SMALL = dict(strategy="WaeJurikPro", symbol="MNQ",
-             data_start="2026-05-01", data_end="2026-05-08")
+# mobobands (time-bar) on MNQ 5m routes through load_1m→resample; yields ~1180 bars.
+# WaeJurikPro was a tick-bar strategy — MNQ tick data ends 2026-04-17 so that combo had no data.
+SMALL = dict(strategy="mobobands", symbol="MNQ",
+             data_start="2026-04-01", data_end="2026-04-08")
 
 
 def _tiny_grid_for(strategy):
@@ -20,10 +21,30 @@ def _tiny_grid_for(strategy):
     return {k: [v[0]] for k, v in inst.param_grid.items()}
 
 
+# Hard-coded 1-combo grid for the slow integration test.
+# _tiny_grid_for("mobobands") enables all boolean filters simultaneously,
+# which over-filters to zero trades on any short date range.
+# This grid turns every enable_* filter off so the base signal fires freely.
+_MOBOBANDS_MINIMAL_GRID = {
+    "dpo_period": [14], "mobo_length": [20], "num_dev_up": [1.0],
+    "num_dev_dn": [1.0], "hook_lookback": [3], "slope_lookback": [3],
+    "slope_threshold": [0.0],
+    "enable_middle_band_hook": [False], "require_color_change": [False],
+    "enable_divergence_filter": [False], "divergence_lookback": [10],
+    "enable_bw_filter": [False], "bw_period": [20], "bw_multiplier": [1.0],
+    "enable_time_filter": [False],
+    "profit_ticks": [20], "stop_ticks": [10], "bars_between_trades": [0],
+    "enable_wattah_atar": [False], "enable_jurik_filter": [False],
+    "jurik_period": [14], "jurik_phase": [0.0], "jurik_fl_period": [14],
+    "enable_adx_filter": [False], "adx_period": [14], "adx_threshold": [20.0],
+    "tick_bar_size": [100], "calculate_mode": ["on_bar_close"],
+}
+
+
 @pytest.mark.slow
 def test_opt_runner_writes_db_run():
-    run_ts = jobs.make_run_ts() + "_t1"     # unique suffix avoids collisions
-    grid = _tiny_grid_for(SMALL["strategy"])
+    run_ts = jobs.make_run_ts()  # 13-char YYYYmmdd_HHMM — DB column is VARCHAR(13)
+    grid = _MOBOBANDS_MINIMAL_GRID
     grid_file = os.path.join(jobs.JOBS_DIR, f"grid_{run_ts}.json")
     jobs._ensure_dir()
     with open(grid_file, "w") as f:
