@@ -160,9 +160,15 @@ def test_compute_status_failed(monkeypatch):
 def test_start_optimization_refuses_large(monkeypatch):
     import server
     monkeypatch.setattr(server.jobs, "count_combos", lambda *a, **k: 999999)
+    spawned = {"n": 0}
+    def fake_popen(*a, **k):
+        spawned["n"] += 1
+        raise AssertionError("Popen should not be called on refusal")
+    monkeypatch.setattr(server.subprocess, "Popen", fake_popen)
     res = server.start_optimization(strategy="mobobands", symbol="MNQ")
     assert res.get("refused") is True
     assert res["combos"] == 999999
+    assert spawned["n"] == 0
 
 
 @pytest.mark.slow

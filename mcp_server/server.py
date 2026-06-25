@@ -25,6 +25,7 @@ Design notes
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 from datetime import datetime, timezone
@@ -439,6 +440,10 @@ def start_optimization(strategy: str, symbol: str, timeframe: str = "5m",
     except Exception as e:
         return {"error": f"unknown/unsupported symbol '{symbol}': {e}"}
 
+    from strategy_platform.optimize.pipeline import RANK_METRICS
+    if rank_by not in RANK_METRICS:
+        return {"error": f"unknown rank_by '{rank_by}'. Valid: {list(RANK_METRICS.keys())}"}
+
     try:
         combos = jobs.count_combos(strategy, param_grid)
     except Exception as e:
@@ -455,14 +460,18 @@ def start_optimization(strategy: str, symbol: str, timeframe: str = "5m",
     grid_file = None
     if param_grid:
         grid_file = os.path.join(jobs.JOBS_DIR, f"grid_{job_id}.json")
-        import json as _json
         with open(grid_file, "w") as f:
-            _json.dump(param_grid, f)
+            json.dump(param_grid, f)
+
+    try:
+        tf_mins = _tf_to_minutes(timeframe)
+    except (ValueError, TypeError):
+        return {"error": f"invalid timeframe '{timeframe}'. Use e.g. '1m','5m','15m','60m'."}
 
     runner = os.path.join(os.path.dirname(os.path.abspath(__file__)), "opt_runner.py")
     cmd = [sys.executable, runner,
            "--strategy", strategy, "--symbol", symbol, "--run-ts", run_ts,
-           "--timeframe-mins", str(_tf_to_minutes(timeframe)),
+           "--timeframe-mins", str(tf_mins),
            "--train-pct", str(train_pct), "--rank-by", rank_by]
     if data_start:
         cmd += ["--data-start", data_start]
@@ -477,6 +486,7 @@ def start_optimization(strategy: str, symbol: str, timeframe: str = "5m",
     logf = open(lp, "w")
     proc = subprocess.Popen(cmd, stdout=logf, stderr=subprocess.STDOUT,
                             start_new_session=True, cwd=_REPO_ROOT)
+    logf.close()
 
     record = {
         "job_id": job_id, "pid": proc.pid, "run_ts": run_ts,
@@ -493,8 +503,8 @@ def start_optimization(strategy: str, symbol: str, timeframe: str = "5m",
 def check_optimization(job_id: str) -> dict:
     """Poll an optimization launched by start_optimization.
 
-    Returns status 'running' (with elapsed + log tail), 'done' (with top OOS
-    results), or 'failed' (with log tail).
+    Returns status 'running' (with elapsed_seconds + log tail), 'done' (with
+    top OOS results), or 'failed' (with elapsed_seconds + log tail).
     """
     rec = jobs.read_job(job_id)
     if rec is None:
@@ -518,6 +528,12 @@ def check_optimization(job_id: str) -> dict:
             out["note"] = "run recorded but OOS stage empty"
     else:
         out["log_tail"] = jobs.tail(rec["log_path"], _MAX_LOG_LINES)
+        from datetime import datetime as _dt
+        try:
+            started = _dt.fromisoformat(rec["started_at"])
+            out["elapsed_seconds"] = int((_dt.now(started.tzinfo) - started).total_seconds())
+        except Exception:
+            pass
     return out
 
 
