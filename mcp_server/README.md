@@ -20,6 +20,26 @@ machine** (unlike a remote MCP such as trader-dev).
 | `set_label` | Label a saved backtest or optimizer run |
 | `delete_result` | Delete a saved result — **refuses unless `confirm=True`** |
 
+## Optimization (fire-and-poll)
+
+Full optimizer sweeps run for minutes to hours, so they don't fit a single
+request/response tool call. Instead:
+
+| Tool | Purpose |
+|------|---------|
+| `start_optimization` | Launch a sweep **detached**; returns a `job_id` immediately. Refuses grids over `MAX_COMBOS` (10000) unless `confirm_large=True`. |
+| `check_optimization` | Poll a `job_id` → `running` (elapsed + log tail), `done` (top OOS results), or `failed` (log tail). |
+| `list_jobs` | All known jobs with current status (works across sessions). |
+
+The sweep runs as a detached subprocess wrapping `pipeline.run_pipeline`,
+which persists to `sp_optimizer_runs`. "Done" is detected when the run's
+`run_ts` appears in that table — so completion survives the Claude session
+ending. Job records live in `mcp_server/jobs/` (git-ignored).
+
+Example flow: "optimize mobobands on MCL 5m for Jan–Apr" → `start_optimization`
+→ later "is that sweep done?" → `check_optimization` → results, also visible
+in the dashboard like any other optimizer run.
+
 `timeframe` accepts `1m`, `5m`, `15m`, `60m`, … or `Ntick` (e.g. `1300tick`).
 Dates are ISO `YYYY-MM-DD`.
 
