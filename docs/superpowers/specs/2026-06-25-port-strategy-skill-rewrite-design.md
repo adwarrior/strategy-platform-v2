@@ -87,17 +87,44 @@ run the registered Python strategy, diff its trades against the NT trade log.
 
 ### Tier 2 — pure logic (required for "done")
 
-Parse NT's **native export** (format `'YYYYMMDD HHMMSS;O;H;L;C;V'`, semicolon,
-UTC), convert UTC→ET-naive, resample to the strategy timeframe, run Python on
-**that** data, diff against the NT trade log. Any remaining drift is pure
-strategy-logic difference, not data difference.
+Parse NT's **native export**, convert UTC→ET-naive, build bars at the strategy's
+bar type, run Python on **that** data, diff against the NT trade log. Any
+remaining drift is pure strategy-logic difference, not data difference.
+
+The native export comes in two shapes the parser must handle:
+- **1-minute OHLC**, format `'YYYYMMDD HHMMSS;O;H;L;C;V'` (semicolon) → for
+  time-bar strategies; resample to the strategy timeframe.
+- **Tick**, format `'YYYYMMDD HHMMSS fraction;price;...;volume'` (subsecond
+  timestamp, one print per line; e.g.
+  `NinjaResults/NQ 09-26_16-24.Last.txt`) → for tick-bar strategies; aggregate
+  to N-tick bars (the `bar_type='tick'` / `tick_bar_size` path), **not** a
+  minute resample.
+
+The harness selects bar-building based on the registered strategy's `bar_type`.
+
+### NT trade-log format
+
+The harness reads NT's per-trade CSV export (e.g. `STF_89Tick_Trades.csv`),
+**not** the tab-separated `Performance` summary (which is metrics-only and used
+only for a coarse cross-check). Schema, with the parse traps:
+- columns include `Market pos.` (Long/Short → direction), `Entry price`,
+  `Exit price`, `Entry time`, `Exit time`, `Profit` (dollar string like
+  `-$18.98` → strip `$`/`,`), `MAE`, `MFE`, `Bars`;
+- **dates are day-first `DD/MM/YYYY HH:MM:SS`** — parse with `dayfirst=True`, a
+  known trap;
+- the summary CSV (`*_Summary.csv`) is the metrics source for the coarse check.
 
 ### Trade matching (encodes the learned key)
 
-NT exports `entry_time` as the **5-min bar open time**; Python uses the 1-min
-sub-bar timestamp. Correct match:
-`NT_entry_time == Python_entry_time.ceil('5min') - 5min`, same direction.
-For a timeframe `T`, generalise to `Python_entry_time.ceil(T) - T`.
+For **time-bar** strategies, NT exports `entry_time` as the bar **open** time
+while Python uses the sub-bar timestamp; correct match for timeframe `T`:
+`NT_entry_time == Python_entry_time.ceil(T) - T`, same direction (the validated
+`ceil('5min') - 5min` rule, generalised).
+
+For **tick-bar** strategies there is no fixed minute grid, so match on nearest
+entry time within a small time window (e.g. ±1 bar's typical duration) plus same
+direction, then confirm with entry price within tolerance.
+
 Compare matched trades on: entry time, exit time, direction, entry price, exit
 price, `pnl_ticks` — each within `tolerance`.
 
