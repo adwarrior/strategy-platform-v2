@@ -20,8 +20,10 @@ if _REPO_ROOT not in sys.path:
 try:
     from dotenv import load_dotenv
     load_dotenv(os.path.join(_REPO_ROOT, ".env"))
-except Exception:
+except ImportError:
     pass
+except Exception as e:
+    sys.stderr.write(f"[opt_runner] warning: failed to load .env: {e}\n")
 
 from strategy_platform.optimize.pipeline import run_pipeline
 
@@ -43,8 +45,12 @@ def main() -> int:
 
     grid = None
     if args.grid_file:
-        with open(args.grid_file) as f:
-            grid = json.load(f)
+        try:
+            with open(args.grid_file) as f:
+                grid = json.load(f)
+        except (OSError, json.JSONDecodeError) as e:
+            sys.stderr.write(f"[opt_runner] error: could not read grid file {args.grid_file}: {e}\n")
+            return 2
 
     print(f"[opt_runner] starting {args.strategy} {args.symbol} run_ts={args.run_ts}", flush=True)
     kwargs = dict(
@@ -61,7 +67,7 @@ def main() -> int:
     if args.min_trades is not None:
         kwargs["min_trades"] = args.min_trades
 
-    run_pipeline(**kwargs)
+    run_pipeline(**kwargs)  # returns stage DataFrames; we discard them — run_pipeline persists results to the DB itself
     print(f"[opt_runner] done run_ts={args.run_ts}", flush=True)
     return 0
 

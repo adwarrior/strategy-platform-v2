@@ -16,7 +16,11 @@ SMALL = dict(strategy="mobobands", symbol="MNQ",
 
 
 def _tiny_grid_for(strategy):
-    """Pick the first value of each grid param -> a 1-combo grid (fast)."""
+    """Pick the first value of each grid param -> a 1-combo grid (fast).
+
+    NOTE: not safe for strategies whose boolean filter params over-filter when all True
+    (e.g. mobobands) — use an explicit minimal grid instead.
+    """
     inst = jobs.StrategyRegistry.get(strategy)()
     return {k: [v[0]] for k, v in inst.param_grid.items()}
 
