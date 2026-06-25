@@ -137,6 +137,74 @@ def test_match_trades_tick_bar_nearest():
     })
     res = pc.match_trades(nt, py, timeframe_min=None, time_window_s=5, price_tol=1.0)
     assert len(res["matched"]) == 1
+    assert len(res["nt_only"]) == 0 and len(res["py_only"]) == 0
+
+
+def test_match_trades_tick_bar_picks_nearest():
+    # Two python candidates within the window — nearest (1s) must win over farther (4s)
+    nt = pd.DataFrame({
+        "entry_time": [pd.Timestamp("2026-06-16 10:00:00")],
+        "exit_time": [pd.Timestamp("2026-06-16 10:00:10")],
+        "direction": ["Short"], "entry_price": [200.0],
+        "exit_price": [199.0], "pnl": [40.0],
+    })
+    py = _py_frame({
+        "side": ["Short", "Short"],
+        "entry_time": [
+            pd.Timestamp("2026-06-16 10:00:04"),  # 4s away
+            pd.Timestamp("2026-06-16 10:00:01"),  # 1s away — nearest
+        ],
+        "exit_time": [
+            pd.Timestamp("2026-06-16 10:00:10"),
+            pd.Timestamp("2026-06-16 10:00:10"),
+        ],
+        "entry_price": [200.0, 200.0],
+        "exit_price": [199.0, 199.0],
+        "pnl_ticks": [3.0, 3.0],
+    })
+    res = pc.match_trades(nt, py, timeframe_min=None, time_window_s=5, price_tol=1.0)
+    assert len(res["matched"]) == 1
+    assert res["matched"].iloc[0]["py_entry_time"] == pd.Timestamp("2026-06-16 10:00:01")
+
+
+def test_match_trades_no_leaked_columns():
+    nt = pd.DataFrame({
+        "entry_time": [pd.Timestamp("2026-06-16 10:00:00")],
+        "exit_time": [pd.Timestamp("2026-06-16 10:00:05")],
+        "direction": ["Long"], "entry_price": [100.0],
+        "exit_price": [101.0], "pnl": [50.0],
+    })
+    py = _py_frame({
+        "side": ["Long"],
+        "entry_time": [pd.Timestamp("2026-06-16 10:00:01")],
+        "exit_time": [pd.Timestamp("2026-06-16 10:00:05")],
+        "entry_price": [100.0], "exit_price": [101.0], "pnl_ticks": [4.0],
+    })
+    # Run tick-bar path (timeframe_min=None)
+    res = pc.match_trades(nt, py, timeframe_min=None, time_window_s=5, price_tol=1.0)
+    assert "_dir" not in res["nt_only"].columns
+    assert "_dir" not in res["py_only"].columns
+    assert "_key_time" not in res["py_only"].columns
+
+
+def test_match_trades_direction_mismatch_unmatched():
+    # NT Long vs Python Short at the same time → no match
+    nt = pd.DataFrame({
+        "entry_time": [pd.Timestamp("2026-06-16 10:00:00")],
+        "exit_time": [pd.Timestamp("2026-06-16 10:00:05")],
+        "direction": ["Long"], "entry_price": [100.0],
+        "exit_price": [101.0], "pnl": [50.0],
+    })
+    py = _py_frame({
+        "side": ["Short"],
+        "entry_time": [pd.Timestamp("2026-06-16 10:00:00")],
+        "exit_time": [pd.Timestamp("2026-06-16 10:00:05")],
+        "entry_price": [100.0], "exit_price": [99.0], "pnl_ticks": [-4.0],
+    })
+    res = pc.match_trades(nt, py, timeframe_min=None, time_window_s=5, price_tol=1.0)
+    assert len(res["matched"]) == 0
+    assert len(res["nt_only"]) == 1
+    assert len(res["py_only"]) == 1
 
 
 def test_preflight_contract_series_warning():

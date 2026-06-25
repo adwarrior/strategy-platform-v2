@@ -127,23 +127,30 @@ def match_trades(nt: pd.DataFrame, py: pd.DataFrame,
         freq = f"{timeframe_min}min"
         py["_key_time"] = py["entry_time"].dt.ceil(freq) - pd.Timedelta(minutes=timeframe_min)
     matched_rows, used_py = [], set()
-    nt_only = []
+    nt_only_idx = []
     for i, ntr in nt.iterrows():
         hit = None
-        for j, pyr in py.iterrows():
-            if j in used_py or pyr["_dir"] != ntr["_dir"]:
-                continue
-            if timeframe_min is not None:
+        if timeframe_min is not None:
+            # Time-bar branch: exact key-time match, first found
+            for j, pyr in py.iterrows():
+                if j in used_py or pyr["_dir"] != ntr["_dir"]:
+                    continue
                 if pyr["_key_time"] == ntr["entry_time"]:
                     hit = j
                     break
-            else:
+        else:
+            # Tick-bar branch: collect ALL candidates, pick NEAREST in time
+            best_dt = None
+            for j, pyr in py.iterrows():
+                if j in used_py or pyr["_dir"] != ntr["_dir"]:
+                    continue
                 dt = abs((pyr["entry_time"] - ntr["entry_time"]).total_seconds())
                 if dt <= time_window_s and abs(pyr["entry_price"] - ntr["entry_price"]) <= price_tol:
-                    hit = j
-                    break
+                    if best_dt is None or dt < best_dt:
+                        best_dt = dt
+                        hit = j
         if hit is None:
-            nt_only.append(ntr)
+            nt_only_idx.append(i)
         else:
             used_py.add(hit)
             pyr = py.loc[hit]
@@ -153,11 +160,19 @@ def match_trades(nt: pd.DataFrame, py: pd.DataFrame,
                 "nt_entry_price": ntr["entry_price"], "py_entry_price": pyr["entry_price"],
                 "nt_exit_price": ntr["exit_price"], "py_exit_price": pyr["exit_price"],
             })
-    py_only = py.loc[[j for j in py.index if j not in used_py]]
+
+    _scratch = [c for c in ("_dir", "_key_time") if c in nt.columns]
+    nt_only = nt.loc[nt_only_idx].drop(columns=_scratch).reset_index(drop=True)
+
+    py_only_idx = [j for j in py.index if j not in used_py]
+    py_only = py.loc[py_only_idx].drop(
+        columns=[c for c in ("_dir", "_key_time") if c in py.columns]
+    ).reset_index(drop=True)
+
     return {
         "matched": pd.DataFrame(matched_rows),
-        "nt_only": pd.DataFrame(nt_only),
-        "py_only": py_only.reset_index(drop=True),
+        "nt_only": nt_only,
+        "py_only": py_only,
     }
 
 
