@@ -1,9 +1,47 @@
 import os
 import time
 import json
+import subprocess
+import sys
 import pytest
 
 import jobs  # mcp_server/ is the CWD when running these tests
+
+
+# A strategy + symbol + small date range known to produce a run quickly.
+# WaeJurikPro on MNQ 5m over one week ran in the local smoke test.
+SMALL = dict(strategy="WaeJurikPro", symbol="MNQ",
+             data_start="2026-05-01", data_end="2026-05-08")
+
+
+def _tiny_grid_for(strategy):
+    """Pick the first value of each grid param -> a 1-combo grid (fast)."""
+    inst = jobs.StrategyRegistry.get(strategy)()
+    return {k: [v[0]] for k, v in inst.param_grid.items()}
+
+
+@pytest.mark.slow
+def test_opt_runner_writes_db_run():
+    run_ts = jobs.make_run_ts() + "_t1"     # unique suffix avoids collisions
+    grid = _tiny_grid_for(SMALL["strategy"])
+    grid_file = os.path.join(jobs.JOBS_DIR, f"grid_{run_ts}.json")
+    jobs._ensure_dir()
+    with open(grid_file, "w") as f:
+        json.dump(grid, f)
+
+    runner = os.path.join(os.path.dirname(os.path.abspath(jobs.__file__)), "opt_runner.py")
+    proc = subprocess.run(
+        [sys.executable, runner,
+         "--strategy", SMALL["strategy"], "--symbol", SMALL["symbol"],
+         "--run-ts", run_ts, "--timeframe-mins", "5",
+         "--data-start", SMALL["data_start"], "--data-end", SMALL["data_end"],
+         "--grid-file", grid_file],
+        capture_output=True, text=True, timeout=600,
+        cwd=os.path.dirname(runner),
+    )
+    assert proc.returncode == 0, f"runner failed:\nSTDOUT{proc.stdout}\nSTDERR{proc.stderr}"
+    assert jobs.run_in_db(SMALL["strategy"], "MNQ", run_ts), \
+        "run_ts not found in sp_optimizer_runs after runner completed"
 
 
 def test_sym_safe():

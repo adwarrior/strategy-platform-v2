@@ -203,6 +203,7 @@ def run_pipeline(
     min_trades:         int = MIN_TRADES,
     rank_by:            str = 'sharpe',
     run_settings:       Optional[Dict[str, Any]] = None,
+    run_ts:             Optional[str] = None,
 ) -> Dict[str, pd.DataFrame]:
     """
     Run the full 4-stage IS/MC/OOS/Bootstrap pipeline for *strategy_name*.
@@ -221,7 +222,7 @@ def run_pipeline(
     dict with keys "is_results", "mc_results", "oos_results" (all DataFrames)
     """
     strategy_dir = strategy_reports_dir(strategy_name)
-    ts = datetime.now().strftime('%Y%m%d_%H%M')
+    ts = run_ts or datetime.now().strftime('%Y%m%d_%H%M')
 
     cls      = StrategyRegistry.get(strategy_name)
     strategy = cls()
