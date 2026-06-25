@@ -453,6 +453,11 @@ def start_optimization(strategy: str, symbol: str, timeframe: str = "5m",
                 "message": (f"Grid has {combos} combinations (cap {MAX_COMBOS}). "
                             "Re-call with confirm_large=True to launch anyway.")}
 
+    try:
+        tf_mins = _tf_to_minutes(timeframe)
+    except (ValueError, TypeError):
+        return {"error": f"invalid timeframe '{timeframe}'. Use e.g. '1m','5m','15m','60m'."}
+
     job_id = jobs.new_job_id()
     run_ts = jobs.make_run_ts()
     jobs._ensure_dir()
@@ -462,11 +467,6 @@ def start_optimization(strategy: str, symbol: str, timeframe: str = "5m",
         grid_file = os.path.join(jobs.JOBS_DIR, f"grid_{job_id}.json")
         with open(grid_file, "w") as f:
             json.dump(param_grid, f)
-
-    try:
-        tf_mins = _tf_to_minutes(timeframe)
-    except (ValueError, TypeError):
-        return {"error": f"invalid timeframe '{timeframe}'. Use e.g. '1m','5m','15m','60m'."}
 
     runner = os.path.join(os.path.dirname(os.path.abspath(__file__)), "opt_runner.py")
     cmd = [sys.executable, runner,

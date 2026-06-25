@@ -26,6 +26,7 @@ except Exception as e:
     sys.stderr.write(f"[opt_runner] warning: failed to load .env: {e}\n")
 
 from strategy_platform.optimize.pipeline import run_pipeline
+from strategy_platform import results_store
 
 
 def main() -> int:
@@ -68,6 +69,15 @@ def main() -> int:
         kwargs["min_trades"] = args.min_trades
 
     run_pipeline(**kwargs)  # returns stage DataFrames; we discard them — run_pipeline persists results to the DB itself
+
+    sym_safe = args.symbol.replace("=", "_")
+    persisted = args.run_ts in results_store.list_optimizer_run_timestamps(args.strategy, sym_safe)
+    if not persisted:
+        sys.stderr.write(
+            f"[opt_runner] ERROR: pipeline completed but run_ts={args.run_ts} "
+            f"was not persisted to sp_optimizer_runs (DB write may have failed)\n"
+        )
+        return 3
     print(f"[opt_runner] done run_ts={args.run_ts}", flush=True)
     return 0
 
