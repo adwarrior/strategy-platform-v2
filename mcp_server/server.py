@@ -54,12 +54,31 @@ import strategy_platform.strategies  # noqa: F401,E402
 from strategy_platform.registry import StrategyRegistry  # noqa: E402
 from strategy_platform.data import loader  # noqa: E402
 from strategy_platform import results_store  # noqa: E402
+import subprocess  # noqa: E402
+import jobs  # noqa: E402  (mcp_server/jobs.py — registry helpers)
 
 mcp = FastMCP("strategy-platform")
 
 # Cap on rows ever returned inline, to protect the conversation context.
 _MAX_BAR_ROWS = 50
 _MAX_TRADE_ROWS = 50
+MAX_COMBOS = 10000
+_MAX_OPT_ROWS = 50
+_MAX_LOG_LINES = 20
+
+
+def _tf_to_minutes(timeframe: str) -> int:
+    """Map a timeframe string to integer minutes for run_pipeline.
+
+    Accepts '1m'/'5m'/'15m'/'60m'/'240m' or bare '5'. Tick timeframes are not
+    supported for optimization here (the optimizer pipeline is time-bar based).
+    """
+    tf = str(timeframe).strip().lower()
+    if tf.endswith("min"):
+        return int(tf[:-3])
+    if tf.endswith("m"):
+        return int(tf[:-1])
+    return int(tf)
 
 
 # =========================================================================
@@ -388,6 +407,132 @@ def delete_result(kind: str, strategy: str, symbol: str, ts: str,
         return {"error": "kind must be 'backtest' or 'optimizer'"}
     return {"ok": True, "deleted": {"kind": kind, "strategy": strategy,
                                     "symbol": symbol, "ts": ts}}
+
+
+# =========================================================================
+# Optimization (fire-and-poll)
+# =========================================================================
+@mcp.tool()
+def start_optimization(strategy: str, symbol: str, timeframe: str = "5m",
+                       data_start: Optional[str] = None,
+                       data_end: Optional[str] = None,
+                       param_grid: Optional[dict] = None,
+                       train_pct: float = 0.70, rank_by: str = "sharpe",
+                       min_trades: Optional[int] = None,
+                       confirm_large: bool = False) -> dict:
+    """Launch a full optimizer sweep in the background and return immediately.
+
+    Runs detached (survives this session). Results land in the results_store
+    DB; poll with check_optimization(job_id) or list_jobs(). param_grid is a
+    dict of param->list of values (see get_strategy_params); omit it to use
+    the strategy's full grid. timeframe is a minute bar ('5m','15m',...).
+
+    Refuses if the grid exceeds MAX_COMBOS (10000) unless confirm_large=True.
+    """
+    # Fail fast on bad inputs (before spawning anything).
+    try:
+        StrategyRegistry.get(strategy)
+    except Exception as e:
+        return {"error": f"unknown strategy '{strategy}': {e}"}
+    try:
+        loader.get_meta(symbol)
+    except Exception as e:
+        return {"error": f"unknown/unsupported symbol '{symbol}': {e}"}
+
+    try:
+        combos = jobs.count_combos(strategy, param_grid)
+    except Exception as e:
+        return {"error": f"could not evaluate grid: {e}"}
+    if combos > MAX_COMBOS and not confirm_large:
+        return {"refused": True, "combos": combos, "max_combos": MAX_COMBOS,
+                "message": (f"Grid has {combos} combinations (cap {MAX_COMBOS}). "
+                            "Re-call with confirm_large=True to launch anyway.")}
+
+    job_id = jobs.new_job_id()
+    run_ts = jobs.make_run_ts()
+    jobs._ensure_dir()
+
+    grid_file = None
+    if param_grid:
+        grid_file = os.path.join(jobs.JOBS_DIR, f"grid_{job_id}.json")
+        import json as _json
+        with open(grid_file, "w") as f:
+            _json.dump(param_grid, f)
+
+    runner = os.path.join(os.path.dirname(os.path.abspath(__file__)), "opt_runner.py")
+    cmd = [sys.executable, runner,
+           "--strategy", strategy, "--symbol", symbol, "--run-ts", run_ts,
+           "--timeframe-mins", str(_tf_to_minutes(timeframe)),
+           "--train-pct", str(train_pct), "--rank-by", rank_by]
+    if data_start:
+        cmd += ["--data-start", data_start]
+    if data_end:
+        cmd += ["--data-end", data_end]
+    if min_trades is not None:
+        cmd += ["--min-trades", str(min_trades)]
+    if grid_file:
+        cmd += ["--grid-file", grid_file]
+
+    lp = jobs.log_path(job_id)
+    logf = open(lp, "w")
+    proc = subprocess.Popen(cmd, stdout=logf, stderr=subprocess.STDOUT,
+                            start_new_session=True, cwd=_REPO_ROOT)
+
+    record = {
+        "job_id": job_id, "pid": proc.pid, "run_ts": run_ts,
+        "strategy": strategy, "symbol": symbol, "sym_safe": jobs.sym_safe(symbol),
+        "started_at": datetime.now(timezone.utc).isoformat(),
+        "log_path": lp, "combos": combos, "status": "running",
+    }
+    jobs.write_job(record)
+    return {"job_id": job_id, "run_ts": run_ts, "status": "running",
+            "combos": combos, "log_path": lp}
+
+
+@mcp.tool()
+def check_optimization(job_id: str) -> dict:
+    """Poll an optimization launched by start_optimization.
+
+    Returns status 'running' (with elapsed + log tail), 'done' (with top OOS
+    results), or 'failed' (with log tail).
+    """
+    rec = jobs.read_job(job_id)
+    if rec is None:
+        return {"error": f"no job '{job_id}'"}
+    status = jobs.compute_status(rec)
+    rec["status"] = status
+    jobs.write_job(rec)
+
+    out = {"job_id": job_id, "status": status, "strategy": rec["strategy"],
+           "symbol": rec["symbol"], "run_ts": rec["run_ts"]}
+
+    if status == "done":
+        df = results_store.load_optimizer_stage(
+            rec["strategy"], rec["sym_safe"], rec["run_ts"], "oos")
+        if df is not None and not df.empty:
+            out["top_results"] = (df.head(_MAX_OPT_ROWS)
+                                  .astype(str).to_dict(orient="records"))
+            out["oos_rows"] = int(len(df))
+        else:
+            out["top_results"] = []
+            out["note"] = "run recorded but OOS stage empty"
+    else:
+        out["log_tail"] = jobs.tail(rec["log_path"], _MAX_LOG_LINES)
+    return out
+
+
+@mcp.tool()
+def list_jobs() -> dict:
+    """List all known optimization jobs with their current status."""
+    result = []
+    for rec in jobs.all_jobs():
+        result.append({
+            "job_id": rec.get("job_id"), "strategy": rec.get("strategy"),
+            "symbol": rec.get("symbol"), "run_ts": rec.get("run_ts"),
+            "started_at": rec.get("started_at"),
+            "status": jobs.compute_status(rec),
+        })
+    return {"count": len(result), "jobs": result}
 
 
 if __name__ == "__main__":

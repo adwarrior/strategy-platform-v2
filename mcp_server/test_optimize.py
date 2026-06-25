@@ -151,3 +151,44 @@ def test_compute_status_failed(monkeypatch):
     monkeypatch.setattr(jobs, "pid_alive", lambda pid: False)
     rec = {"strategy": "s", "sym_safe": "MNQ", "run_ts": "20260101_0000", "pid": 123}
     assert jobs.compute_status(rec) == "failed"
+
+
+# =========================================================================
+# Task-3 tests: start_optimization / check_optimization / list_jobs
+# =========================================================================
+
+def test_start_optimization_refuses_large(monkeypatch):
+    import server
+    monkeypatch.setattr(server.jobs, "count_combos", lambda *a, **k: 999999)
+    res = server.start_optimization(strategy="mobobands", symbol="MNQ")
+    assert res.get("refused") is True
+    assert res["combos"] == 999999
+
+
+@pytest.mark.slow
+def test_start_and_check_optimization_e2e():
+    import server
+    grid = _MOBOBANDS_MINIMAL_GRID
+    started = server.start_optimization(
+        strategy=SMALL["strategy"], symbol=SMALL["symbol"],
+        timeframe="5m", data_start=SMALL["data_start"], data_end=SMALL["data_end"],
+        param_grid=grid,
+    )
+    assert started["status"] == "running", f"unexpected start result: {started}"
+    assert "job_id" in started and "run_ts" in started
+    job_id = started["job_id"]
+
+    deadline = time.time() + 600
+    status = None
+    res = {}
+    while time.time() < deadline:
+        res = server.check_optimization(job_id)
+        status = res["status"]
+        if status in ("done", "failed"):
+            break
+        time.sleep(5)
+    assert status == "done", f"ended as {status}: {res}"
+    assert res.get("top_results") is not None
+
+    listed = server.list_jobs()
+    assert any(j["job_id"] == job_id for j in listed["jobs"])

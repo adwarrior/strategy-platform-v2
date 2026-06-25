@@ -8,3 +8,4 @@ reports/
 .dashboard_prefs.json
 venv/
 .venv/
+mcp_server/jobs/
