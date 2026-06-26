@@ -926,6 +926,11 @@ class SuperTrendFractal(BaseStrategy):
         gaps = data.index.to_series().diff().dt.total_seconds().dropna()
         median_sec = float(gaps.median()) if len(gaps) else 60.0
         target_sec = target_min * 60
+        # Tick bars (sub-minute spacing) are the strategy's native tick mode —
+        # return them unchanged. Resampling them up to minute_bar_period minutes
+        # would silently discard the tick resolution the live strategy trades on.
+        if median_sec < 30:
+            return data
         if abs(median_sec - target_sec) < 0.5 * target_sec:
             # Already at (or very near) the requested resolution
             return data
