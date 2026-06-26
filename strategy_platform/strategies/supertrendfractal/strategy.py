@@ -316,6 +316,12 @@ def _run_backtest_loop(
     max_risk          = float(params.get('max_risk', 250.0))
     bars_cd           = int(params.get('bars_between_trades', 2))
     enable_session    = bool(params.get('enable_session_filter', True))
+    # -- Daily win/loss gates (0 = disabled). Stop NEW entries for the rest of the
+    #    session once a gate trips; open positions exit normally; reset each day. --
+    daily_loss_limit    = float(params.get('daily_loss_limit',    0.0))   # >0 = $ loss cap
+    daily_profit_target = float(params.get('daily_profit_target', 0.0))   # >0 = $ profit lock
+    max_consec_losers   = int(params.get('max_consec_losers',   0))       # >0 = N losers in a row
+    max_consec_winners  = int(params.get('max_consec_winners',  0))       # >0 = N winners in a row
     eod_exit_str      = params.get('eod_exit_time', '16:55')
     win1_start        = params.get('trade_window1_start', '08:00')
     win1_stop         = params.get('trade_window1_stop',  '10:00')
@@ -341,8 +347,37 @@ def _run_backtest_loop(
     last_exit_bar = -10000
     session_end_target = None  # set on entry — matches NT's session-aware Break at EOD
 
+    # -- Daily gate state (reset per session day) --
+    gates_on    = (daily_loss_limit > 0 or daily_profit_target > 0
+                   or max_consec_losers > 0 or max_consec_winners > 0)
+    gate_day    = None     # the session date the counters belong to
+    day_pnl     = 0.0      # realized $ P&L for gate_day
+    consec_win  = 0
+    consec_loss = 0
+    folded      = 0        # how many closed trades already folded into gate state
+
+    def _session_day(t):
+        """Group bars into the same 'trading day' the EOD logic uses: an entry
+        before EOD belongs to the calendar date; overnight bars after EOD belong
+        to the next date. Mirrors _session_end_for_entry's day attribution."""
+        ts2 = pd.Timestamp(t)
+        return (ts2 + pd.Timedelta(days=1)).date() if ts2.time() >= eod_time else ts2.date()
+
     for i in range(n):
         ts  = idx[i]
+
+        # -- Fold any newly-closed trades into the daily gate state --
+        if gates_on and len(trades) > folded:
+            for tr in trades[folded:]:
+                d = _session_day(tr['entry_time'])
+                if d != gate_day:           # new session day → reset counters
+                    gate_day, day_pnl, consec_win, consec_loss = d, 0.0, 0, 0
+                day_pnl += tr['pnl']
+                if tr['pnl'] > 0:
+                    consec_win += 1;  consec_loss = 0
+                elif tr['pnl'] < 0:
+                    consec_loss += 1; consec_win = 0
+            folded = len(trades)
         now = ts.time()
 
         # -- EOD forced exit (session-aware: fires only when the entry's
@@ -473,6 +508,14 @@ def _run_backtest_loop(
         # Cooldown (C#: CurrentBar - lastExitBar < BarsBetweenTrades)
         if (i - last_exit_bar) < bars_cd:
             continue
+
+        # -- Daily win/loss gates: block new entries for the rest of THIS session
+        #    day once a gate trips. Counters apply only to the current bar's day. --
+        if gates_on and _session_day(ts) == gate_day:
+            if daily_loss_limit    > 0 and day_pnl <= -daily_loss_limit:    continue
+            if daily_profit_target > 0 and day_pnl >=  daily_profit_target: continue
+            if max_consec_losers   > 0 and consec_loss >= max_consec_losers:  continue
+            if max_consec_winners  > 0 and consec_win  >= max_consec_winners: continue
 
         # Session filter
         if enable_session:
@@ -751,6 +794,11 @@ class SuperTrendFractal(BaseStrategy):
         'trade_window3_start': '14:00',
         'trade_window3_stop': '15:55',
         'eod_exit_time': '16:55',
+        # Daily win/loss gates (0 = off). Block new entries for the rest of the day.
+        'daily_loss_limit': 0,
+        'daily_profit_target': 0,
+        'max_consec_losers': 0,
+        'max_consec_winners': 0,
     }
 
     # ------------------------------------------------------------------
@@ -794,6 +842,11 @@ class SuperTrendFractal(BaseStrategy):
             'trade_window3_start':    _HHMM_24H,
             'trade_window3_stop':     _HHMM_24H,
             'eod_exit_time':          _HHMM_24H,
+            # 7. Daily gates (0 = off)
+            'daily_loss_limit':       (0.0, 1000.0, 100.0),
+            'daily_profit_target':    (0.0, 1000.0, 100.0),
+            'max_consec_losers':      (0, 6, 1),
+            'max_consec_winners':     (0, 6, 1),
         }
 
     # ------------------------------------------------------------------
@@ -833,6 +886,10 @@ class SuperTrendFractal(BaseStrategy):
                 'trade_window3_start', 'trade_window3_stop',
                 'eod_exit_time',
             ],
+            '7. Daily Gates': [
+                'daily_loss_limit', 'daily_profit_target',
+                'max_consec_losers', 'max_consec_winners',
+            ],
         }
 
     # ------------------------------------------------------------------
@@ -868,6 +925,10 @@ class SuperTrendFractal(BaseStrategy):
             'trade_window3_start':    'Window 3 — Start',
             'trade_window3_stop':     'Window 3 — Stop',
             'eod_exit_time':          'EOD Exit',
+            'daily_loss_limit':       'Daily Loss Limit $ (0=off)',
+            'daily_profit_target':    'Daily Profit Target $ (0=off)',
+            'max_consec_losers':      'Max Consec Losers (0=off)',
+            'max_consec_winners':     'Max Consec Winners (0=off)',
         }
 
     # ------------------------------------------------------------------
