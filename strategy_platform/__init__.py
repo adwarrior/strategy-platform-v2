@@ -19,3 +19,4 @@ import strategy_platform.strategies.cct.strategy             # noqa: F401
 import strategy_platform.strategies.supertrendfractal.strategy  # noqa: F401
 import strategy_platform.strategies.orb30_monti.strategy        # noqa: F401
 import strategy_platform.strategies.atr_candle_breakout.strategy  # noqa: F401
+import strategy_platform.strategies.aurora.strategy               # noqa: F401
