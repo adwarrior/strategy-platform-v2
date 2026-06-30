@@ -121,6 +121,9 @@ class FootprintEngine:
         "show_balanced": True,    # ShowBalanced
         "show_absorption": True,  # ShowAbsorption
         "show_init": True,        # ShowInit
+        "key_per_side": 2,        # KeyPerSide
+        "min_gap_atr": 0.6,       # MinGapATR
+        "max_dist_pct": 3.0,      # MaxDistPct
     }
 
     def __init__(self, params: Optional[Dict[str, Any]] = None):
@@ -131,6 +134,7 @@ class FootprintEngine:
 
         # C# engine fields (lines 86-99)
         self.shelves: List[Shelf] = []
+        self.key_shelves: List[Shelf] = []  # C# keyShelves (line 99-ish), set by refresh_key_shelves
         self.avg_bar_vol: float = 0.0
         self.bar_vol_count: int = 0
         self.eff_lookback: int = self.params["lookback"]  # C# effLookback
@@ -462,8 +466,77 @@ class FootprintEngine:
         hit.qual += 1.0
         hit.bar = bar  # C# hit.Last = bar
 
-    def select_keys(self, *args, **kwargs) -> None:
-        raise NotImplementedError("select_keys is implemented in Task 4")
+    # -- Key-shelf selection (Task 4) ----------------------------------
 
-    def refresh_key_shelves(self, cl, atr) -> None:
-        raise NotImplementedError("refresh_key_shelves is implemented in Task 4")
+    def score(self, s: Shelf, cl: float, atr_safe: float) -> float:
+        """Port of C# Score (lines 662-666)."""
+        d_atr = abs(s.mid - cl) / atr_safe
+        age_half_life = self.params["age_half_life"]
+        return s.rank_strength(self.avg_bar_vol, self.last_processed_bar, age_half_life) / (1.0 + d_atr)
+
+    def in_range(self, s: Shelf, cl: float) -> bool:
+        """Port of C# InRange (lines 668-671)."""
+        max_dist_pct = self.params["max_dist_pct"]
+        return max_dist_pct <= 0 or abs(s.mid - cl) / cl <= max_dist_pct / 100.0
+
+    def select_keys(
+        self,
+        pool: List[Shelf],
+        cnt: int,
+        min_gap: float,
+        cl: float,
+        atr_safe: float,
+    ) -> List[Shelf]:
+        """Port of C# SelectKeys (lines 673-695)."""
+        outp: List[Shelf] = []
+        take = min(cnt, len(pool))
+        used: set = set()
+        for _ in range(take):
+            best = -1.0
+            bp: Optional[Shelf] = None
+            for cand in pool:
+                if id(cand) in used:
+                    continue
+                clustered = False
+                if min_gap > 0:
+                    for q in outp:
+                        if abs(cand.mid - q.mid) < min_gap:
+                            clustered = True
+                            break
+                if clustered:
+                    continue
+                sc = self.score(cand, cl, atr_safe)
+                if sc > best:
+                    best = sc
+                    bp = cand
+            if bp is not None:
+                used.add(id(bp))
+                outp.append(bp)
+        return outp
+
+    def refresh_key_shelves(self, cl: float, atr: float) -> None:
+        """Port of C# RefreshKeyShelves (lines 697-713)."""
+        # C# line 471-pattern atrSafe fallback is applied by the caller in
+        # ProcessClosedBar; RefreshKeyShelves itself receives atrSafe already.
+        # Mirror that contract: treat non-positive/NaN atr the same way.
+        tick_size = self.params["tick_size"]
+        if atr is None or atr <= 0 or math.isnan(atr):
+            atr_safe = 10 * tick_size
+        else:
+            atr_safe = atr
+
+        sup_pool: List[Shelf] = []
+        dem_pool: List[Shelf] = []
+        for s in self.shelves:
+            if s.brk or not self.in_range(s, cl):
+                continue
+            if s.is_buy and s.mid < cl:
+                dem_pool.append(s)
+            elif (not s.is_buy) and s.mid > cl:
+                sup_pool.append(s)
+
+        key_per_side = self.params["key_per_side"]
+        min_gap = self.params["min_gap_atr"] * atr_safe
+        sup_keys = self.select_keys(sup_pool, key_per_side, min_gap, cl, atr_safe)
+        dem_keys = self.select_keys(dem_pool, key_per_side, min_gap, cl, atr_safe)
+        self.key_shelves = sup_keys + dem_keys
