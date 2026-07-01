@@ -178,7 +178,10 @@ class Aurora(BaseStrategy):
     # MNQ defaults
     tick_size = 0.25
     tick_value = 0.50          # $ per tick (MNQ: $0.50/tick, $2/point)
-    commission_rt = 0.0        # commission handled by IncludeCommission upstream; 0 here
+    # NT runs net (IncludeCommission=true, C# line 299). Real Trades.csv shows
+    # $1.02 per contract round-trip. Subtracted in _close_position as
+    # commission_rt * qty so net P&L matches NT.
+    commission_rt = 1.02       # $ per contract round-trip (matches NT net P&L)
 
     symbol: str = 'MNQ=F'
 
@@ -380,6 +383,13 @@ class Aurora(BaseStrategy):
         armed_level_mid = 0.0
         armed_limit = 0.0
         armed_key: Optional[str] = None
+        # C# binds StopPtsNow()/TargetPtsNow()/SizeForStop() to the resting order
+        # at ARM time (ArmBestKeyWall lines 863-866); the fill inherits them. We
+        # freeze them here so a level armed before tighten_time keeps its EARLY
+        # brackets/size even if it fills after tighten_time.
+        armed_stop_pts = 0.0
+        armed_tgt_pts = 0.0
+        armed_qty = 0
 
         # Open position state
         in_pos = False
@@ -394,10 +404,14 @@ class Aurora(BaseStrategy):
 
         def clear_arm():
             nonlocal armed, armed_key, armed_level_mid, armed_limit
+            nonlocal armed_stop_pts, armed_tgt_pts, armed_qty
             armed = False
             armed_key = None
             armed_level_mid = 0.0
             armed_limit = 0.0
+            armed_stop_pts = 0.0
+            armed_tgt_pts = 0.0
+            armed_qty = 0
 
         def mark_traded(mid: float, is_buy: bool):
             k = _level_key(mid, is_buy, ts)
@@ -523,11 +537,18 @@ class Aurora(BaseStrategy):
         def arm_best_key_wall(cl: float, atr_safe: float, decision_time):
             """Port of C# ArmBestKeyWall (lines 818-871)."""
             nonlocal armed, armed_is_buy, armed_level_mid, armed_limit, armed_key
+            nonlocal armed_stop_pts, armed_tgt_pts, armed_qty
             best = None
             best_score = -1.0
             for s in eng.key_shelves:
                 if not eligible_for_entry(s):
                     continue
+                # NOTE: eng.score uses last_processed_bar (=closed_bar) as the
+                # current bar, whereas C# Score uses CurrentBar (=closed_bar + 1).
+                # This 1-bar age-decay basis offset is inherent to the engine
+                # seam: eng.score is locked to last_processed_bar and the engine
+                # (footprint.py) must not be modified, so it cannot be corrected
+                # here without changing the engine signature. (Fix-pass FIX 4.)
                 sc = eng.score(s, cl, atr_safe)
                 if sc > best_score:
                     best_score = sc
@@ -551,6 +572,12 @@ class Aurora(BaseStrategy):
             armed_level_mid = best.mid
             armed_limit = limit
             armed_key = best_key
+            # C# lines 863-866: brackets + size are evaluated NOW (arm time) and
+            # bound to the resting order. Freeze them on the arm state so the
+            # fill inherits the ARM-time regime, not the fill-time regime.
+            armed_stop_pts = stop_pts_now(decision_time)
+            armed_tgt_pts = target_pts_now(decision_time)
+            armed_qty = size_for_stop(armed_stop_pts)
 
         def update_trading_layer(cl: float, atr_safe: float, decision_time):
             """Port of C# UpdateTradingLayer (lines 721-742)."""
@@ -631,15 +658,17 @@ class Aurora(BaseStrategy):
                     _fill_limit(tick_time)
 
         def _fill_limit(fill_time):
-            """A resting intercept limit filled. Open the position with brackets
-            sized from the regime in force at fill (matches NT: brackets attached
-            at submit, but stop/target pts captured at arm time per the C#)."""
+            """A resting intercept limit filled. The position inherits the
+            brackets + size that were FROZEN at arm time (C# binds
+            StopPtsNow()/TargetPtsNow()/SizeForStop() to the order in
+            ArmBestKeyWall, lines 863-866). A level armed before tighten_time
+            keeps its EARLY stop/target/size even if filled after it."""
             nonlocal in_pos, pos_dir, pos_entry_px, pos_qty, pos_entry_time
             nonlocal pos_tp, pos_sl
             is_buy = armed_is_buy
-            stop_pts = stop_pts_now(fill_time)
-            tgt_pts = target_pts_now(fill_time)
-            qty = size_for_stop(stop_pts)
+            stop_pts = armed_stop_pts
+            tgt_pts = armed_tgt_pts
+            qty = armed_qty
             in_pos = True
             pos_dir = 'long' if is_buy else 'short'
             pos_entry_px = armed_limit
@@ -684,9 +713,12 @@ class Aurora(BaseStrategy):
 
             # New bar opened -> close the previous bar(s) and run the layer.
             if b != cur_code:
-                if cur_code >= 0 and b - 1 >= warmup_bars:
-                    # The decision time is the NEW bar's timestamp (first tick of
-                    # the new bar in C#). Process all bars up to b-1.
+                if cur_code >= 0 and b >= warmup_bars:
+                    # C#: OnBarUpdate returns when CurrentBar < 20 and first acts
+                    # at CurrentBar=20 -> arms off closed bar 19. Here the forming
+                    # bar `b` == CurrentBar, so the first arming runs when b==20
+                    # (closed bar b-1 == 19). The decision time is the NEW bar's
+                    # timestamp. Process all bars up to b-1.
                     process_through(b - 1, bar_time[b])
                 elif cur_code >= 0:
                     # Still in warmup: advance the engine but skip trading layer.
