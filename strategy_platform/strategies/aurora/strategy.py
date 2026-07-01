@@ -372,7 +372,15 @@ class Aurora(BaseStrategy):
             if np.isnan(bar_open[b]):
                 bar_open[b] = pr
             bar_close[b] = pr
-        bar_time = pd.DatetimeIndex(bar_starts)
+        # PARITY FIX (2026-07-01): NinjaTrader labels a bar by its CLOSE time
+        # (end of the minute), while pandas .floor('1min') labels by the OPEN
+        # minute. The ticks in [09:29:00, 09:30:00) are NT's "09:30" bar, not
+        # "09:29". Without this shift every bar decision (arm time, session
+        # window, tighten time) ran one minute early vs NT — the trades drifted
+        # ~1 min, trade-by-trade match collapsed, and the wrong early-session
+        # levels armed (Feb PF 0.92 vs NT 1.87). Shift the LABEL forward 1 min
+        # to match NT's close-time convention; the OHLC grouping is unchanged.
+        bar_time = pd.DatetimeIndex(bar_starts) + pd.Timedelta(minutes=1)
 
         atr_arr = _wilder_atr(bar_hi, bar_lo, bar_close, period=14)
 
@@ -490,7 +498,15 @@ class Aurora(BaseStrategy):
                         st.rearm_ready = True
 
             # Flip-to-market: armed-but-unfilled intercept at a level that just
-            # became ABSORB -> hit at market immediately (next-bar open here).
+            # became ABSORB -> hit at market immediately.
+            # PARITY FIX (2026-07-01): also require the CURRENT price (cl) to be
+            # at the level (within flip_tol_pct), not just the ABSORB shelf near
+            # the armed mid. In NT a market entry only fires meaningfully when
+            # price is right at the intercept; the validated NT run took ZERO
+            # flip-market trades (all 718 = AuroraIntercept limit fills). Without
+            # this price gate the port re-fired the flip bar-after-bar while price
+            # sat 60-150pt away (Feb-02: 24/45 phantom trades, +64% over NT). The
+            # gate makes the flip as rare as NT's order model makes it.
             if flip_to_market and armed and not in_pos:
                 tol = cl * flip_tol_pct
                 for s in eng.key_shelves:
@@ -498,9 +514,12 @@ class Aurora(BaseStrategy):
                         continue
                     if s.is_buy != armed_is_buy:
                         continue
-                    if abs(s.mid - armed_level_mid) <= tol:
-                        # EnterMarket at the level mid (market entry).
-                        _enter_market(armed_is_buy, s.mid, decision_time)
+                    if abs(s.mid - armed_level_mid) <= tol and abs(cl - s.mid) <= tol:
+                        # EnterMarket fills at the CURRENT price (cl), not the
+                        # level mid — a market order takes the market. The tol
+                        # gate above guarantees cl is at the level, so this is a
+                        # real touch, never a phantom fill.
+                        _enter_market(armed_is_buy, cl, decision_time)
                         clear_arm()
                         break
 
