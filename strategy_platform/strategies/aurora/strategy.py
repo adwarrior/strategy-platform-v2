@@ -210,11 +210,6 @@ class Aurora(BaseStrategy):
         'flip_to_market': True,
         'rearm_atr': 1.0,
         'flip_tol_pct': 0.001,
-        # Absolute price-at-level tolerance (ticks) for the flip-to-market gate.
-        # `flip_tol_pct` (0.1%) is ~27pt on MNQ — useless as a "price at level"
-        # test; this gates the flip to a genuine on-level touch so the port
-        # matches NT's zero-flip reality (see DetectFlipsAndBreaks). 4 ticks = 1pt.
-        'flip_tol_ticks': 4,
         # 3. Exits
         'tp_early_pts': 20.0,
         'sl_early_pts': 20.0,
@@ -259,7 +254,7 @@ class Aurora(BaseStrategy):
             ],
             '2. Entry': [
                 'entry_offset_ticks', 'trade_bal', 'trade_absorb', 'trade_init',
-                'flip_to_market', 'rearm_atr', 'flip_tol_pct', 'flip_tol_ticks',
+                'flip_to_market', 'rearm_atr', 'flip_tol_pct',
             ],
             '3. Exits': [
                 'tp_early_pts', 'sl_early_pts', 'tp_late_pts', 'sl_late_pts',
@@ -332,7 +327,6 @@ class Aurora(BaseStrategy):
         flip_to_market = bool(p['flip_to_market'])
         rearm_atr = float(p['rearm_atr'])
         flip_tol_pct = float(p['flip_tol_pct'])
-        flip_tol_ticks = float(p['flip_tol_ticks'])
         tp_early = float(p['tp_early_pts'])
         sl_early = float(p['sl_early_pts'])
         tp_late = float(p['tp_late_pts'])
@@ -503,33 +497,34 @@ class Aurora(BaseStrategy):
                     if abs(cl - st.mid) >= rearm_atr * atr_safe:
                         st.rearm_ready = True
 
-            # Flip-to-market: armed-but-unfilled intercept at a level that just
-            # became ABSORB -> hit at market immediately.
-            # PARITY FIX (2026-07-02): the price-proximity gate must use an
-            # ABSOLUTE tick tolerance, NOT `cl * flip_tol_pct`. flip_tol_pct=0.001
-            # of an index at ~27,700 is ~27 POINTS — wider than the whole stop —
-            # so the "price at the level" guard never bit: the flip fired at bar
-            # close with price 26pt above the level (entering at market far from
-            # the intercept), producing phantom trades NT never takes. The real NT
-            # runs are 100% AuroraIntercept limit fills, ZERO AuroraFlipMkt (Feb
-            # 718/718, May 605/605), because a limit sitting where price is fills
-            # AS a limit. So only flip when price is genuinely AT the level —
-            # within `flip_tol_ticks` ticks — which reproduces NT's zero-flip
-            # behavior while leaving the safety valve for a true on-level absorb.
+            # Flip-to-market — faithful port of C# DetectFlipsAndBreaks lines 815-828.
+            # ROOT-CAUSE FIX (2026-07-02, from NT ELIGCHK trace): NT's EnterMarket
+            # calls EnterLong/Short WHILE a working intercept-limit order already
+            # rests for the same signal — NT REJECTS that stacked entry, so NO
+            # position opens and NO AuroraFlipMkt trade is ever logged (Feb 718/718
+            # + May 605/605 are all AuroraIntercept). BUT MarkTraded runs
+            # unconditionally right after, so the armed Absorption level's Traded++
+            # and ReArmReady=False — this THROTTLES the level to ineligible on the
+            # next bar until price leaves by ReArmAtr*ATR and returns.
+            #
+            # The earlier port mistakes: (a) _enter_market actually opened a
+            # position -> phantom trades; (b) then a tight absolute-tick gate
+            # suppressed the flip entirely -> mark_traded never ran -> the level
+            # stayed permanently eligible, so the port armed walls (e.g. BUY 27731
+            # on 2026-05-01 09:47/09:49) that NT had throttled off -> ~259 missed
+            # NT trades. Correct behavior: fire on NT's exact condition, mark the
+            # level (throttle), clear the arm, but DON'T open a position.
             if flip_to_market and armed and not in_pos:
-                d_arm_tol = cl * flip_tol_pct           # C#: shelf near armed mid
-                price_tol = flip_tol_ticks * ts         # absolute: price AT level
+                tol = cl * flip_tol_pct                 # C#: shelf near armed mid
                 for s in eng.key_shelves:
                     if s.kind != NodeKind.ABSORPTION:
                         continue
                     if s.is_buy != armed_is_buy:
                         continue
-                    if abs(s.mid - armed_level_mid) <= d_arm_tol and abs(cl - s.mid) <= price_tol:
-                        # EnterMarket fills at the CURRENT price (cl), not the
-                        # level mid — a market order takes the market. price_tol
-                        # guarantees cl is truly at the level, so this is a real
-                        # touch, never a phantom fill 26pt away.
-                        _enter_market(armed_is_buy, cl, decision_time)
+                    if abs(s.mid - armed_level_mid) <= tol:
+                        # NT's EnterLong/Short is rejected (working entry rests) so
+                        # no fill; only the throttle side-effect happens.
+                        mark_traded(armed_level_mid, armed_is_buy)
                         clear_arm()
                         break
 
@@ -544,24 +539,11 @@ class Aurora(BaseStrategy):
             for k in dead:
                 del levels[k]
 
-        def _enter_market(is_buy: bool, level_mid: float, decision_time):
-            """Port of C# EnterMarket (lines 924-932). Market entry at level_mid."""
-            nonlocal in_pos, pos_dir, pos_entry_px, pos_qty, pos_entry_time, pos_tp, pos_sl
-            stop_pts = stop_pts_now(decision_time)
-            tgt_pts = target_pts_now(decision_time)
-            qty = size_for_stop(stop_pts)
-            in_pos = True
-            pos_dir = 'long' if is_buy else 'short'
-            pos_entry_px = level_mid
-            pos_qty = qty
-            pos_entry_time = decision_time
-            if is_buy:
-                pos_tp = level_mid + tgt_pts
-                pos_sl = level_mid - stop_pts
-            else:
-                pos_tp = level_mid - tgt_pts
-                pos_sl = level_mid + stop_pts
-            mark_traded(level_mid, is_buy)
+        # NOTE: C# EnterMarket (lines 984-992) is intentionally NOT ported as a
+        # position-opening call. In NT it fires only from the flip-to-market path
+        # while a working intercept-limit already rests, so NT rejects the stacked
+        # entry and only its MarkTraded side-effect survives. The flip block above
+        # reproduces exactly that: mark_traded (throttle) + clear_arm, no position.
 
         def arm_best_key_wall(cl: float, atr_safe: float, decision_time):
             """Port of C# ArmBestKeyWall (lines 818-871)."""
