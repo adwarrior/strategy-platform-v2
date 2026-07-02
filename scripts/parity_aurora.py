@@ -14,6 +14,7 @@ TRAPS handled:
   - tick_data is UTC + ~1min skew -> tick_loader ET-normalizes; NT trade times are ET.
   - NT logs 'Long'/'Short'; Python emits 'long'/'short'. match_trades normalizes both.
 """
+import os
 import sys
 from pathlib import Path
 import pandas as pd
@@ -51,14 +52,40 @@ def load_nt_trades(csv_path: Path) -> pd.DataFrame:
     return out
 
 
+def _run_backtest_span(sym, start, end, table):
+    """Run the port over [start,end]. For the full-volume table, go day-by-day so
+    a month of ~22M ticks never lands in RAM at once (OOM otherwise). Each day's
+    tick window already carries its own overnight warmup (loader starts ~20:00
+    prior), and the engine's effective lookback is only ~3h, so per-day runs are
+    valid. Thin table is small enough to run whole."""
+    daily = table == "tick_data_full"
+    if not daily:
+        ticks = load_raw_ticks(sym, start, end, table=table)
+        if ticks.empty:
+            return None
+        return Aurora().run_backtest(ticks, {})["trades"]
+
+    all_tr = []
+    for day in pd.bdate_range(start, end):
+        d = day.strftime("%Y-%m-%d")
+        ticks = load_raw_ticks(sym, d, d, table=table)
+        if ticks.empty:
+            continue
+        tr = Aurora().run_backtest(ticks, {})["trades"]
+        if len(tr):
+            all_tr.append(tr)
+        del ticks
+    if not all_tr:
+        return None
+    return pd.concat(all_tr, ignore_index=True)
+
+
 def run_one(label, csv, sym, start, end):
     nt = load_nt_trades(NT_DIR / csv)
-    ticks = load_raw_ticks(sym, start, end)
-    if ticks.empty:
+    table = os.environ.get("AURORA_TICK_TABLE", "tick_data")
+    py = _run_backtest_span(sym, start, end, table)
+    if py is None:
         return {"label": label, "status": "DATA-BLOCKED", "detail": f"no ticks {sym} {start}..{end}"}
-
-    res = Aurora().run_backtest(ticks, {})           # defaults — matches the NT baseline runs
-    py = res["trades"]
     if py.empty:
         return {"label": label, "status": "FAIL", "detail": "Python produced 0 trades",
                 "nt_n": len(nt), "py_n": 0}

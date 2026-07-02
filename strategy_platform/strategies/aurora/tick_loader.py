@@ -9,12 +9,18 @@ from strategy_platform.data import loader
 
 
 def load_raw_ticks(symbol: str, start: str, end: str,
-                   host: Optional[str] = None) -> pd.DataFrame:
+                   host: Optional[str] = None,
+                   table: str = "tick_data") -> pd.DataFrame:
+    # table='tick_data_full' reads the un-deduped NT Last re-load (full volume);
+    # 'tick_data' is the legacy ~44%-volume table (see memory
+    # feedback_tick_data_volume_thinned).
+    if table not in ("tick_data", "tick_data_full"):
+        raise ValueError(f"unexpected table {table!r}")
     engine = loader._engine(host)
     params = {"sym": symbol.upper(), "start": start}
     end_dt = pd.Timestamp(end) + timedelta(days=1)
     params["end"] = str(end_dt.date())
-    sql = text("SELECT ts, price, bid, ask, volume FROM tick_data "
+    sql = text(f"SELECT ts, price, bid, ask, volume FROM {table} "
                "WHERE symbol = :sym AND ts >= :start AND ts < :end ORDER BY ts")
     with engine.connect() as conn:
         conn.execute(text("SET SESSION net_read_timeout  = 3600"))
