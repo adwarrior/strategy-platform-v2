@@ -210,6 +210,11 @@ class Aurora(BaseStrategy):
         'flip_to_market': True,
         'rearm_atr': 1.0,
         'flip_tol_pct': 0.001,
+        # Absolute price-at-level tolerance (ticks) for the flip-to-market gate.
+        # `flip_tol_pct` (0.1%) is ~27pt on MNQ — useless as a "price at level"
+        # test; this gates the flip to a genuine on-level touch so the port
+        # matches NT's zero-flip reality (see DetectFlipsAndBreaks). 4 ticks = 1pt.
+        'flip_tol_ticks': 4,
         # 3. Exits
         'tp_early_pts': 20.0,
         'sl_early_pts': 20.0,
@@ -254,7 +259,7 @@ class Aurora(BaseStrategy):
             ],
             '2. Entry': [
                 'entry_offset_ticks', 'trade_bal', 'trade_absorb', 'trade_init',
-                'flip_to_market', 'rearm_atr', 'flip_tol_pct',
+                'flip_to_market', 'rearm_atr', 'flip_tol_pct', 'flip_tol_ticks',
             ],
             '3. Exits': [
                 'tp_early_pts', 'sl_early_pts', 'tp_late_pts', 'sl_late_pts',
@@ -327,6 +332,7 @@ class Aurora(BaseStrategy):
         flip_to_market = bool(p['flip_to_market'])
         rearm_atr = float(p['rearm_atr'])
         flip_tol_pct = float(p['flip_tol_pct'])
+        flip_tol_ticks = float(p['flip_tol_ticks'])
         tp_early = float(p['tp_early_pts'])
         sl_early = float(p['sl_early_pts'])
         tp_late = float(p['tp_late_pts'])
@@ -499,26 +505,30 @@ class Aurora(BaseStrategy):
 
             # Flip-to-market: armed-but-unfilled intercept at a level that just
             # became ABSORB -> hit at market immediately.
-            # PARITY FIX (2026-07-01): also require the CURRENT price (cl) to be
-            # at the level (within flip_tol_pct), not just the ABSORB shelf near
-            # the armed mid. In NT a market entry only fires meaningfully when
-            # price is right at the intercept; the validated NT run took ZERO
-            # flip-market trades (all 718 = AuroraIntercept limit fills). Without
-            # this price gate the port re-fired the flip bar-after-bar while price
-            # sat 60-150pt away (Feb-02: 24/45 phantom trades, +64% over NT). The
-            # gate makes the flip as rare as NT's order model makes it.
+            # PARITY FIX (2026-07-02): the price-proximity gate must use an
+            # ABSOLUTE tick tolerance, NOT `cl * flip_tol_pct`. flip_tol_pct=0.001
+            # of an index at ~27,700 is ~27 POINTS — wider than the whole stop —
+            # so the "price at the level" guard never bit: the flip fired at bar
+            # close with price 26pt above the level (entering at market far from
+            # the intercept), producing phantom trades NT never takes. The real NT
+            # runs are 100% AuroraIntercept limit fills, ZERO AuroraFlipMkt (Feb
+            # 718/718, May 605/605), because a limit sitting where price is fills
+            # AS a limit. So only flip when price is genuinely AT the level —
+            # within `flip_tol_ticks` ticks — which reproduces NT's zero-flip
+            # behavior while leaving the safety valve for a true on-level absorb.
             if flip_to_market and armed and not in_pos:
-                tol = cl * flip_tol_pct
+                d_arm_tol = cl * flip_tol_pct           # C#: shelf near armed mid
+                price_tol = flip_tol_ticks * ts         # absolute: price AT level
                 for s in eng.key_shelves:
                     if s.kind != NodeKind.ABSORPTION:
                         continue
                     if s.is_buy != armed_is_buy:
                         continue
-                    if abs(s.mid - armed_level_mid) <= tol and abs(cl - s.mid) <= tol:
+                    if abs(s.mid - armed_level_mid) <= d_arm_tol and abs(cl - s.mid) <= price_tol:
                         # EnterMarket fills at the CURRENT price (cl), not the
-                        # level mid — a market order takes the market. The tol
-                        # gate above guarantees cl is at the level, so this is a
-                        # real touch, never a phantom fill.
+                        # level mid — a market order takes the market. price_tol
+                        # guarantees cl is truly at the level, so this is a real
+                        # touch, never a phantom fill 26pt away.
                         _enter_market(armed_is_buy, cl, decision_time)
                         clear_arm()
                         break
@@ -729,6 +739,11 @@ class Aurora(BaseStrategy):
         for i in range(len(price)):
             b = codes[i]
             t = index[i]
+            # C# stamps executions with Time[0] = the forming bar's CLOSE-time
+            # label (NT bars are close-stamped), not the raw tick instant. Use the
+            # +1-min-shifted bar label so matched entries/exits carry NT's minute,
+            # not the raw sub-minute tick time (which reads ~1 bar early).
+            bar_label = bar_time[b]
 
             # New bar opened -> close the previous bar(s) and run the layer.
             if b != cur_code:
@@ -756,7 +771,7 @@ class Aurora(BaseStrategy):
             # Session flatten (C# runs every tick): force-exit + cancel arm at flat_by.
             if flat_by is not None and t.time() >= flat_by:
                 if in_pos:
-                    _close_position(price[i], t, 'EOD')
+                    _close_position(price[i], bar_label, 'EOD')
                 clear_arm()
                 # After flat_by, suppress new arming for the rest of this bar's
                 # processing by skipping fills (handled below via window check).
@@ -770,7 +785,7 @@ class Aurora(BaseStrategy):
                 if flat_by is not None and t.time() >= flat_by:
                     pass  # no new fills after flat
                 else:
-                    try_fill_and_exit(price[i], t)
+                    try_fill_and_exit(price[i], bar_label)
 
         # Close any still-open position at the last tick (defensive; should be
         # rare given the flat_by EOD rule).
