@@ -33,6 +33,12 @@ THREE parity-critical carry-forwards (see report):
   3. eng.last_processed_bar is advanced each bar.
 
 Source: /home/ad/Scripts/strategies/AuroraHeatshelvesStrategy.cs
+
+2026-07-09: synced to the C# 2026-07-06 engine re-sync — MergeMaxRows shelf
+height cap + center-distance merge gate, corrupt-tick guard, opt-in
+consolidation detector — plus the reliability filters (entry_min_touches,
+entry_min_age_bars, fast_tape_atr_mult, all default OFF) and per-trade wall
+metadata (wall_kind/mid/touches/age/flipped, mirroring the NT fill log).
 """
 
 from __future__ import annotations
@@ -202,6 +208,11 @@ class Aurora(BaseStrategy):
         'show_balanced': True,
         'show_absorption': True,
         'show_init': True,
+        # 1. Engine — 2026-07-06 re-sync (MergeMaxRows + opt-in consolidation)
+        'merge_max_rows': 3,
+        'show_consolidation': False,
+        'consol_min_bars': 12,
+        'consol_vol_mult': 1.8,
         # 2. Entry (NT lines 319-332)
         'entry_offset_ticks': 2,
         'trade_bal': True,
@@ -210,6 +221,10 @@ class Aurora(BaseStrategy):
         'flip_to_market': True,
         'rearm_atr': 1.0,
         'flip_tol_pct': 0.001,
+        # 2. Entry — reliability filters (2026-07-06, default OFF like the C#)
+        'entry_min_touches': 0,
+        'entry_min_age_bars': 0,
+        'fast_tape_atr_mult': 0.0,
         # 3. Exits
         'tp_early_pts': 20.0,
         'sl_early_pts': 20.0,
@@ -241,6 +256,9 @@ class Aurora(BaseStrategy):
             'sl_late_pts':  (5.0, 20.0, 5.0),
             'rearm_atr':    (0.5, 2.0, 0.5),
             'tighten_time': ['off', '10:30', '11:00', '11:30'],
+            'entry_min_touches': (0, 5, 1),
+            'entry_min_age_bars': (0, 20, 5),
+            'fast_tape_atr_mult': (0.0, 4.0, 1.0),
         }
 
     @property
@@ -251,10 +269,13 @@ class Aurora(BaseStrategy):
                 'vol_frac', 'max_shelves', 'absorb_ratio', 'break_buf',
                 'allow_flip', 'key_per_side', 'min_gap_atr', 'max_dist_pct',
                 'show_balanced', 'show_absorption', 'show_init',
+                'merge_max_rows', 'show_consolidation', 'consol_min_bars',
+                'consol_vol_mult',
             ],
             '2. Entry': [
                 'entry_offset_ticks', 'trade_bal', 'trade_absorb', 'trade_init',
                 'flip_to_market', 'rearm_atr', 'flip_tol_pct',
+                'entry_min_touches', 'entry_min_age_bars', 'fast_tape_atr_mult',
             ],
             '3. Exits': [
                 'tp_early_pts', 'sl_early_pts', 'tp_late_pts', 'sl_late_pts',
@@ -316,6 +337,10 @@ class Aurora(BaseStrategy):
             'key_per_side': int(p['key_per_side']),
             'min_gap_atr': float(p['min_gap_atr']),
             'max_dist_pct': float(p['max_dist_pct']),
+            'merge_max_rows': int(p['merge_max_rows']),
+            'show_consolidation': bool(p['show_consolidation']),
+            'consol_min_bars': int(p['consol_min_bars']),
+            'consol_vol_mult': float(p['consol_vol_mult']),
         }
         eng = FootprintEngine(eng_params)
 
@@ -327,6 +352,9 @@ class Aurora(BaseStrategy):
         flip_to_market = bool(p['flip_to_market'])
         rearm_atr = float(p['rearm_atr'])
         flip_tol_pct = float(p['flip_tol_pct'])
+        entry_min_touches = int(p['entry_min_touches'])
+        entry_min_age_bars = int(p['entry_min_age_bars'])
+        fast_tape_atr_mult = float(p['fast_tape_atr_mult'])
         tp_early = float(p['tp_early_pts'])
         sl_early = float(p['sl_early_pts'])
         tp_late = float(p['tp_late_pts'])
@@ -398,6 +426,9 @@ class Aurora(BaseStrategy):
         armed_stop_pts = 0.0
         armed_tgt_pts = 0.0
         armed_qty = 0
+        # C# entryShelf: shelf behind the most recent arm. NEVER cleared (a
+        # fill always belongs to the latest submit), so not touched by clear_arm.
+        armed_shelf = None
 
         # Open position state
         in_pos = False
@@ -407,6 +438,7 @@ class Aurora(BaseStrategy):
         pos_entry_time = None
         pos_tp = 0.0
         pos_sl = 0.0
+        pos_wall: Dict[str, Any] = {}   # wall metadata frozen at fill time
 
         trades: List[Dict] = []
 
@@ -456,8 +488,18 @@ class Aurora(BaseStrategy):
                 qty = max_contracts
             return qty
 
-        def eligible_for_entry(s) -> bool:
-            """Port of C# EligibleForEntry (lines 889-922)."""
+        def eligible_for_entry(s, cur_bar: int) -> bool:
+            """Port of C# EligibleForEntry (2026-07-06 version with seasoning
+            filters). `cur_bar` is the forming bar index (C# CurrentBar =
+            closed_bar + 1), used for the wall-age gate."""
+            # Seasoning filters (default off): a wall must have PROVEN itself
+            # by defending (touches) and/or surviving (age) before an
+            # intercept may rest on it.
+            if entry_min_touches > 0 and s.touch < entry_min_touches:
+                return False
+            if entry_min_age_bars > 0 and cur_bar - s.orig < entry_min_age_bars:
+                return False
+
             k = _level_key(s.mid, s.is_buy, ts)
             st = levels.get(k)
             if s.kind == NodeKind.BALANCED:
@@ -545,14 +587,14 @@ class Aurora(BaseStrategy):
         # entry and only its MarkTraded side-effect survives. The flip block above
         # reproduces exactly that: mark_traded (throttle) + clear_arm, no position.
 
-        def arm_best_key_wall(cl: float, atr_safe: float, decision_time):
+        def arm_best_key_wall(cl: float, atr_safe: float, decision_time, cur_bar: int):
             """Port of C# ArmBestKeyWall (lines 818-871)."""
             nonlocal armed, armed_is_buy, armed_level_mid, armed_limit, armed_key
-            nonlocal armed_stop_pts, armed_tgt_pts, armed_qty
+            nonlocal armed_stop_pts, armed_tgt_pts, armed_qty, armed_shelf
             best = None
             best_score = -1.0
             for s in eng.key_shelves:
-                if not eligible_for_entry(s):
+                if not eligible_for_entry(s, cur_bar):
                     continue
                 # NOTE: eng.score uses last_processed_bar (=closed_bar) as the
                 # current bar, whereas C# Score uses CurrentBar (=closed_bar + 1).
@@ -583,6 +625,10 @@ class Aurora(BaseStrategy):
             armed_level_mid = best.mid
             armed_limit = limit
             armed_key = best_key
+            # C# entryShelf: live ref to the backing shelf, read at fill time
+            # so every trade carries the wall's kind/touches/age as they were
+            # when money went in (mirrors the NT fill log).
+            armed_shelf = best
             # C# lines 863-866: brackets + size are evaluated NOW (arm time) and
             # bound to the resting order. Freeze them on the arm state so the
             # fill inherits the ARM-time regime, not the fill-time regime.
@@ -590,8 +636,10 @@ class Aurora(BaseStrategy):
             armed_tgt_pts = target_pts_now(decision_time)
             armed_qty = size_for_stop(armed_stop_pts)
 
-        def update_trading_layer(cl: float, atr_safe: float, decision_time):
-            """Port of C# UpdateTradingLayer (lines 721-742)."""
+        def update_trading_layer(cl: float, atr_safe: float, decision_time,
+                                 closed_bar: int):
+            """Port of C# UpdateTradingLayer (2026-07-06 version with the
+            fast-tape standdown, step 3b)."""
             detect_flips_and_breaks(cl, atr_safe, decision_time)
             if in_pos:
                 return
@@ -603,7 +651,14 @@ class Aurora(BaseStrategy):
             if not in_window:
                 clear_arm()
                 return
-            arm_best_key_wall(cl, atr_safe, decision_time)
+            # (3b) FAST-TAPE STANDDOWN (opt-in): when the just-closed bar's
+            # range blows past fast_tape_atr_mult x ATR, pull any resting
+            # entry and stand aside this bar (C# UpdateTradingLayer step 3b).
+            if fast_tape_atr_mult > 0 and closed_bar >= 1:
+                if bar_hi[closed_bar] - bar_lo[closed_bar] > fast_tape_atr_mult * atr_safe:
+                    clear_arm()
+                    return
+            arm_best_key_wall(cl, atr_safe, decision_time, closed_bar + 1)
 
         # ---- Main event loop ----
         # We walk ticks in time order. A bar "closes" when the tick's bar code
@@ -636,9 +691,9 @@ class Aurora(BaseStrategy):
             atr_raw = float(atr_arr[closed_bar])
             atr_safe = (10 * ts) if (atr_raw <= 0 or math.isnan(atr_raw)) else atr_raw
             eng.refresh_key_shelves(cl, atr_safe)
-            update_trading_layer(cl, atr_safe, decision_time)
+            update_trading_layer(cl, atr_safe, decision_time, closed_bar)
 
-        def try_fill_and_exit(tick_price: float, tick_time):
+        def try_fill_and_exit(tick_price: float, tick_time, cur_bar: int):
             """Check the armed resting limit for a trade-through fill, and any
             open position for TP/SL, against the current tick."""
             nonlocal in_pos, pos_dir, pos_entry_px, pos_qty, pos_entry_time
@@ -666,16 +721,16 @@ class Aurora(BaseStrategy):
                 elif (not armed_is_buy) and tick_price >= armed_limit:
                     hit = True
                 if hit:
-                    _fill_limit(tick_time)
+                    _fill_limit(tick_time, cur_bar)
 
-        def _fill_limit(fill_time):
+        def _fill_limit(fill_time, cur_bar: int):
             """A resting intercept limit filled. The position inherits the
             brackets + size that were FROZEN at arm time (C# binds
             StopPtsNow()/TargetPtsNow()/SizeForStop() to the order in
             ArmBestKeyWall, lines 863-866). A level armed before tighten_time
             keeps its EARLY stop/target/size even if filled after it."""
             nonlocal in_pos, pos_dir, pos_entry_px, pos_qty, pos_entry_time
-            nonlocal pos_tp, pos_sl
+            nonlocal pos_tp, pos_sl, pos_wall
             is_buy = armed_is_buy
             stop_pts = armed_stop_pts
             tgt_pts = armed_tgt_pts
@@ -691,6 +746,16 @@ class Aurora(BaseStrategy):
             else:
                 pos_tp = armed_limit - tgt_pts
                 pos_sl = armed_limit + stop_pts
+            # Wall metadata AT FILL TIME (mirrors the NT fill logger, which
+            # reads the live entryShelf ref when the execution lands).
+            s = armed_shelf
+            pos_wall = {
+                'wall_kind': s.kind.name.capitalize() if s is not None else '',
+                'wall_mid': s.mid if s is not None else np.nan,
+                'wall_touches': s.touch if s is not None else 0,
+                'wall_age_bars': (cur_bar - s.orig) if s is not None else 0,
+                'wall_flipped': bool(s.flp) if s is not None else False,
+            }
             # OnExecutionUpdate: mark the level traded and clear the arm.
             mark_traded(armed_level_mid, is_buy)
             clear_arm()
@@ -709,6 +774,7 @@ class Aurora(BaseStrategy):
                 'pnl': pnl,
                 'qty': pos_qty,
                 'reason': reason,
+                **pos_wall,
             })
             in_pos = False
             pos_dir = None
@@ -767,7 +833,7 @@ class Aurora(BaseStrategy):
                 if flat_by is not None and t.time() >= flat_by:
                     pass  # no new fills after flat
                 else:
-                    try_fill_and_exit(price[i], bar_label)
+                    try_fill_and_exit(price[i], bar_label, b)
 
         # Close any still-open position at the last tick (defensive; should be
         # rare given the flat_by EOD rule).
@@ -777,5 +843,6 @@ class Aurora(BaseStrategy):
         stats = _summarise(trades)
         trades_df = pd.DataFrame(trades) if trades else pd.DataFrame(
             columns=['entry_time', 'exit_time', 'direction', 'entry_price',
-                     'exit_price', 'pnl', 'qty', 'reason'])
+                     'exit_price', 'pnl', 'qty', 'reason', 'wall_kind',
+                     'wall_mid', 'wall_touches', 'wall_age_bars', 'wall_flipped'])
         return {**stats, 'trades': trades_df}

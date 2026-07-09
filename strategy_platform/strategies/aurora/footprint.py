@@ -124,6 +124,11 @@ class FootprintEngine:
         "key_per_side": 2,        # KeyPerSide
         "min_gap_atr": 0.6,       # MinGapATR
         "max_dist_pct": 3.0,      # MaxDistPct
+        # 2026-07-06 engine re-sync (C# SetDefaults lines 407-410)
+        "merge_max_rows": 3,      # MergeMaxRows — max shelf height in footprint rows
+        "show_consolidation": False,  # ShowConsolidation (opt-in)
+        "consol_min_bars": 12,    # ConsolMinBars
+        "consol_vol_mult": 1.8,   # ConsolVolMult
     }
 
     def __init__(self, params: Optional[Dict[str, Any]] = None):
@@ -145,6 +150,10 @@ class FootprintEngine:
         self.last_processed_bar: int = -1
         self.last_trade_price: Optional[float] = None  # C# double.NaN
 
+        # C# valueProfile (ProfCell dict) — rolling volume-by-price profile for
+        # the opt-in consolidation detector. key -> [vol, set(bar ids), last_bar]
+        self.value_profile: Dict[float, list] = {}
+
     def on_tick(self, ts, price: float, bid: float, ask: float, volume: float, cur_bar: int) -> None:
         """Port of C# OnMarketData (lines 354-388).
 
@@ -153,6 +162,12 @@ class FootprintEngine:
         as `cur_bar` since there is no live bar-series object here.
         """
         if volume <= 0:
+            return
+
+        # C# corrupt-tick guard (2026-07-06): NT has emitted Last events with a
+        # garbage price (e.g. -1.29e9) on a bad Market Replay file. Drop any
+        # tick whose price isn't a sane positive number.
+        if math.isnan(price) or price <= 0:
             return
 
         rows = self.bar_rows.get(cur_bar)
@@ -407,6 +422,10 @@ class FootprintEngine:
         cut = bar - self.eff_lookback
         self.shelves = [s for s in self.shelves if s.bar >= cut]
 
+        # 3b) CONSOLIDATION / VALUE-ACCEPTANCE pass (opt-in, 2026-07-06)
+        if self.params["show_consolidation"]:
+            self._process_consolidation(bar, rows, cut, cl)
+
         # 4) HARD CAP (lines 617-623)
         max_shelves = self.params["max_shelves"]
         age_half_life = self.params["age_half_life"]
@@ -430,11 +449,13 @@ class FootprintEngine:
         is_buy: bool,
         kind: NodeKind,
     ) -> None:
-        """Port of C# AddOrMerge (lines 626-658).
+        """Port of C# AddOrMerge (2026-07-06 version with MergeMaxRows).
 
-        Dedupes per bar (rounded bot | side | kind). Merges into an existing
-        shelf ONLY when it is not broken, same side, same kind, and overlapping
-        — otherwise appends a fresh shelf. On merge, Qual += 1.0 (line 656).
+        Dedupes per bar (rounded bot | side | kind). Merges into a live
+        same-side/same-kind shelf only when its CENTER is within
+        MergeMaxRows*rowHeight/2 of the new node's center (center-distance,
+        not raw overlap, so a wide shelf can't swallow everything it touches),
+        then clamps total height to the cap. Otherwise appends a fresh shelf.
         """
         tick_size = self.params["tick_size"]
         dedupe = "{}|{}|{}".format(round(bot / tick_size), 1 if is_buy else 0, kind.value)
@@ -442,10 +463,15 @@ class FootprintEngine:
             return
         self.added_this_bar.add(dedupe)
 
+        row_h = self.params["ticks_per_row"] * tick_size
+        max_h = self.params["merge_max_rows"] * row_h
+        new_mid = (top + bot) / 2.0
+
         hit = None
         for s in self.shelves:
-            if (not s.brk) and s.is_buy == is_buy and s.kind == kind \
-                    and bot <= s.top and top >= s.bot:
+            if s.brk or s.is_buy != is_buy or s.kind != kind:
+                continue
+            if abs(s.mid - new_mid) <= max_h / 2.0:
                 hit = s
                 break
 
@@ -460,11 +486,72 @@ class FootprintEngine:
 
         hit.vol += vol
         hit.delta += delta
-        hit.top = max(hit.top, top)
-        hit.bot = min(hit.bot, bot)
+        # Expand toward the new node, then CLAMP total height to max_h,
+        # keeping it centered on the tentative expanded mid (C# lines 804-816).
+        n_top = max(hit.top, top)
+        n_bot = min(hit.bot, bot)
+        if n_top - n_bot > max_h:
+            mid = (n_top + n_bot) / 2.0
+            n_top = mid + max_h / 2.0
+            n_bot = mid - max_h / 2.0
+        hit.top = n_top
+        hit.bot = n_bot
         hit.touch += 1
         hit.qual += 1.0
         hit.bar = bar  # C# hit.Last = bar
+
+    def _process_consolidation(self, bar: int, rows: Dict[float, Row],
+                               cut: int, cl: float) -> None:
+        """Port of C# ProcessConsolidation (2026-07-06, opt-in).
+
+        Rolls this bar's rows into a volume-by-price profile, evicts rows
+        outside the shelf-memory window, then emits a Balanced shelf on every
+        row the market has ACCEPTED (traded across >= consol_min_bars distinct
+        bars AND carrying >= consol_vol_mult x the average occupied-row
+        volume). add_or_merge stitches adjacent qualifiers into one band.
+        """
+        tick_size = self.params["tick_size"]
+        row_h = self.params["ticks_per_row"] * tick_size
+
+        # 1) fold THIS bar's rows into the rolling profile
+        for key, r in rows.items():
+            tv = r.total
+            if tv <= 0:
+                continue
+            c = self.value_profile.get(key)
+            if c is None:
+                c = [0.0, set(), bar]   # [vol, bar-id set, last bar]
+                self.value_profile[key] = c
+            c[0] += tv
+            c[1].add(bar)
+            c[2] = bar
+
+        # 2) evict rows whose recent activity is outside the window
+        dead = []
+        for key, c in self.value_profile.items():
+            c[1] = {b for b in c[1] if b >= cut}
+            if c[2] < cut or not c[1]:
+                dead.append(key)
+        for key in dead:
+            del self.value_profile[key]
+        if not self.value_profile:
+            return
+
+        # 3) average occupied-row volume, for the relative volume gate
+        avg_row_vol = sum(c[0] for c in self.value_profile.values()) / len(self.value_profile)
+        vol_gate = avg_row_vol * self.params["consol_vol_mult"]
+        min_bars = self.params["consol_min_bars"]
+
+        # 4) emit an accepted-value shelf on each qualifying row. Side by band
+        # position vs current price (below = demand, above = supply).
+        for key, c in self.value_profile.items():
+            if len(c[1]) < min_bars or c[0] < vol_gate:
+                continue
+            bot = key
+            top = bot + row_h
+            mid = bot + row_h / 2.0
+            is_buy = mid <= cl
+            self.add_or_merge(bar, top, bot, c[0], 0.0, is_buy, NodeKind.BALANCED)
 
     # -- Key-shelf selection (Task 4) ----------------------------------
 
