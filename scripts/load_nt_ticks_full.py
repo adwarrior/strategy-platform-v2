@@ -44,11 +44,30 @@ def _parse_chunk(df: pd.DataFrame) -> pd.DataFrame:
     return df[["ts", "price", "bid", "ask", "volume"]]
 
 
+def _nt_ts(raw: str) -> pd.Timestamp:
+    """Parse an NT export timestamp 'yyyyMMdd HHmmss fffffff'."""
+    d, hms, frac = raw.split(" ")
+    return pd.to_datetime(d + hms + frac.ljust(7, "0"), format="%Y%m%d%H%M%S%f")
+
+
+def _file_span(p):
+    """First + last tick timestamp of an export, read cheaply (head + tail)."""
+    with open(p, "rb") as f:
+        first = f.readline().decode()
+        f.seek(max(0, f.seek(0, 2) - 4096))
+        last = [ln for ln in f.read().decode().splitlines() if ln.strip()][-1]
+    return _nt_ts(first.split(";")[0]), _nt_ts(last.split(";")[0])
+
+
 def load(symbol: str, paths, host=None, read_rows=500000, insert_rows=20000):
     """Stream each export in row-chunks so a multi-GB file never loads whole.
 
-    Idempotency: clear the symbol's affected date span ONCE up front (from the
-    file's first/last timestamp, read cheaply), then append streamed chunks.
+    Idempotency: clear EXACTLY the file's own [first_ts, last_ts] span up
+    front, then append streamed chunks. The delete used to be a blanket
+    first_day+45-days window, which silently destroyed ADJACENT months of the
+    same symbol when a shorter export was (re)loaded — e.g. loading a June
+    export would have wiped already-loaded July rows whose source file had
+    been overwritten (2026-07-09 near-miss).
     """
     eng = loader._engine(host)
     sym = symbol.upper()
@@ -56,19 +75,12 @@ def load(symbol: str, paths, host=None, read_rows=500000, insert_rows=20000):
         c.execute(text(DDL))
     total = 0
     for p in paths:
-        # Cheap span read: first + last line already validated by caller; derive
-        # the date range from a tiny head/tail read to scope the delete.
-        head = pd.read_csv(p, sep=";", header=None, nrows=1,
-                           names=["ts", "price", "bid", "ask", "volume"])
-        d0 = head["ts"].iloc[0][:8]
-        first_day = pd.Timestamp(f"{d0[:4]}-{d0[4:6]}-{d0[6:8]}").date()
+        t0, t1 = _file_span(p)
+        print(f"  {Path(p).name}: span {t0} -> {t1}", flush=True)
         with eng.begin() as c:
-            # Delete a generous 45-day window from first_day (covers a monthly
-            # export + spillover); re-runs stay idempotent.
             c.execute(text("DELETE FROM tick_data_full WHERE symbol=:s "
-                           "AND ts>=:a AND ts<:b"),
-                      {"s": sym, "a": str(first_day),
-                       "b": str(pd.Timestamp(first_day) + pd.Timedelta(days=45))})
+                           "AND ts>=:a AND ts<=:b"),
+                      {"s": sym, "a": str(t0), "b": str(t1)})
         vol = 0
         reader = pd.read_csv(p, sep=";", header=None,
                              names=["ts", "price", "bid", "ask", "volume"],
