@@ -29,10 +29,15 @@ from strategy_platform.strategies.aurora.tick_loader import load_raw_ticks  # no
 TABLE = os.environ.get("AURORA_TICK_TABLE", "tick_data_full")
 
 # (name, symbol, start, end) — separate contracts, never concatenated.
+# Override via SWEEP_SPANS="name:symbol:start:end,name:symbol:start:end"
+# (e.g. the June pass runs each roll leg as its own span). Keep total span
+# size ~1 month per worker: each worker holds every span's ticks in RAM.
 SPANS = [
     ("May", "MNQ_M26", "2026-05-01", "2026-05-29"),
     ("Jul", "MNQ_U26", "2026-07-01", "2026-07-08"),
 ]
+if os.environ.get("SWEEP_SPANS"):
+    SPANS = [tuple(x.split(":")) for x in os.environ["SWEEP_SPANS"].split(",")]
 
 # The live forward-test config (NT chart 2026-07-08). Every variation is
 # {**BASE, **overrides} so the anchor is what actually trades live.
