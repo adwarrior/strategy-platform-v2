@@ -114,33 +114,52 @@ def bar_label(ts: pd.Timestamp) -> pd.Timestamp:
 
 
 def match(live: pd.DataFrame, port: pd.DataFrame, tol_min: int = 2):
-    """Greedy nearest-entry-time match on same direction within tol_min."""
-    used = set()
-    rows = []
-    for _, lv in live.iterrows():
+    """Greedy same-direction match by wall + time, not time alone.
+
+    Time-only nearest-entry pairing mis-attributed outcomes (2026-07-09 dig):
+    it paired a live winner with the port's EXTRA earlier trade on the same
+    wall while the port's true twin (+40, same wall/price, 1 bar later) went
+    to "port-only", and in an 11:11-11:15 cluster it crossed two walls 34pt
+    apart. Cost = wall-mid error + time distance + a penalty when the port's
+    bar-label window CLOSED before the live fill instant (a resting-limit
+    fill logged live at T cannot be the same fill as a port trade whose bar
+    ended before T; allow slack for feed-clock skew but prefer causal pairs).
+    Pairs are taken globally cheapest-first (avoids greedy row-order steals).
+    """
+    cands = []
+    for i, lv in live.iterrows():
         lt = bar_label(lv["entry_time"])
-        best_j, best_d = None, None
         for j, pt in port.iterrows():
-            if j in used or pt["direction"] != lv["direction"]:
+            if pt["direction"] != lv["direction"]:
                 continue
             d = abs((pd.Timestamp(pt["entry_time"]) - lt).total_seconds()) / 60.0
-            if d <= tol_min and (best_d is None or d < best_d):
-                best_j, best_d = j, d
-        if best_j is not None:
-            used.add(best_j)
-            pt = port.loc[best_j]
-            rows.append({
-                "live_entry": lv["entry_time"], "port_entry": pt["entry_time"],
-                "dt_min": best_d, "dir": lv["direction"],
-                "live_kind": lv["wall_kind"], "port_kind": pt["wall_kind"],
-                "live_mid": lv["wall_mid"], "port_mid": pt["wall_mid"],
-                "mid_err": abs(lv["wall_mid"] - pt["wall_mid"]),
-                "px_err": abs(lv["entry_price"] - pt["entry_price"]),
-                "live_touch": lv["wall_touches"], "port_touch": pt["wall_touches"],
-                "live_pts": lv["pnl_pts"],
-                "port_pts": (1 if pt["direction"] == "long" else -1)
-                            * (pt["exit_price"] - pt["entry_price"]) * pt["qty"],
-            })
+            if d > tol_min:
+                continue
+            mid_err = abs(lv["wall_mid"] - pt["wall_mid"])
+            causal_pen = 2.0 if pd.Timestamp(pt["entry_time"]) < lv["entry_time"] else 0.0
+            cands.append((mid_err + 0.5 * d + causal_pen, i, j, d))
+    used, used_live = set(), set()
+    rows = []
+    for cost, i, j, d in sorted(cands, key=lambda c: c[0]):
+        if i in used_live or j in used:
+            continue
+        used_live.add(i)
+        used.add(j)
+        lv = live.loc[i]
+        pt = port.loc[j]
+        rows.append({
+            "live_entry": lv["entry_time"], "port_entry": pt["entry_time"],
+            "dt_min": d, "dir": lv["direction"],
+            "live_kind": lv["wall_kind"], "port_kind": pt["wall_kind"],
+            "live_mid": lv["wall_mid"], "port_mid": pt["wall_mid"],
+            "mid_err": abs(lv["wall_mid"] - pt["wall_mid"]),
+            "px_err": abs(lv["entry_price"] - pt["entry_price"]),
+            "live_touch": lv["wall_touches"], "port_touch": pt["wall_touches"],
+            "live_pts": lv["pnl_pts"],
+            "port_pts": (1 if pt["direction"] == "long" else -1)
+                        * (pt["exit_price"] - pt["entry_price"]) * pt["qty"],
+        })
+    rows.sort(key=lambda r: r["live_entry"])
     return pd.DataFrame(rows), used
 
 
