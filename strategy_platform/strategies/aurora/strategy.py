@@ -192,6 +192,12 @@ class Aurora(BaseStrategy):
     symbol: str = 'MNQ=F'
 
     default_params: Dict[str, Any] = {
+        # 0. Bar type the engine runs on, built from the same raw ticks.
+        #    'Nmin' = N-minute time bars (NT close-time labelling);
+        #    'Nt'   = N-tick bars (label = last tick's timestamp, NT-style).
+        #    Everything downstream (walls, arming, fills, session windows) is
+        #    bar-type agnostic — it works off bar index + bar_time.
+        'bar_spec': '1min',
         # 1. Engine (mirror the indicator — NT SetDefaults lines 302-316)
         'ticks_per_row': 25,
         'lookback': 180,
@@ -265,6 +271,7 @@ class Aurora(BaseStrategy):
     def param_groups(self) -> Dict[str, List[str]]:
         return {
             '1. Engine': [
+                'bar_spec',
                 'ticks_per_row', 'lookback', 'lookback_cap_days', 'age_half_life',
                 'vol_frac', 'max_shelves', 'absorb_ratio', 'break_buf',
                 'allow_flip', 'key_per_side', 'min_gap_atr', 'max_dist_pct',
@@ -368,22 +375,44 @@ class Aurora(BaseStrategy):
         entry_end = _parse_hhmm(p['entry_end'])
         flat_by = _parse_hhmm(p['flat_by'])
 
+        # ---- Bar spec: 'Nmin' time bars or 'Nt' tick bars -----------------
+        bar_spec = str(p.get('bar_spec', '1min')).strip().lower()
+        if bar_spec.endswith('t'):
+            bar_tick_count = int(bar_spec[:-1])
+            bar_minutes = 0.0                      # undefined for tick bars
+        elif bar_spec.endswith('min'):
+            bar_tick_count = 0
+            bar_minutes = float(bar_spec[:-3])
+        else:
+            raise ValueError(f"bar_spec must look like '5min' or '1000t', got {bar_spec!r}")
+
+        # Tick bars: minutes_per_bar undefined -> raw lookback, mirroring the
+        # C# EffectiveLookback fallback for non-time bar types.
         eff_lookback = self._effective_lookback(
-            int(p['lookback']), float(p['lookback_cap_days']), minutes_per_bar=1.0)
+            int(p['lookback']), float(p['lookback_cap_days']),
+            minutes_per_bar=bar_minutes)
 
         if data is None or data.empty:
             return {**_summarise([]), 'trades': pd.DataFrame()}
 
-        # ---- Build 1-min bars from raw ticks ----
+        # ---- Build bars from raw ticks ----
         price = data['price'].to_numpy(float)
         bid = data['bid'].to_numpy(float) if 'bid' in data.columns else np.zeros(len(data))
         ask = data['ask'].to_numpy(float) if 'ask' in data.columns else np.zeros(len(data))
         vol = data['volume'].to_numpy(float) if 'volume' in data.columns else np.ones(len(data))
         index = data.index
-        bar_floor = index.floor('1min')
-        # Map each tick to a sequential bar index (0,1,2,...) in time order.
-        codes, bar_starts = pd.factorize(bar_floor, sort=True)
-        n_bars = len(bar_starts)
+        if bar_tick_count > 0:
+            # N-tick bars: every N consecutive tick EVENTS form one bar
+            # (matches NT tick-bar construction; a bar may straddle the
+            # maintenance break — acceptable approximation, no session reset).
+            codes = np.arange(len(price)) // bar_tick_count
+            n_bars = int(codes[-1]) + 1
+            bar_starts = None                      # unused on the tick path
+        else:
+            bar_floor = index.floor(f'{int(bar_minutes)}min')
+            # Map each tick to a sequential bar index (0,1,2,...) in time order.
+            codes, bar_starts = pd.factorize(bar_floor, sort=True)
+            n_bars = len(bar_starts)
 
         # Per-bar OHLC from tick prices.
         bar_hi = np.full(n_bars, -np.inf)
@@ -401,14 +430,21 @@ class Aurora(BaseStrategy):
                 bar_open[b] = pr
             bar_close[b] = pr
         # PARITY FIX (2026-07-01): NinjaTrader labels a bar by its CLOSE time
-        # (end of the minute), while pandas .floor('1min') labels by the OPEN
+        # (end of the minute), while pandas .floor() labels by the OPEN
         # minute. The ticks in [09:29:00, 09:30:00) are NT's "09:30" bar, not
         # "09:29". Without this shift every bar decision (arm time, session
         # window, tighten time) ran one minute early vs NT — the trades drifted
         # ~1 min, trade-by-trade match collapsed, and the wrong early-session
-        # levels armed (Feb PF 0.92 vs NT 1.87). Shift the LABEL forward 1 min
-        # to match NT's close-time convention; the OHLC grouping is unchanged.
-        bar_time = pd.DatetimeIndex(bar_starts) + pd.Timedelta(minutes=1)
+        # levels armed (Feb PF 0.92 vs NT 1.87). Shift the LABEL forward one
+        # bar interval to match NT's close-time convention; OHLC grouping is
+        # unchanged. Tick bars are labelled by their LAST tick's timestamp —
+        # NT's convention for non-time bars (already a "close" time, no shift).
+        if bar_tick_count > 0:
+            last_idx = np.minimum(
+                (np.arange(n_bars) + 1) * bar_tick_count - 1, len(index) - 1)
+            bar_time = pd.DatetimeIndex(index[last_idx])
+        else:
+            bar_time = pd.DatetimeIndex(bar_starts) + pd.Timedelta(minutes=bar_minutes)
 
         atr_arr = _wilder_atr(bar_hi, bar_lo, bar_close, period=14)
 

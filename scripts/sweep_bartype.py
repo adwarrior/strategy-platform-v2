@@ -1,22 +1,20 @@
-"""Aurora param robustness sweep (OFAT) on full-volume ticks, May + July spans.
+"""Aurora bar-type sweep: 1-minute baseline vs other time frames + tick bars.
 
-Anchored on the LIVE forward-test config (2026-07-08: EntryMinTouches=1,
-TradeBalanced=OFF, FlipToMarket=OFF) — every variation is applied ON TOP of
-that base, so each line answers "what if the live strategy changed only this
-knob". Live-log parity (2026-07-09) validated the port against the SimAurora
-fill logs (07-07 100% match), so results are trustworthy as a CONSERVATIVE
-estimate: the port's known biases (extra early arms, wall-band drift on
-multi-hour walls) lose coin-flips live tends to win.
+Design (2026-07-11, user-approved): run the LIVE forward-test config
+(EntryMinTouches=1, TradeBalanced=OFF, FlipToMarket=OFF) unchanged on each
+bar type — exactly what would happen if the chart's bar type were switched
+in NinjaTrader. Params are NOT rescaled per bar type; the engine's own
+lookback day-cap applies to time frames and tick bars use the raw bar count
+(mirrors C# EffectiveLookback). Nothing under 1000 ticks per bar: smaller
+tick bars close so often the trade count explodes (user call).
 
-Spans run separately per contract (May MNQ_M26, July MNQ_U26) — different
-price levels + missing June make concatenation nonsense — and are reported
-per-span plus combined.
+Same harness as sweep_aurora.py: per-config JSONL persistence + resume on
+re-run (power-cut safe), spans run separately per contract, per-span +
+combined summary table at the end.
 
-EFFICIENCY: each worker loads every span's ticks ONCE (day-chunked to bound
-peak memory), then runs its share of configs against the in-memory spans.
-
-Usage: python scripts/sweep_aurora.py
-Env:   AURORA_TICK_TABLE (default tick_data_full), SWEEP_WORKERS (default 2)
+Usage: python scripts/sweep_bartype.py
+Env:   AURORA_TICK_TABLE (default tick_data_full), SWEEP_WORKERS (default 2),
+       SWEEP_SPANS="name:symbol:start:end,...", SWEEP_OUT=<jsonl path>
 """
 import os
 import sys
@@ -28,10 +26,6 @@ from strategy_platform.strategies.aurora.tick_loader import load_raw_ticks  # no
 
 TABLE = os.environ.get("AURORA_TICK_TABLE", "tick_data_full")
 
-# (name, symbol, start, end) — separate contracts, never concatenated.
-# Override via SWEEP_SPANS="name:symbol:start:end,name:symbol:start:end"
-# (e.g. the June pass runs each roll leg as its own span). Keep total span
-# size ~1 month per worker: each worker holds every span's ticks in RAM.
 SPANS = [
     ("May", "MNQ_M26", "2026-05-01", "2026-05-29"),
     ("Jul", "MNQ_U26", "2026-07-01", "2026-07-08"),
@@ -39,46 +33,18 @@ SPANS = [
 if os.environ.get("SWEEP_SPANS"):
     SPANS = [tuple(x.split(":")) for x in os.environ["SWEEP_SPANS"].split(",")]
 
-# The live forward-test config (NT chart 2026-07-08). Every variation is
-# {**BASE, **overrides} so the anchor is what actually trades live.
+# The live forward-test config (NT chart 2026-07-08).
 BASE = {"entry_min_touches": 1, "trade_bal": False, "flip_to_market": False}
 
 VARIATIONS = []  # (group, label, overrides-on-top-of-BASE)
 def add(group, label, ov):
     VARIATIONS.append((group, label, ov))
 
-# anchors
-add("baseline", "live-config", {})
-add("baseline", "old-defaults", {"entry_min_touches": 0, "trade_bal": True,
-                                 "flip_to_market": True})
-
-# The forward-test levers.
-add("trade_bal", "bal=ON", {"trade_bal": True})
-
-for v in [0, 1, 2, 3]:
-    add("entry_min_touches", f"touches>={v}", {"entry_min_touches": v})
-
-for v in [0, 5, 15, 30]:
-    add("entry_min_age_bars", f"age>={v}", {"entry_min_age_bars": v})
-
-for v in [0.0, 1.5, 2.0, 3.0]:
-    add("fast_tape_atr_mult", f"fast_tape={v}", {"fast_tape_atr_mult": v})
-
-# Original OFAT knobs (design doc 2026-06-30), now around the live base.
-for v in [0, 1, 2, 3, 5, 8]:
-    add("entry_offset_ticks", f"off={v}", {"entry_offset_ticks": v})
-
-for tp, sl in [(10, 10), (15, 15), (20, 20), (25, 25), (30, 30), (20, 15), (15, 20)]:
-    add("tp_sl_early", f"early {tp}/{sl}", {"tp_early_pts": float(tp), "sl_early_pts": float(sl)})
-
-for tp, sl in [(5, 5), (8, 8), (10, 10), (12, 12), (15, 15)]:
-    add("tp_sl_late", f"late {tp}/{sl}", {"tp_late_pts": float(tp), "sl_late_pts": float(sl)})
-
-for v in [0.5, 0.75, 1.0, 1.5, 2.0, 3.0]:
-    add("rearm_atr", f"rearm={v}", {"rearm_atr": v})
-
-for v in ["off", "10:00", "10:30", "11:00", "11:30"]:
-    add("tighten_time", f"tighten={v}", {"tighten_time": v})
+add("time", "1min (live)", {"bar_spec": "1min"})
+for v in [2, 3, 5]:
+    add("time", f"{v}min", {"bar_spec": f"{v}min"})
+for v in [1000, 1597, 2500]:
+    add("tick", f"{v}t", {"bar_spec": f"{v}t"})
 
 
 def summarise(pnls):
@@ -136,7 +102,7 @@ def main():
     # Survives power loss: each finished config is appended immediately, and
     # already-present labels are skipped so a re-run resumes where it died.
     out_path = Path(os.environ.get(
-        "SWEEP_OUT", Path(__file__).resolve().parents[1] / "results" / "sweep_ofat.jsonl"))
+        "SWEEP_OUT", Path(__file__).resolve().parents[1] / "results" / "sweep_bartype.jsonl"))
     out_path.parent.mkdir(parents=True, exist_ok=True)
     results = {}
     if out_path.exists():
@@ -145,7 +111,7 @@ def main():
             results[rec["label"]] = rec["result"]
         tasks = [t for t in tasks if t[0] not in results]
         print(f"Resuming: {len(results)} configs already in {out_path}", flush=True)
-    print(f"Sweeping {len(tasks)} configs on {[s[:2] for s in SPANS]} "
+    print(f"Bar-type sweep: {len(tasks)} configs on {[s[:2] for s in SPANS]} "
           f"({TABLE}) with {nproc} workers, base={BASE}", flush=True)
     if tasks:
         with Pool(nproc, initializer=_init_worker, initargs=(SPANS, TABLE)) as pool:
@@ -157,14 +123,14 @@ def main():
                       f"ALL n={r['ALL']['n']} PF={r['ALL']['pf']:.2f} "
                       f"net=${r['ALL']['net']:+,.0f}", flush=True)
 
-    print("\n===== OFAT SWEEP RESULTS (base = live 07-08 config) =====")
+    print("\n===== BAR-TYPE SWEEP RESULTS (live 07-08 config on every bar type) =====")
     cur_group = None
     for group, label, ov in VARIATIONS:
         if group != cur_group:
             print(f"\n--- {group} ---")
             cur_group = group
         r = results[label]
-        star = "  <<" if label == "live-config" else ""
+        star = "  <<" if label == "1min (live)" else ""
         cells = "  ".join(
             f"{nm}: n={s['n']:3d} win={s['win']*100:4.1f}% PF={s['pf']:5.2f} "
             f"net=${s['net']:+8,.0f}"
