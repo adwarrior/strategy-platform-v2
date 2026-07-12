@@ -938,10 +938,15 @@ class Aurora(BaseStrategy):
             if in_pos:
                 return
             # Outside entry window: cancel arm, no new entries.
+            # start > end = OVERNIGHT session wrapping midnight (e.g. 18:05 ->
+            # 16:45 next day): inside means after start OR before end.
             in_window = True
             if entry_start is not None and entry_end is not None:
                 tod = decision_time.time()
-                in_window = entry_start <= tod < entry_end
+                if entry_start <= entry_end:
+                    in_window = entry_start <= tod < entry_end
+                else:
+                    in_window = tod >= entry_start or tod < entry_end
             if not in_window:
                 clear_arm()
                 return
