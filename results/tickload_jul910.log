@@ -1,2 +1,4 @@
   MNQ 09-26.Last.txt: span 2026-07-09 04:00:00.031000 -> 2026-07-10 20:59:59.852000
   ...500,000 rows (565,581 vol) so far
+  loaded from MNQ 09-26.Last.txt: running total 4,210,197 rows, 4,605,978 vol
+DONE: 4,210,197 rows into tick_data_full for MNQ_U26
