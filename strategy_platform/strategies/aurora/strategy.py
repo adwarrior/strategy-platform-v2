@@ -344,14 +344,16 @@ class Aurora(BaseStrategy):
             ],
             '4. Entry — trade toggles': [
                 'trade_bal', 'trade_absorb', 'trade_init', 'flip_to_market',
-                'use_risk_sizing',
             ],
             '5. Exits': [
                 'tp_early_pts', 'sl_early_pts', 'tp_late_pts', 'sl_late_pts',
                 'tighten_time',
             ],
+            # use_risk_sizing is a checkbox in a numeric row — the one place a
+            # mixed row is accepted, because it semantically belongs with the
+            # sizing numbers it controls (mirrors the NT strategy's grouping).
             '6. Sizing': [
-                'contracts', 'risk_dollars', 'max_contracts',
+                'use_risk_sizing', 'contracts', 'risk_dollars', 'max_contracts',
             ],
             '7. Session': [
                 'entry_start', 'entry_end', 'flat_by',
@@ -1066,4 +1068,10 @@ class Aurora(BaseStrategy):
             columns=['entry_time', 'exit_time', 'direction', 'entry_price',
                      'exit_price', 'pnl', 'qty', 'reason', 'wall_kind',
                      'wall_mid', 'wall_touches', 'wall_age_bars', 'wall_flipped'])
+        # Platform trade-table contract: the dashboard's equity curve and
+        # results views expect a session_date column on every trades df.
+        if len(trades_df):
+            trades_df['session_date'] = pd.DatetimeIndex(trades_df['entry_time']).date
+        else:
+            trades_df['session_date'] = pd.Series(dtype='object')
         return {**stats, 'trades': trades_df}
