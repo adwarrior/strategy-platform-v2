@@ -375,16 +375,16 @@ class Aurora(BaseStrategy):
             'sl_early_pts': (10.0, 40.0, 5.0),
             'tp_late_pts':  (5.0, 20.0, 5.0),
             'sl_late_pts':  (5.0, 20.0, 5.0),
-            'tighten_time': ['off', '10:00', '10:30', '11:00', '11:30'],
+            'tighten_time': ['off'] + _HHMM_24H,
             # 4. Sizing
             'use_risk_sizing': [True, False],
             'contracts': (1, 10, 1),
             'risk_dollars': (25.0, 500.0, 25.0),
             'max_contracts': (1, 10, 1),
-            # 5. Session
-            'entry_start': ['09:30', '09:45', '10:00', '18:00'],
-            'entry_end': ['11:00', '12:00', '14:00', '15:30'],
-            'flat_by': ['12:00', '14:00', '15:30', '15:55'],
+            # 5. Session — any time of day, 5-min steps (times are ET).
+            'entry_start': list(_HHMM_24H),
+            'entry_end': list(_HHMM_24H),
+            'flat_by': list(_HHMM_24H),
         }
 
     @property
