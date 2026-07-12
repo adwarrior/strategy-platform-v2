@@ -261,17 +261,59 @@ class Aurora(BaseStrategy):
 
     @property
     def param_grid(self) -> Dict[str, Any]:
+        # NOTE: this grid does double duty. The optimizer pipeline is BLOCKED
+        # for raw_tick strategies (use scripts/sweep_aurora.py), but the
+        # dashboard's Run Backtest panel only renders a widget for keys
+        # present here — so EVERY adjustable param must be listed or it is
+        # invisible in the platform and silently runs at its default.
         return {
+            # 1. Engine
+            'bar_spec': ['1min', '2min', '3min', '5min', '1000t', '1597t', '2500t'],
+            'ticks_per_row': (5, 50, 5),
+            'lookback': (60, 800, 20),
+            'lookback_cap_days': (0.0, 10.0, 0.5),
+            'age_half_life': (20, 240, 20),
+            'vol_frac': (0.3, 0.9, 0.05),
+            'max_shelves': (50, 500, 50),
+            'absorb_ratio': (0.1, 0.5, 0.05),
+            'break_buf': (0.0, 0.5, 0.05),
+            'allow_flip': [True, False],
+            'key_per_side': (1, 4, 1),
+            'min_gap_atr': (0.2, 2.0, 0.2),
+            'max_dist_pct': (1.0, 6.0, 0.5),
+            'show_balanced': [True, False],
+            'show_absorption': [True, False],
+            'show_init': [True, False],
+            'merge_max_rows': (1, 8, 1),
+            'show_consolidation': [False, True],
+            'consol_min_bars': (6, 30, 2),
+            'consol_vol_mult': (1.0, 3.0, 0.2),
+            # 2. Entry
             'entry_offset_ticks': (0, 6, 1),
+            'trade_bal': [True, False],
+            'trade_absorb': [True, False],
+            'trade_init': [True, False],
+            'flip_to_market': [True, False],
+            'rearm_atr': (0.5, 2.0, 0.5),
+            'flip_tol_pct': (0.0005, 0.005, 0.0005),
+            'entry_min_touches': (0, 5, 1),
+            'entry_min_age_bars': (0, 20, 5),
+            'fast_tape_atr_mult': (0.0, 4.0, 1.0),
+            # 3. Exits
             'tp_early_pts': (10.0, 40.0, 5.0),
             'sl_early_pts': (10.0, 40.0, 5.0),
             'tp_late_pts':  (5.0, 20.0, 5.0),
             'sl_late_pts':  (5.0, 20.0, 5.0),
-            'rearm_atr':    (0.5, 2.0, 0.5),
-            'tighten_time': ['off', '10:30', '11:00', '11:30'],
-            'entry_min_touches': (0, 5, 1),
-            'entry_min_age_bars': (0, 20, 5),
-            'fast_tape_atr_mult': (0.0, 4.0, 1.0),
+            'tighten_time': ['off', '10:00', '10:30', '11:00', '11:30'],
+            # 4. Sizing
+            'use_risk_sizing': [True, False],
+            'contracts': (1, 10, 1),
+            'risk_dollars': (25.0, 500.0, 25.0),
+            'max_contracts': (1, 10, 1),
+            # 5. Session
+            'entry_start': ['09:30', '09:45', '10:00', '18:00'],
+            'entry_end': ['11:00', '12:00', '14:00', '15:30'],
+            'flat_by': ['12:00', '14:00', '15:30', '15:55'],
         }
 
     @property
