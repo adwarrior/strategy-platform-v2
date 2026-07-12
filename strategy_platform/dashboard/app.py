@@ -4728,7 +4728,18 @@ with tab_bt:
                 try:
                     _bt_start_str = f"{bt_start}T{bt_start_time}"
                     _bt_end_str   = f"{bt_end}T{bt_end_time}"
-                    if data_source == "NinjaTrader CSV export":
+                    if getattr(strategy, 'data_kind', '') == 'raw_tick':
+                        # Footprint strategies (Aurora) consume raw ticks and
+                        # load them THEMSELVES from the full-volume table —
+                        # the generic loaders (and the ~44%-thinned legacy
+                        # tick_data) must never feed them.
+                        if data_source == "NinjaTrader CSV export":
+                            raise ValueError(
+                                f"'{selected_name}' needs raw DB ticks with bid/ask "
+                                "(tick_data_full); the NT CSV source isn't supported for it.")
+                        df_bt = strategy.load_data(symbol, _bt_start_str, _bt_end_str, host=db_host)
+                        data_source_label = f"MySQL raw ticks ({getattr(strategy, 'tick_table', 'tick_data_full')})"
+                    elif data_source == "NinjaTrader CSV export":
                         from strategy_platform.data.loader import load_nt_csv
                         _csv_resample = f"{bar_minute_inc}min" if bar_minute_inc else "1min"
                         df_bt = load_nt_csv(

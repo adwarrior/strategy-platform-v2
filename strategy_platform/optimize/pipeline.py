@@ -266,6 +266,13 @@ def run_pipeline(
     # ------------------------------------------------------------------
     if bar_type is not None:
         strategy.bar_type = bar_type   # CLI / caller override
+    if getattr(strategy, 'data_kind', '') == 'raw_tick':
+        raise ValueError(
+            f"'{strategy_name}' consumes raw ticks (footprint engine) and is not "
+            "supported by the optimizer pipeline — its per-config cost is a full "
+            "tick replay. Use its dedicated sweep scripts "
+            "(scripts/sweep_aurora.py, scripts/sweep_bartype.py) or the "
+            "dashboard's Run Backtest tab.")
     _bar_type        = getattr(strategy, 'bar_type', 'time')
     is_tick_strategy = _bar_type == 'tick'
     is_1m_strategy   = _bar_type == '1m'

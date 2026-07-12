@@ -44,7 +44,7 @@ metadata (wall_kind/mid/touches/age/flipped, mirroring the NT fill log).
 from __future__ import annotations
 
 import math
-from datetime import time as time_t
+from datetime import time as time_t, timedelta
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -180,6 +180,13 @@ class Aurora(BaseStrategy):
     bar_type = 'tick'
     supported_bar_types = ['tick']
     calculate_mode = 'on_each_tick'
+    # Footprint strategy: consumes RAW ticks with bid/ask, never OHLC bars.
+    # The platform must call self.load_data() instead of its generic loaders —
+    # and load_data reads ONLY tick_data_full (full volume). The legacy
+    # tick_data table understates volume ~44% (dedupe artifact), which
+    # silently halves every wall for a footprint engine.
+    data_kind = 'raw_tick'
+    tick_table = 'tick_data_full'
 
     # MNQ defaults
     tick_size = 0.25
@@ -317,6 +324,83 @@ class Aurora(BaseStrategy):
         if capped < 1:
             capped = 1
         return min(target, capped)
+
+    # ------------------------------------------------------------------
+    # Platform data hook (data_kind='raw_tick')
+    # ------------------------------------------------------------------
+
+    def load_data(self, symbol: str, start: str, end: str,
+                  host: Optional[str] = None) -> pd.DataFrame:
+        """Load raw ticks from tick_data_full for a platform symbol + range.
+
+        The platform trades continuous symbols ('MNQ=F'); tick_data_full is
+        keyed by CONTRACT ('MNQ_M26', 'MNQ_U26'). Per business day the
+        contract is chosen data-driven: the one whose loaded coverage spans
+        the day, and on overlap days (roll week) the one with more ticks.
+        Refuses loudly when the full-volume table has no coverage — NEVER
+        falls back to the thinned legacy tick_data table.
+        """
+        from sqlalchemy import text
+        from strategy_platform.data import loader as _dl
+        from .tick_loader import load_raw_ticks
+
+        prefix = str(symbol).split('=')[0].replace('_F', '').upper()
+        s_date = str(start).split('T')[0]
+        e_date = str(end).split('T')[0]
+
+        engine = _dl._engine(host)
+        with engine.connect() as conn:
+            cov = conn.execute(
+                text("SELECT symbol, MIN(ts), MAX(ts) FROM " + self.tick_table +
+                     " WHERE symbol LIKE :p GROUP BY symbol"),
+                {"p": prefix + r"\_%"}).fetchall()
+        if not cov:
+            raise ValueError(
+                f"{self.tick_table} holds no '{prefix}_*' contracts at all — "
+                "re-export ticks from NinjaTrader and load them first.")
+        cov_desc = ", ".join(
+            f"{r[0]} {pd.Timestamp(r[1]).date()}→{pd.Timestamp(r[2]).date()}" for r in cov)
+
+        days = pd.bdate_range(s_date, e_date)
+        if len(days) == 0:
+            days = pd.DatetimeIndex([pd.Timestamp(s_date)])
+        frames = []
+        with engine.connect() as conn:
+            for day in days:
+                d = day.date()
+                cands = [r for r in cov
+                         if pd.Timestamp(r[1]).date() <= d <= pd.Timestamp(r[2]).date()]
+                if not cands:
+                    continue
+                if len(cands) == 1:
+                    pick = cands[0][0]
+                else:
+                    # roll week: both contracts loaded — take the dominant one
+                    pick, best_n = None, -1
+                    for r in cands:
+                        n = conn.execute(
+                            text("SELECT COUNT(*) FROM " + self.tick_table +
+                                 " WHERE symbol=:s AND ts>=:a AND ts<:b"),
+                            {"s": r[0], "a": str(d),
+                             "b": str(d + timedelta(days=1))}).scalar()
+                        if n > best_n:
+                            pick, best_n = r[0], int(n)
+                t = load_raw_ticks(pick, str(d), str(d), host=host, table=self.tick_table)
+                if len(t):
+                    frames.append(t)
+        if not frames:
+            raise ValueError(
+                f"{self.tick_table} has no {prefix} ticks between {s_date} and "
+                f"{e_date}. Loaded coverage: {cov_desc}. Re-export the missing "
+                "range from NinjaTrader before backtesting it.")
+        df = pd.concat(frames).sort_index()
+        # Trim to the requested intraday window (index is ET-naive).
+        df = df.loc[str(start).replace('T', ' '):str(end).replace('T', ' ')]
+        if df.empty:
+            raise ValueError(
+                f"No {prefix} ticks left after trimming to {start}→{end} "
+                f"(coverage: {cov_desc}).")
+        return df
 
     # ------------------------------------------------------------------
     # Core backtest
