@@ -318,32 +318,91 @@ class Aurora(BaseStrategy):
 
     @property
     def param_groups(self) -> Dict[str, List[str]]:
+        # LAYOUT RULE (dashboard renders each group into a 4-column grid in
+        # this exact order): a row only aligns when its 4 cells are the same
+        # widget type, so checkboxes (bools) get their OWN groups and every
+        # numeric/dropdown group is ordered to fill rows of like widgets.
         return {
-            '1. Engine': [
-                'bar_spec',
-                'ticks_per_row', 'lookback', 'lookback_cap_days', 'age_half_life',
-                'vol_frac', 'max_shelves', 'absorb_ratio', 'break_buf',
-                'allow_flip', 'key_per_side', 'min_gap_atr', 'max_dist_pct',
-                'show_balanced', 'show_absorption', 'show_init',
-                'merge_max_rows', 'show_consolidation', 'consol_min_bars',
-                'consol_vol_mult',
+            '1. Engine — walls': [
+                # row 1: bar/row geometry
+                'bar_spec', 'ticks_per_row', 'merge_max_rows', 'key_per_side',
+                # row 2: memory window
+                'lookback', 'lookback_cap_days', 'age_half_life', 'max_shelves',
+                # row 3: detection thresholds
+                'vol_frac', 'absorb_ratio', 'break_buf', 'min_gap_atr',
+                # row 4: reach + consolidation detector knobs
+                'max_dist_pct', 'consol_min_bars', 'consol_vol_mult',
             ],
-            '2. Entry': [
-                'entry_offset_ticks', 'trade_bal', 'trade_absorb', 'trade_init',
-                'flip_to_market', 'rearm_atr', 'flip_tol_pct',
-                'entry_min_touches', 'entry_min_age_bars', 'fast_tape_atr_mult',
+            '2. Engine — toggles': [
+                'allow_flip', 'show_balanced', 'show_absorption', 'show_init',
+                'show_consolidation',
             ],
-            '3. Exits': [
+            '3. Entry': [
+                'entry_offset_ticks', 'entry_min_touches', 'entry_min_age_bars',
+                'rearm_atr',
+                'fast_tape_atr_mult', 'flip_tol_pct',
+            ],
+            '4. Entry — trade toggles': [
+                'trade_bal', 'trade_absorb', 'trade_init', 'flip_to_market',
+                'use_risk_sizing',
+            ],
+            '5. Exits': [
                 'tp_early_pts', 'sl_early_pts', 'tp_late_pts', 'sl_late_pts',
                 'tighten_time',
             ],
-            '4. Sizing': [
-                'use_risk_sizing', 'contracts', 'risk_dollars', 'max_contracts',
+            '6. Sizing': [
+                'contracts', 'risk_dollars', 'max_contracts',
             ],
-            '5. Session': [
+            '7. Session': [
                 'entry_start', 'entry_end', 'flat_by',
             ],
         }
+
+    # Friendly labels for the dashboard (falls back to the raw key when absent).
+    display_names: Dict[str, str] = {
+        'bar_spec': 'Bar type',
+        'ticks_per_row': 'Ticks per row',
+        'merge_max_rows': 'Max shelf height (rows)',
+        'key_per_side': 'Key walls per side',
+        'lookback': 'Lookback (bars)',
+        'lookback_cap_days': 'Lookback cap (days)',
+        'age_half_life': 'Age half-life (bars)',
+        'max_shelves': 'Max shelves',
+        'vol_frac': 'Volume gate (× max row)',
+        'absorb_ratio': 'Absorption Δ ratio',
+        'break_buf': 'Break buffer (×ATR)',
+        'min_gap_atr': 'Key wall gap (×ATR)',
+        'max_dist_pct': 'Max wall distance (%)',
+        'consol_min_bars': 'Consol. min bars',
+        'consol_vol_mult': 'Consol. volume gate',
+        'allow_flip': 'Allow S/R flips',
+        'show_balanced': 'Detect balanced walls',
+        'show_absorption': 'Detect absorption walls',
+        'show_init': 'Detect initiative walls',
+        'show_consolidation': 'Detect consolidation zones',
+        'entry_offset_ticks': 'Entry offset (ticks)',
+        'entry_min_touches': 'Min wall touches',
+        'entry_min_age_bars': 'Min wall age (bars)',
+        'rearm_atr': 'ABSORB re-arm (×ATR)',
+        'fast_tape_atr_mult': 'Fast-tape standdown (×ATR)',
+        'flip_tol_pct': 'Flip tolerance (fraction)',
+        'trade_bal': 'Trade balanced walls',
+        'trade_absorb': 'Trade absorption walls',
+        'trade_init': 'Trade initiative walls',
+        'flip_to_market': 'Flip to market',
+        'use_risk_sizing': 'Risk-based sizing',
+        'tp_early_pts': 'TP early (pts)',
+        'sl_early_pts': 'SL early (pts)',
+        'tp_late_pts': 'TP late (pts)',
+        'sl_late_pts': 'SL late (pts)',
+        'tighten_time': 'Tighten brackets at',
+        'contracts': 'Contracts (fixed)',
+        'risk_dollars': 'Risk $ per trade',
+        'max_contracts': 'Max contracts',
+        'entry_start': 'Entries from',
+        'entry_end': 'Entries until',
+        'flat_by': 'Flat by',
+    }
 
     @property
     def description(self) -> str:
