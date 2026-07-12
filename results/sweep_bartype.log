@@ -1,0 +1,25 @@
+Bar-type sweep: 7 configs on [('May', 'MNQ_M26'), ('Jul', 'MNQ_U26')] (tick_data_full) with 2 workers, base={'entry_min_touches': 1, 'trade_bal': False, 'flip_to_market': False}
+  worker loaded May MNQ_M26: 38,811,216 ticks
+  worker loaded May MNQ_M26: 38,811,216 ticks
+  worker loaded Jul MNQ_U26: 14,961,022 ticks
+  worker loaded Jul MNQ_U26: 14,961,022 ticks
+[1/7] 2min: ALL n=305 PF=0.90 net=$-1,327
+[2/7] 1min (live): ALL n=525 PF=0.98 net=$-552
+[3/7] 3min: ALL n=223 PF=0.87 net=$-1,374
+[4/7] 5min: ALL n=148 PF=1.20 net=$+1,168
+[5/7] 1000t: ALL n=1698 PF=0.93 net=$-5,259
+[6/7] 1597t: ALL n=1345 PF=0.90 net=$-5,849
+[7/7] 2500t: ALL n=1018 PF=0.89 net=$-4,962
+
+===== BAR-TYPE SWEEP RESULTS (live 07-08 config on every bar type) =====
+
+--- time ---
+  1min (live)      May: n=395 win=49.6% PF= 0.91 net=$  -1,705  Jul: n=130 win=56.2% PF= 1.23 net=$  +1,153  ALL: n=525 win=51.2% PF= 0.98 net=$    -552  <<
+  2min             May: n=235 win=47.2% PF= 0.84 net=$  -1,740  Jul: n= 70 win=55.7% PF= 1.15 net=$    +413  ALL: n=305 win=49.2% PF= 0.90 net=$  -1,327
+  3min             May: n=175 win=47.4% PF= 0.84 net=$  -1,324  Jul: n= 48 win=52.1% PF= 0.98 net=$     -50  ALL: n=223 win=48.4% PF= 0.87 net=$  -1,374
+  5min             May: n=120 win=55.0% PF= 1.11 net=$    +530  Jul: n= 28 win=64.3% PF= 1.74 net=$    +638  ALL: n=148 win=56.8% PF= 1.20 net=$  +1,168
+
+--- tick ---
+  1000t            May: n=1167 win=49.1% PF= 0.91 net=$  -5,058  Jul: n=531 win=52.0% PF= 0.99 net=$    -201  ALL: n=1698 win=50.0% PF= 0.93 net=$  -5,259
+  1597t            May: n=927 win=48.9% PF= 0.90 net=$  -4,211  Jul: n=418 win=49.5% PF= 0.91 net=$  -1,638  ALL: n=1345 win=49.1% PF= 0.90 net=$  -5,849
+  2500t            May: n=714 win=48.6% PF= 0.89 net=$  -3,551  Jul: n=304 win=48.7% PF= 0.90 net=$  -1,411  ALL: n=1018 win=48.6% PF= 0.89 net=$  -4,962

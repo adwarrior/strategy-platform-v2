@@ -1,0 +1,115 @@
+Sweeping 44 configs on [('May', 'MNQ_M26'), ('Jul', 'MNQ_U26')] (tick_data_full) with 2 workers, base={'entry_min_touches': 1, 'trade_bal': False, 'flip_to_market': False}
+  worker loaded May MNQ_M26: 38,811,216 ticks
+  worker loaded May MNQ_M26: 38,811,216 ticks
+  worker loaded Jul MNQ_U26: 14,961,022 ticks
+  worker loaded Jul MNQ_U26: 14,961,022 ticks
+[1/44] live-config: ALL n=525 PF=0.98 net=$-552
+[2/44] old-defaults: ALL n=904 PF=0.94 net=$-2,607
+[3/44] bal=ON: ALL n=842 PF=0.91 net=$-3,566
+[4/44] touches>=0: ALL n=545 PF=0.98 net=$-468
+[5/44] touches>=1: ALL n=525 PF=0.98 net=$-552
+[6/44] touches>=2: ALL n=477 PF=0.96 net=$-788
+[7/44] touches>=3: ALL n=394 PF=1.02 net=$+359
+[8/44] age>=0: ALL n=525 PF=0.98 net=$-552
+[9/44] age>=5: ALL n=403 PF=1.00 net=$-79
+[10/44] age>=15: ALL n=255 PF=1.09 net=$+1,006
+[11/44] age>=30: ALL n=164 PF=1.08 net=$+548
+[12/44] fast_tape=0.0: ALL n=525 PF=0.98 net=$-552
+[13/44] fast_tape=1.5: ALL n=477 PF=0.94 net=$-1,202
+[14/44] fast_tape=2.0: ALL n=505 PF=0.95 net=$-1,225
+[15/44] fast_tape=3.0: ALL n=522 PF=0.97 net=$-626
+[16/44] off=0: ALL n=514 PF=1.00 net=$+21
+[17/44] off=1: ALL n=517 PF=1.01 net=$+122
+[18/44] off=2: ALL n=525 PF=0.98 net=$-552
+[19/44] off=3: ALL n=530 PF=0.98 net=$-482
+[20/44] off=5: ALL n=541 PF=0.91 net=$-2,112
+[21/44] off=8: ALL n=559 PF=0.89 net=$-2,841
+[22/44] early 10/10: ALL n=596 PF=0.90 net=$-3,040
+[23/44] early 15/15: ALL n=558 PF=0.89 net=$-3,020
+[24/44] early 20/20: ALL n=525 PF=0.98 net=$-552
+[25/44] early 25/25: ALL n=494 PF=0.99 net=$-229
+[26/44] early 30/30: ALL n=473 PF=0.96 net=$-714
+[27/44] early 20/15: ALL n=548 PF=0.90 net=$-2,923
+[28/44] early 15/20: ALL n=539 PF=0.94 net=$-1,276
+[29/44] late 5/5: ALL n=536 PF=0.94 net=$-1,208
+[30/44] late 8/8: ALL n=530 PF=0.93 net=$-1,558
+[31/44] late 10/10: ALL n=525 PF=0.98 net=$-552
+[32/44] late 12/12: ALL n=518 PF=0.98 net=$-433
+[33/44] late 15/15: ALL n=501 PF=1.04 net=$+785
+[34/44] rearm=0.5: ALL n=543 PF=0.97 net=$-807
+[35/44] rearm=0.75: ALL n=532 PF=0.97 net=$-676
+[36/44] rearm=1.0: ALL n=525 PF=0.98 net=$-552
+[37/44] rearm=1.5: ALL n=515 PF=0.96 net=$-810
+[38/44] rearm=2.0: ALL n=521 PF=0.96 net=$-983
+[39/44] rearm=3.0: ALL n=525 PF=0.96 net=$-894
+[40/44] tighten=off: ALL n=481 PF=1.08 net=$+1,499
+[41/44] tighten=10:00: ALL n=573 PF=0.95 net=$-1,384
+[42/44] tighten=10:30: ALL n=554 PF=0.94 net=$-1,435
+[43/44] tighten=11:00: ALL n=525 PF=0.98 net=$-552
+[44/44] tighten=11:30: ALL n=503 PF=1.06 net=$+1,320
+
+===== OFAT SWEEP RESULTS (base = live 07-08 config) =====
+
+--- baseline ---
+  live-config      May: n=395 win=49.6% PF= 0.91 net=$  -1,705  Jul: n=130 win=56.2% PF= 1.23 net=$  +1,153  ALL: n=525 win=51.2% PF= 0.98 net=$    -552  <<
+  old-defaults     May: n=667 win=50.1% PF= 0.94 net=$  -1,841  Jul: n=237 win=50.2% PF= 0.93 net=$    -766  ALL: n=904 win=50.1% PF= 0.94 net=$  -2,607
+
+--- trade_bal ---
+  bal=ON           May: n=616 win=48.1% PF= 0.86 net=$  -3,999  Jul: n=226 win=52.7% PF= 1.04 net=$    +433  ALL: n=842 win=49.3% PF= 0.91 net=$  -3,566
+
+--- entry_min_touches ---
+  touches>=0       May: n=409 win=49.9% PF= 0.92 net=$  -1,586  Jul: n=136 win=55.9% PF= 1.21 net=$  +1,117  ALL: n=545 win=51.4% PF= 0.98 net=$    -468
+  touches>=1       May: n=395 win=49.6% PF= 0.91 net=$  -1,705  Jul: n=130 win=56.2% PF= 1.23 net=$  +1,153  ALL: n=525 win=51.2% PF= 0.98 net=$    -552
+  touches>=2       May: n=363 win=49.3% PF= 0.90 net=$  -1,735  Jul: n=114 win=56.1% PF= 1.21 net=$    +947  ALL: n=477 win=50.9% PF= 0.96 net=$    -788
+  touches>=3       May: n=304 win=51.0% PF= 0.97 net=$    -421  Jul: n= 90 win=56.7% PF= 1.22 net=$    +780  ALL: n=394 win=52.3% PF= 1.02 net=$    +359
+
+--- entry_min_age_bars ---
+  age>=0           May: n=395 win=49.6% PF= 0.91 net=$  -1,705  Jul: n=130 win=56.2% PF= 1.23 net=$  +1,153  ALL: n=525 win=51.2% PF= 0.98 net=$    -552
+  age>=5           May: n=314 win=50.0% PF= 0.93 net=$    -992  Jul: n= 89 win=57.3% PF= 1.26 net=$    +913  ALL: n=403 win=51.6% PF= 1.00 net=$     -79
+  age>=15          May: n=205 win=52.2% PF= 1.01 net=$     +73  Jul: n= 50 win=62.0% PF= 1.54 net=$    +934  ALL: n=255 win=54.1% PF= 1.09 net=$  +1,006
+  age>=30          May: n=131 win=52.7% PF= 1.01 net=$     +81  Jul: n= 33 win=60.6% PF= 1.38 net=$    +467  ALL: n=164 win=54.3% PF= 1.08 net=$    +548
+
+--- fast_tape_atr_mult ---
+  fast_tape=0.0    May: n=395 win=49.6% PF= 0.91 net=$  -1,705  Jul: n=130 win=56.2% PF= 1.23 net=$  +1,153  ALL: n=525 win=51.2% PF= 0.98 net=$    -552
+  fast_tape=1.5    May: n=356 win=48.0% PF= 0.85 net=$  -2,630  Jul: n=121 win=57.9% PF= 1.31 net=$  +1,428  ALL: n=477 win=50.5% PF= 0.94 net=$  -1,202
+  fast_tape=2.0    May: n=378 win=48.7% PF= 0.87 net=$  -2,304  Jul: n=127 win=55.9% PF= 1.21 net=$  +1,079  ALL: n=505 win=50.5% PF= 0.95 net=$  -1,225
+  fast_tape=3.0    May: n=392 win=49.5% PF= 0.90 net=$  -1,779  Jul: n=130 win=56.2% PF= 1.23 net=$  +1,153  ALL: n=522 win=51.1% PF= 0.97 net=$    -626
+
+--- entry_offset_ticks ---
+  off=0            May: n=386 win=50.8% PF= 0.95 net=$    -942  Jul: n=128 win=55.5% PF= 1.19 net=$    +963  ALL: n=514 win=51.9% PF= 1.00 net=$     +21
+  off=1            May: n=389 win=51.2% PF= 0.96 net=$    -657  Jul: n=128 win=54.7% PF= 1.15 net=$    +780  ALL: n=517 win=52.0% PF= 1.01 net=$    +122
+  off=2            May: n=395 win=49.6% PF= 0.91 net=$  -1,705  Jul: n=130 win=56.2% PF= 1.23 net=$  +1,153  ALL: n=525 win=51.2% PF= 0.98 net=$    -552
+  off=3            May: n=400 win=49.8% PF= 0.91 net=$  -1,635  Jul: n=130 win=56.2% PF= 1.23 net=$  +1,153  ALL: n=530 win=51.3% PF= 0.98 net=$    -482
+  off=5            May: n=412 win=48.3% PF= 0.86 net=$  -2,690  Jul: n=129 win=53.5% PF= 1.11 net=$    +578  ALL: n=541 win=49.5% PF= 0.91 net=$  -2,112
+  off=8            May: n=428 win=47.9% PF= 0.84 net=$  -3,232  Jul: n=131 win=52.7% PF= 1.07 net=$    +391  ALL: n=559 win=49.0% PF= 0.89 net=$  -2,841
+
+--- tp_sl_early ---
+  early 10/10      May: n=455 win=48.8% PF= 0.86 net=$  -3,420  Jul: n=141 win=53.9% PF= 1.06 net=$    +381  ALL: n=596 win=50.0% PF= 0.90 net=$  -3,040
+  early 15/15      May: n=423 win=48.2% PF= 0.86 net=$  -3,087  Jul: n=135 win=51.9% PF= 1.01 net=$     +67  ALL: n=558 win=49.1% PF= 0.89 net=$  -3,020
+  early 20/20      May: n=395 win=49.6% PF= 0.91 net=$  -1,705  Jul: n=130 win=56.2% PF= 1.23 net=$  +1,153  ALL: n=525 win=51.2% PF= 0.98 net=$    -552
+  early 25/25      May: n=373 win=49.6% PF= 0.92 net=$  -1,520  Jul: n=121 win=57.0% PF= 1.24 net=$  +1,291  ALL: n=494 win=51.4% PF= 0.99 net=$    -229
+  early 30/30      May: n=355 win=48.5% PF= 0.86 net=$  -2,062  Jul: n=118 win=58.5% PF= 1.35 net=$  +1,347  ALL: n=473 win=51.0% PF= 0.96 net=$    -714
+  early 20/15      May: n=416 win=43.8% PF= 0.86 net=$  -3,101  Jul: n=132 win=48.5% PF= 1.03 net=$    +178  ALL: n=548 win=44.9% PF= 0.90 net=$  -2,923
+  early 15/20      May: n=405 win=54.1% PF= 0.89 net=$  -1,857  Jul: n=134 win=57.5% PF= 1.11 net=$    +581  ALL: n=539 win=54.9% PF= 0.94 net=$  -1,276
+
+--- tp_sl_late ---
+  late 5/5         May: n=405 win=49.6% PF= 0.91 net=$  -1,256  Jul: n=131 win=53.4% PF= 1.01 net=$     +48  ALL: n=536 win=50.6% PF= 0.94 net=$  -1,208
+  late 8/8         May: n=400 win=48.0% PF= 0.85 net=$  -2,570  Jul: n=130 win=56.9% PF= 1.22 net=$  +1,013  ALL: n=530 win=50.2% PF= 0.93 net=$  -1,558
+  late 10/10       May: n=395 win=49.6% PF= 0.91 net=$  -1,705  Jul: n=130 win=56.2% PF= 1.23 net=$  +1,153  ALL: n=525 win=51.2% PF= 0.98 net=$    -552
+  late 12/12       May: n=389 win=49.6% PF= 0.91 net=$  -1,487  Jul: n=129 win=55.8% PF= 1.21 net=$  +1,055  ALL: n=518 win=51.2% PF= 0.98 net=$    -433
+  late 15/15       May: n=375 win=51.5% PF= 1.00 net=$     +22  Jul: n=126 win=54.8% PF= 1.16 net=$    +763  ALL: n=501 win=52.3% PF= 1.04 net=$    +785
+
+--- rearm_atr ---
+  rearm=0.5        May: n=410 win=49.8% PF= 0.91 net=$  -1,628  Jul: n=133 win=54.9% PF= 1.15 net=$    +820  ALL: n=543 win=51.0% PF= 0.97 net=$    -807
+  rearm=0.75       May: n=401 win=49.9% PF= 0.92 net=$  -1,523  Jul: n=131 win=55.0% PF= 1.16 net=$    +848  ALL: n=532 win=51.1% PF= 0.97 net=$    -676
+  rearm=1.0        May: n=395 win=49.6% PF= 0.91 net=$  -1,705  Jul: n=130 win=56.2% PF= 1.23 net=$  +1,153  ALL: n=525 win=51.2% PF= 0.98 net=$    -552
+  rearm=1.5        May: n=391 win=49.1% PF= 0.89 net=$  -2,004  Jul: n=124 win=56.5% PF= 1.25 net=$  +1,194  ALL: n=515 win=50.9% PF= 0.96 net=$    -810
+  rearm=2.0        May: n=397 win=48.9% PF= 0.88 net=$  -2,177  Jul: n=124 win=56.5% PF= 1.25 net=$  +1,194  ALL: n=521 win=50.7% PF= 0.96 net=$    -983
+  rearm=3.0        May: n=401 win=49.1% PF= 0.89 net=$  -2,071  Jul: n=124 win=56.5% PF= 1.24 net=$  +1,177  ALL: n=525 win=50.9% PF= 0.96 net=$    -894
+
+--- tighten_time ---
+  tighten=off      May: n=357 win=53.8% PF= 1.11 net=$  +1,432  Jul: n=124 win=51.6% PF= 1.01 net=$     +67  ALL: n=481 win=53.2% PF= 1.08 net=$  +1,499
+  tighten=10:00    May: n=434 win=49.1% PF= 0.88 net=$  -2,678  Jul: n=139 win=57.6% PF= 1.22 net=$  +1,294  ALL: n=573 win=51.1% PF= 0.95 net=$  -1,384
+  tighten=10:30    May: n=416 win=48.8% PF= 0.87 net=$  -2,657  Jul: n=138 win=56.5% PF= 1.21 net=$  +1,221  ALL: n=554 win=50.7% PF= 0.94 net=$  -1,435
+  tighten=11:00    May: n=395 win=49.6% PF= 0.91 net=$  -1,705  Jul: n=130 win=56.2% PF= 1.23 net=$  +1,153  ALL: n=525 win=51.2% PF= 0.98 net=$    -552
+  tighten=11:30    May: n=375 win=52.3% PF= 1.02 net=$    +307  Jul: n=128 win=55.5% PF= 1.21 net=$  +1,013  ALL: n=503 win=53.1% PF= 1.06 net=$  +1,320

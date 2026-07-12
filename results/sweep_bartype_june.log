@@ -1,0 +1,25 @@
+Bar-type sweep: 7 configs on [('JunM', 'MNQ_M26'), ('JunU', 'MNQ_U26')] (tick_data_full) with 2 workers, base={'entry_min_touches': 1, 'trade_bal': False, 'flip_to_market': False}
+  worker loaded JunM MNQ_M26: 24,872,914 ticks
+  worker loaded JunM MNQ_M26: 24,872,914 ticks
+  worker loaded JunU MNQ_U26: 28,970,766 ticks
+  worker loaded JunU MNQ_U26: 28,970,766 ticks
+[1/7] 1min (live): ALL n=485 PF=0.91 net=$-1,936
+[2/7] 2min: ALL n=281 PF=0.74 net=$-3,592
+[3/7] 3min: ALL n=218 PF=1.08 net=$+763
+[4/7] 5min: ALL n=120 PF=0.78 net=$-1,287
+[5/7] 1000t: ALL n=2015 PF=0.88 net=$-10,974
+[6/7] 1597t: ALL n=1616 PF=0.91 net=$-6,975
+[7/7] 2500t: ALL n=1098 PF=0.92 net=$-4,137
+
+===== BAR-TYPE SWEEP RESULTS (live 07-08 config on every bar type) =====
+
+--- time ---
+  1min (live)      JunM: n=221 win=48.4% PF= 0.88 net=$  -1,200  JunU: n=264 win=50.8% PF= 0.94 net=$    -735  ALL: n=485 win=49.7% PF= 0.91 net=$  -1,936  <<
+  2min             JunM: n=116 win=39.7% PF= 0.61 net=$  -2,497  JunU: n=165 win=47.3% PF= 0.86 net=$  -1,094  ALL: n=281 win=44.1% PF= 0.74 net=$  -3,592
+  3min             JunM: n= 86 win=55.8% PF= 1.19 net=$    +642  JunU: n=132 win=52.3% PF= 1.02 net=$    +121  ALL: n=218 win=53.7% PF= 1.08 net=$    +763
+  5min             JunM: n= 43 win=39.5% PF= 0.58 net=$    -981  JunU: n= 77 win=49.4% PF= 0.91 net=$    -306  ALL: n=120 win=45.8% PF= 0.78 net=$  -1,287
+
+--- tick ---
+  1000t            JunM: n=868 win=49.0% PF= 0.90 net=$  -3,962  JunU: n=1147 win=48.2% PF= 0.87 net=$  -7,011  ALL: n=2015 win=48.5% PF= 0.88 net=$ -10,974
+  1597t            JunM: n=708 win=47.2% PF= 0.84 net=$  -5,466  JunU: n=908 win=50.6% PF= 0.96 net=$  -1,509  ALL: n=1616 win=49.1% PF= 0.91 net=$  -6,975
+  2500t            JunM: n=483 win=49.7% PF= 0.93 net=$  -1,459  JunU: n=615 win=49.1% PF= 0.90 net=$  -2,678  ALL: n=1098 win=49.4% PF= 0.92 net=$  -4,137

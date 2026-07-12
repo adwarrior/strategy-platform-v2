@@ -1,0 +1,115 @@
+Sweeping 44 configs on [('JunM', 'MNQ_M26'), ('JunU', 'MNQ_U26')] (tick_data_full) with 2 workers, base={'entry_min_touches': 1, 'trade_bal': False, 'flip_to_market': False}
+  worker loaded JunM MNQ_M26: 24,872,914 ticks
+  worker loaded JunM MNQ_M26: 24,872,914 ticks
+  worker loaded JunU MNQ_U26: 28,970,766 ticks
+  worker loaded JunU MNQ_U26: 28,970,766 ticks
+[1/44] live-config: ALL n=485 PF=0.91 net=$-1,936
+[2/44] old-defaults: ALL n=837 PF=0.94 net=$-2,344
+[3/44] bal=ON: ALL n=742 PF=0.96 net=$-1,318
+[4/44] touches>=0: ALL n=519 PF=0.91 net=$-2,063
+[5/44] touches>=1: ALL n=485 PF=0.91 net=$-1,936
+[6/44] touches>=2: ALL n=431 PF=0.91 net=$-1,706
+[7/44] touches>=3: ALL n=358 PF=0.97 net=$-534
+[8/44] age>=0: ALL n=485 PF=0.91 net=$-1,936
+[9/44] age>=5: ALL n=352 PF=1.00 net=$-42
+[10/44] age>=15: ALL n=205 PF=0.78 net=$-2,232
+[11/44] age>=30: ALL n=139 PF=0.73 net=$-1,858
+[12/44] fast_tape=0.0: ALL n=485 PF=0.91 net=$-1,936
+[13/44] fast_tape=1.5: ALL n=446 PF=0.95 net=$-1,021
+[14/44] fast_tape=2.0: ALL n=474 PF=0.92 net=$-1,833
+[15/44] fast_tape=3.0: ALL n=481 PF=0.92 net=$-1,767
+[16/44] off=0: ALL n=477 PF=0.90 net=$-2,119
+[17/44] off=1: ALL n=479 PF=0.92 net=$-1,797
+[18/44] off=2: ALL n=485 PF=0.91 net=$-1,936
+[19/44] off=3: ALL n=495 PF=0.95 net=$-1,071
+[20/44] off=5: ALL n=507 PF=1.01 net=$+309
+[21/44] off=8: ALL n=522 PF=1.04 net=$+974
+[22/44] early 10/10: ALL n=510 PF=0.94 net=$-1,601
+[23/44] early 15/15: ALL n=502 PF=0.90 net=$-2,368
+[24/44] early 20/20: ALL n=485 PF=0.91 net=$-1,936
+[25/44] early 25/25: ALL n=472 PF=0.88 net=$-2,935
+[26/44] early 30/30: ALL n=442 PF=0.91 net=$-1,562
+[27/44] early 20/15: ALL n=495 PF=0.97 net=$-894
+[28/44] early 15/20: ALL n=495 PF=0.87 net=$-2,762
+[29/44] late 5/5: ALL n=489 PF=0.95 net=$-806
+[30/44] late 8/8: ALL n=485 PF=0.97 net=$-676
+[31/44] late 10/10: ALL n=485 PF=0.91 net=$-1,936
+[32/44] late 12/12: ALL n=484 PF=0.92 net=$-1,811
+[33/44] late 15/15: ALL n=477 PF=0.90 net=$-2,004
+[34/44] rearm=0.5: ALL n=496 PF=0.92 net=$-1,810
+[35/44] rearm=0.75: ALL n=484 PF=0.89 net=$-2,367
+[36/44] rearm=1.0: ALL n=485 PF=0.91 net=$-1,936
+[37/44] rearm=1.5: ALL n=478 PF=0.91 net=$-1,955
+[38/44] rearm=2.0: ALL n=474 PF=0.89 net=$-2,381
+[39/44] rearm=3.0: ALL n=486 PF=0.90 net=$-2,201
+[40/44] tighten=off: ALL n=461 PF=0.91 net=$-1,820
+[41/44] tighten=10:00: ALL n=501 PF=0.91 net=$-2,377
+[42/44] tighten=10:30: ALL n=495 PF=0.91 net=$-2,228
+[43/44] tighten=11:00: ALL n=485 PF=0.91 net=$-1,936
+[44/44] tighten=11:30: ALL n=477 PF=0.92 net=$-1,748
+
+===== OFAT SWEEP RESULTS (base = live 07-08 config) =====
+
+--- baseline ---
+  live-config      JunM: n=221 win=48.4% PF= 0.88 net=$  -1,200  JunU: n=264 win=50.8% PF= 0.94 net=$    -735  ALL: n=485 win=49.7% PF= 0.91 net=$  -1,936  <<
+  old-defaults     JunM: n=326 win=49.7% PF= 0.91 net=$  -1,352  JunU: n=511 win=50.9% PF= 0.96 net=$    -991  ALL: n=837 win=50.4% PF= 0.94 net=$  -2,344
+
+--- trade_bal ---
+  bal=ON           JunM: n=299 win=48.2% PF= 0.86 net=$  -1,924  JunU: n=443 win=52.6% PF= 1.03 net=$    +605  ALL: n=742 win=50.8% PF= 0.96 net=$  -1,318
+
+--- entry_min_touches ---
+  touches>=0       JunM: n=237 win=48.5% PF= 0.88 net=$  -1,302  JunU: n=282 win=50.7% PF= 0.94 net=$    -761  ALL: n=519 win=49.7% PF= 0.91 net=$  -2,063
+  touches>=1       JunM: n=221 win=48.4% PF= 0.88 net=$  -1,200  JunU: n=264 win=50.8% PF= 0.94 net=$    -735  ALL: n=485 win=49.7% PF= 0.91 net=$  -1,936
+  touches>=2       JunM: n=195 win=47.7% PF= 0.86 net=$  -1,315  JunU: n=236 win=51.3% PF= 0.96 net=$    -391  ALL: n=431 win=49.7% PF= 0.91 net=$  -1,706
+  touches>=3       JunM: n=165 win=48.5% PF= 0.88 net=$    -914  JunU: n=193 win=53.4% PF= 1.05 net=$    +380  ALL: n=358 win=51.1% PF= 0.97 net=$    -534
+
+--- entry_min_age_bars ---
+  age>=0           JunM: n=221 win=48.4% PF= 0.88 net=$  -1,200  JunU: n=264 win=50.8% PF= 0.94 net=$    -735  ALL: n=485 win=49.7% PF= 0.91 net=$  -1,936
+  age>=5           JunM: n=160 win=48.8% PF= 0.89 net=$    -813  JunU: n=192 win=54.7% PF= 1.10 net=$    +771  ALL: n=352 win=52.0% PF= 1.00 net=$     -42
+  age>=15          JunM: n= 94 win=40.4% PF= 0.62 net=$  -1,900  JunU: n=111 win=50.5% PF= 0.93 net=$    -332  ALL: n=205 win=45.9% PF= 0.78 net=$  -2,232
+  age>=30          JunM: n= 61 win=39.3% PF= 0.59 net=$  -1,350  JunU: n= 78 win=48.7% PF= 0.86 net=$    -508  ALL: n=139 win=44.6% PF= 0.73 net=$  -1,858
+
+--- fast_tape_atr_mult ---
+  fast_tape=0.0    JunM: n=221 win=48.4% PF= 0.88 net=$  -1,200  JunU: n=264 win=50.8% PF= 0.94 net=$    -735  ALL: n=485 win=49.7% PF= 0.91 net=$  -1,936
+  fast_tape=1.5    JunM: n=201 win=50.7% PF= 0.97 net=$    -301  JunU: n=245 win=50.6% PF= 0.94 net=$    -720  ALL: n=446 win=50.7% PF= 0.95 net=$  -1,021
+  fast_tape=2.0    JunM: n=215 win=49.3% PF= 0.91 net=$    -868  JunU: n=259 win=50.2% PF= 0.92 net=$    -965  ALL: n=474 win=49.8% PF= 0.92 net=$  -1,833
+  fast_tape=3.0    JunM: n=218 win=48.6% PF= 0.89 net=$  -1,114  JunU: n=263 win=51.0% PF= 0.94 net=$    -653  ALL: n=481 win=49.9% PF= 0.92 net=$  -1,767
+
+--- entry_offset_ticks ---
+  off=0            JunM: n=218 win=47.2% PF= 0.84 net=$  -1,634  JunU: n=259 win=51.4% PF= 0.96 net=$    -485  ALL: n=477 win=49.5% PF= 0.90 net=$  -2,119
+  off=1            JunM: n=218 win=48.2% PF= 0.87 net=$  -1,308  JunU: n=261 win=51.3% PF= 0.96 net=$    -489  ALL: n=479 win=49.9% PF= 0.92 net=$  -1,797
+  off=2            JunM: n=221 win=48.4% PF= 0.88 net=$  -1,200  JunU: n=264 win=50.8% PF= 0.94 net=$    -735  ALL: n=485 win=49.7% PF= 0.91 net=$  -1,936
+  off=3            JunM: n=227 win=49.3% PF= 0.92 net=$    -865  JunU: n=268 win=51.9% PF= 0.98 net=$    -207  ALL: n=495 win=50.7% PF= 0.95 net=$  -1,071
+  off=5            JunM: n=234 win=51.3% PF= 0.99 net=$    -148  JunU: n=273 win=53.1% PF= 1.04 net=$    +457  ALL: n=507 win=52.3% PF= 1.01 net=$    +309
+  off=8            JunM: n=240 win=52.1% PF= 1.02 net=$    +211  JunU: n=282 win=53.5% PF= 1.06 net=$    +763  ALL: n=522 win=52.9% PF= 1.04 net=$    +974
+
+--- tp_sl_early ---
+  early 10/10      JunM: n=235 win=48.9% PF= 0.87 net=$  -1,699  JunU: n=275 win=52.7% PF= 1.01 net=$     +98  ALL: n=510 win=51.0% PF= 0.94 net=$  -1,601
+  early 15/15      JunM: n=232 win=47.8% PF= 0.85 net=$  -1,774  JunU: n=270 win=51.1% PF= 0.95 net=$    -594  ALL: n=502 win=49.6% PF= 0.90 net=$  -2,368
+  early 20/20      JunM: n=221 win=48.4% PF= 0.88 net=$  -1,200  JunU: n=264 win=50.8% PF= 0.94 net=$    -735  ALL: n=485 win=49.7% PF= 0.91 net=$  -1,936
+  early 25/25      JunM: n=214 win=46.3% PF= 0.81 net=$  -2,312  JunU: n=258 win=50.4% PF= 0.95 net=$    -623  ALL: n=472 win=48.5% PF= 0.88 net=$  -2,935
+  early 30/30      JunM: n=203 win=48.3% PF= 0.90 net=$    -826  JunU: n=239 win=51.0% PF= 0.92 net=$    -735  ALL: n=442 win=49.8% PF= 0.91 net=$  -1,562
+  early 20/15      JunM: n=226 win=45.1% PF= 0.91 net=$  -1,143  JunU: n=269 win=47.6% PF= 1.02 net=$    +249  ALL: n=495 win=46.5% PF= 0.97 net=$    -894
+  early 15/20      JunM: n=228 win=52.2% PF= 0.86 net=$  -1,361  JunU: n=267 win=53.9% PF= 0.88 net=$  -1,402  ALL: n=495 win=53.1% PF= 0.87 net=$  -2,762
+
+--- tp_sl_late ---
+  late 5/5         JunM: n=225 win=51.6% PF= 0.91 net=$    -721  JunU: n=264 win=51.1% PF= 0.99 net=$     -85  ALL: n=489 win=51.3% PF= 0.95 net=$    -806
+  late 8/8         JunM: n=221 win=49.8% PF= 0.91 net=$    -800  JunU: n=264 win=52.3% PF= 1.01 net=$    +125  ALL: n=485 win=51.1% PF= 0.97 net=$    -676
+  late 10/10       JunM: n=221 win=48.4% PF= 0.88 net=$  -1,200  JunU: n=264 win=50.8% PF= 0.94 net=$    -735  ALL: n=485 win=49.7% PF= 0.91 net=$  -1,936
+  late 12/12       JunM: n=220 win=48.2% PF= 0.88 net=$  -1,218  JunU: n=264 win=50.8% PF= 0.95 net=$    -592  ALL: n=484 win=49.6% PF= 0.92 net=$  -1,811
+  late 15/15       JunM: n=214 win=46.7% PF= 0.83 net=$  -1,669  JunU: n=263 win=51.0% PF= 0.97 net=$    -334  ALL: n=477 win=49.1% PF= 0.90 net=$  -2,004
+
+--- rearm_atr ---
+  rearm=0.5        JunM: n=225 win=48.9% PF= 0.90 net=$  -1,014  JunU: n=271 win=50.6% PF= 0.93 net=$    -796  ALL: n=496 win=49.8% PF= 0.92 net=$  -1,810
+  rearm=0.75       JunM: n=222 win=48.2% PF= 0.88 net=$  -1,282  JunU: n=262 win=50.0% PF= 0.91 net=$  -1,085  ALL: n=484 win=49.2% PF= 0.89 net=$  -2,367
+  rearm=1.0        JunM: n=221 win=48.4% PF= 0.88 net=$  -1,200  JunU: n=264 win=50.8% PF= 0.94 net=$    -735  ALL: n=485 win=49.7% PF= 0.91 net=$  -1,936
+  rearm=1.5        JunM: n=222 win=48.6% PF= 0.89 net=$  -1,082  JunU: n=256 win=50.4% PF= 0.93 net=$    -873  ALL: n=478 win=49.6% PF= 0.91 net=$  -1,955
+  rearm=2.0        JunM: n=218 win=48.2% PF= 0.87 net=$  -1,291  JunU: n=256 win=50.0% PF= 0.91 net=$  -1,090  ALL: n=474 win=49.2% PF= 0.89 net=$  -2,381
+  rearm=3.0        JunM: n=225 win=48.0% PF= 0.87 net=$  -1,368  JunU: n=261 win=50.6% PF= 0.93 net=$    -832  ALL: n=486 win=49.4% PF= 0.90 net=$  -2,201
+
+--- tighten_time ---
+  tighten=off      JunM: n=204 win=46.1% PF= 0.81 net=$  -1,696  JunU: n=257 win=51.0% PF= 0.99 net=$    -124  ALL: n=461 win=48.8% PF= 0.91 net=$  -1,820
+  tighten=10:00    JunM: n=228 win=46.9% PF= 0.82 net=$  -2,142  JunU: n=273 win=52.4% PF= 0.98 net=$    -235  ALL: n=501 win=49.9% PF= 0.91 net=$  -2,377
+  tighten=10:30    JunM: n=227 win=47.6% PF= 0.85 net=$  -1,644  JunU: n=268 win=51.5% PF= 0.95 net=$    -584  ALL: n=495 win=49.7% PF= 0.91 net=$  -2,228
+  tighten=11:00    JunM: n=221 win=48.4% PF= 0.88 net=$  -1,200  JunU: n=264 win=50.8% PF= 0.94 net=$    -735  ALL: n=485 win=49.7% PF= 0.91 net=$  -1,936
+  tighten=11:30    JunM: n=217 win=48.8% PF= 0.91 net=$    -917  JunU: n=260 win=50.4% PF= 0.93 net=$    -831  ALL: n=477 win=49.7% PF= 0.92 net=$  -1,748
