@@ -282,57 +282,45 @@ class Aurora(BaseStrategy):
     symbol: str = 'MNQ=F'
 
     default_params: Dict[str, Any] = {
-        # 0. Bar type the engine runs on, built from the same raw ticks.
-        #    'Nmin' = N-minute time bars (NT close-time labelling);
-        #    'Nt'   = N-tick bars (label = last tick's timestamp, NT-style).
-        #    Everything downstream (walls, arming, fills, session windows) is
-        #    bar-type agnostic — it works off bar index + bar_time.
         'bar_spec': '1min',
-        # 1. Engine (mirror the indicator — NT SetDefaults lines 302-316)
         'ticks_per_row': 25,
         'lookback': 180,
-        'lookback_cap_days': 5.0,
+        'lookback_cap_days': 5,
         'age_half_life': 60,
         'vol_frac': 0.55,
         'max_shelves': 250,
         'absorb_ratio': 0.25,
-        'break_buf': 0.10,
+        'break_buf': 0.1,
         'allow_flip': True,
         'key_per_side': 2,
         'min_gap_atr': 0.6,
-        'max_dist_pct': 3.0,
+        'max_dist_pct': 3,
         'show_balanced': True,
         'show_absorption': True,
         'show_init': True,
-        # 1. Engine — 2026-07-06 re-sync (MergeMaxRows + opt-in consolidation)
         'merge_max_rows': 3,
         'show_consolidation': False,
         'consol_min_bars': 12,
         'consol_vol_mult': 1.8,
-        # 2. Entry (NT lines 319-332)
         'entry_offset_ticks': 2,
-        'trade_bal': True,
+        'trade_bal': False,
         'trade_absorb': True,
         'trade_init': True,
-        'flip_to_market': True,
-        'rearm_atr': 1.0,
+        'flip_to_market': False,
+        'rearm_atr': 1,
         'flip_tol_pct': 0.001,
-        # 2. Entry — reliability filters (2026-07-06, default OFF like the C#)
-        'entry_min_touches': 0,
+        'entry_min_touches': 1,
         'entry_min_age_bars': 0,
-        'fast_tape_atr_mult': 0.0,
-        # 3. Exits
-        'tp_early_pts': 20.0,
-        'sl_early_pts': 20.0,
-        'tp_late_pts': 10.0,
-        'sl_late_pts': 10.0,
-        'tighten_time': '11:00',     # 'off' disables the early->late switch
-        # 4. Sizing
+        'fast_tape_atr_mult': 2,
+        'tp_early_pts': 20,
+        'sl_early_pts': 20,
+        'tp_late_pts': 10,
+        'sl_late_pts': 10,
+        'tighten_time': '11:00',
         'use_risk_sizing': True,
         'contracts': 1,
-        'risk_dollars': 100.0,
-        'max_contracts': 5,
-        # 5. Session
+        'risk_dollars': 100,
+        'max_contracts': 6,
         'entry_start': '09:30',
         'entry_end': '12:00',
         'flat_by': '15:55',
