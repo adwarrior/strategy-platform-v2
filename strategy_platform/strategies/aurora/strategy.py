@@ -1118,21 +1118,33 @@ class Aurora(BaseStrategy):
                 cur_code = b
 
             # Session flatten (C# runs every tick): force-exit + cancel arm at flat_by.
-            if flat_by is not None and t.time() >= flat_by:
+            # Day session (start <= end): flat zone = flat_by -> midnight, as NT.
+            # OVERNIGHT session (entry_start > entry_end, wraps midnight): the
+            # flat zone is only flat_by -> entry_start (the between-sessions
+            # break); after the evening re-open trading resumes.
+            tod_now = t.time()
+            if flat_by is None:
+                in_flat_zone = False
+            elif entry_start is not None and entry_end is not None and entry_start > entry_end:
+                in_flat_zone = (flat_by <= tod_now < entry_start) if flat_by <= entry_start \
+                               else (tod_now >= flat_by or tod_now < entry_start)
+            else:
+                in_flat_zone = tod_now >= flat_by
+            if in_flat_zone:
                 if in_pos:
                     _close_position(price[i], bar_label, 'EOD')
                 clear_arm()
-                # After flat_by, suppress new arming for the rest of this bar's
-                # processing by skipping fills (handled below via window check).
+                # In the flat zone, suppress new arming for the rest of this
+                # bar's processing by skipping fills (handled below).
 
             # Feed the engine this tick (accumulates into the forming bar `b`).
             eng.on_tick(t, price[i], bid[i], ask[i], vol[i], b)
 
             # Fill the resting limit / manage the open position on this tick,
-            # but only once warmup is satisfied and not past flat_by.
+            # but only once warmup is satisfied and not inside the flat zone.
             if b >= warmup_bars:
-                if flat_by is not None and t.time() >= flat_by:
-                    pass  # no new fills after flat
+                if in_flat_zone:
+                    pass  # no new fills while flat
                 else:
                     try_fill_and_exit(price[i], bar_label, b)
 
