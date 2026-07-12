@@ -118,46 +118,129 @@ def _wilder_atr(high: np.ndarray, low: np.ndarray, close: np.ndarray,
 # Statistics
 # ---------------------------------------------------------------------------
 
+def _max_consec(mask: np.ndarray) -> tuple:
+    """(max consecutive True, max consecutive False) runs in a bool array."""
+    max_t = max_f = cur_t = cur_f = 0
+    for v in mask:
+        if v:
+            cur_t += 1; cur_f = 0
+        else:
+            cur_f += 1; cur_t = 0
+        max_t = max(max_t, cur_t)
+        max_f = max(max_f, cur_f)
+    return max_t, max_f
+
+
 def _summarise(trades: List[Dict]) -> Dict[str, Any]:
+    """Full NT-style stats — every key the dashboard performance table reads."""
+    _empty = {
+        'net_pnl': 0.0, 'total_trades': 0, 'trades': 0, 'win_rate': 0.0,
+        'num_wins': 0, 'num_losses': 0, 'num_even': 0,
+        'gross_profit': 0.0, 'gross_loss': 0.0, 'total_commission': 0.0,
+        'avg_trade': 0.0, 'avg_win': 0.0, 'avg_loss': 0.0,
+        'ratio_win_loss': 0.0, 'largest_win': 0.0, 'largest_loss': 0.0,
+        'profit_factor': 0.0, 'max_drawdown': 0.0,
+        'sharpe': 0.0, 'sortino': 0.0, 'ulcer_index': 0.0, 'r_squared': 0.0,
+        'max_consec_winners': 0, 'max_consec_losers': 0,
+        'avg_trades_per_day': 0.0, 'profit_per_month': 0.0,
+        'pct_months_profit': 0.0, 'max_time_to_recover': 0,
+        'longest_flat_days': 0, 'start_date': '', 'end_date': '',
+    }
     if not trades:
-        return {
-            'net_pnl': 0.0, 'total_trades': 0, 'win_rate': 0.0,
-            'sharpe': 0.0, 'max_drawdown': 0.0,
-            'avg_win': 0.0, 'avg_loss': 0.0, 'profit_factor': 0.0,
-        }
+        return _empty
+
     pnls = np.array([t['pnl'] for t in trades], dtype=float)
     n = len(pnls)
     wins = pnls[pnls > 0]
     losses = pnls[pnls < 0]
+    even = pnls[pnls == 0]
 
     cum = np.cumsum(pnls)
     peak = np.maximum.accumulate(cum)
-    max_dd = float(-(peak - cum).max())
+    dd_series = peak - cum
+    max_dd = float(-dd_series.max())
 
-    # Daily Sharpe (annualised), grouped by calendar date of entry.
+    # Daily P&L by entry date.
+    trade_dates = [t.get('session_date') or pd.Timestamp(t['entry_time']).date()
+                   for t in trades]
     daily: Dict = {}
-    for t in trades:
-        d = pd.Timestamp(t['entry_time']).date()
-        daily[d] = daily.get(d, 0.0) + t['pnl']
+    for d, p in zip(trade_dates, pnls):
+        daily[d] = daily.get(d, 0.0) + p
     d_vals = np.array(list(daily.values()), dtype=float)
     if len(d_vals) > 1:
         std = d_vals.std(ddof=1)
         sharpe = float((d_vals.mean() / std) * np.sqrt(252)) if std > 0 else 0.0
+        neg = d_vals[d_vals < 0]
+        dstd = neg.std(ddof=1) if len(neg) > 1 else (abs(neg[0]) if len(neg) else 0.0)
+        sortino = float((d_vals.mean() / dstd) * np.sqrt(252)) if dstd > 0 else 0.0
     else:
-        sharpe = 0.0
+        sharpe = sortino = 0.0
+
+    # Monthly P&L over the full calendar span (empty months count as 0).
+    monthly: Dict = {}
+    for d, p in zip(trade_dates, pnls):
+        monthly[(d.year, d.month)] = monthly.get((d.year, d.month), 0.0) + p
+    m_arr = np.array(list(monthly.values()), dtype=float)
+
+    # R² of the cumulative equity line vs a straight line.
+    x = np.arange(n, dtype=float)
+    try:
+        with np.errstate(invalid='ignore', divide='ignore'):
+            y_hat = np.polyval(np.polyfit(x, cum, 1), x)
+        ss_res = float(((cum - y_hat) ** 2).sum())
+        ss_tot = float(((cum - cum.mean()) ** 2).sum())
+        r_sq = float(1.0 - ss_res / ss_tot) if ss_tot > 0 else 0.0
+    except (np.linalg.LinAlgError, ValueError):
+        r_sq = 0.0
+
+    # Longest gap (days) between successive equity highs.
+    high_dates = []
+    peak_val = -np.inf
+    for i, v in enumerate(cum):
+        if v > peak_val:
+            peak_val = v
+            high_dates.append(trade_dates[i])
+    longest_flat = max(((high_dates[j + 1] - high_dates[j]).days
+                        for j in range(len(high_dates) - 1)), default=0)
 
     gross_profit = float(wins.sum()) if len(wins) else 0.0
     gross_loss = float(losses.sum()) if len(losses) else 0.0
+    mcw, mcl = _max_consec(pnls > 0)
 
     return {
         'net_pnl': float(pnls.sum()),
         'total_trades': n,
+        'trades': n,
         'win_rate': float(len(wins) / n),
-        'sharpe': sharpe,
-        'max_drawdown': max_dd,
+        'num_wins': int(len(wins)),
+        'num_losses': int(len(losses)),
+        'num_even': int(len(even)),
+        'gross_profit': gross_profit,
+        'gross_loss': gross_loss,
+        'total_commission': float(sum(t.get('commission', 0.0) for t in trades)),
+        'avg_trade': float(pnls.mean()),
         'avg_win': float(wins.mean()) if len(wins) else 0.0,
         'avg_loss': float(losses.mean()) if len(losses) else 0.0,
+        'ratio_win_loss': (float(wins.mean() / abs(losses.mean()))
+                           if len(wins) and len(losses) else 0.0),
+        'largest_win': float(wins.max()) if len(wins) else 0.0,
+        'largest_loss': float(losses.min()) if len(losses) else 0.0,
         'profit_factor': gross_profit / abs(gross_loss) if gross_loss != 0 else float('inf'),
+        'max_drawdown': max_dd,
+        'sharpe': sharpe,
+        'sortino': sortino,
+        'ulcer_index': float(np.sqrt(np.mean(dd_series ** 2))),
+        'r_squared': r_sq,
+        'max_consec_winners': int(mcw),
+        'max_consec_losers': int(mcl),
+        'avg_trades_per_day': float(n / len(daily)) if daily else 0.0,
+        'profit_per_month': float(m_arr.mean()) if len(m_arr) else 0.0,
+        'pct_months_profit': (float(sum(1 for v in m_arr if v > 0) / len(m_arr))
+                              if len(m_arr) else 0.0),
+        'max_time_to_recover': int(longest_flat),
+        'longest_flat_days': int(longest_flat),
+        'start_date': str(trade_dates[0]),
+        'end_date': str(trade_dates[-1]),
     }
 
 
@@ -996,6 +1079,8 @@ class Aurora(BaseStrategy):
                 'exit_price': exit_px,
                 'pnl': pnl,
                 'qty': pos_qty,
+                'commission': self.commission_rt * pos_qty,
+                'session_date': pd.Timestamp(pos_entry_time).date(),
                 'reason': reason,
                 **pos_wall,
             })
