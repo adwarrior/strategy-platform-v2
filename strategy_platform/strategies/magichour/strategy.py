@@ -6,12 +6,15 @@ fade-to-midpoint / first-touch-exit scaffolding. See
 `/home/ad/Scripts/strategies/magichour_spec.md` (single source of truth)
 for the full spec this port follows.
 
-Lifecycle per day (NY ET, close-stamped 5m bars):
-  1. Pick a reference hour (default 07:00-08:00 ET). Range = high/low of the
-     5m bars whose OPEN time falls in [reference_hour:00, reference_hour+1:00),
-     i.e. close-stamped bars reference_hour:05 ... (reference_hour+1):00.
-     The range locks at the close of the (reference_hour+1):00-stamped bar.
-  2. Watch subsequent 5m bars (first eligible stamp = (reference_hour+1):05)
+Hour naming: the param is `range_close_hour` = the CLOSE-time label (matches NT's
+RangeCloseHour) = the hour the range completes on. Internally the range opens at
+open_hour = range_close_hour - 1. Default range_close_hour=8 = the 07:00-08:00 range.
+
+Lifecycle per day (NY ET, close-stamped 5m bars), for range_close_hour = C, open = C-1:
+  1. Range = high/low of the 5m bars whose OPEN time falls in [(C-1):00, C:00),
+     i.e. close-stamped bars (C-1):05 ... C:00.
+     The range locks at the close of the C:00-stamped bar.
+  2. Watch subsequent 5m bars (first eligible stamp = C:05)
      for the first bar whose CLOSE is outside the range (breakout confirmation).
   3. Wait for the first SUBSEQUENT bar whose CLOSE is back inside the range
      (close-back-inside entry model, v1's only entry model).
@@ -61,7 +64,10 @@ class MagicHour(BaseStrategy):
     db_timezone = 'ET'
 
     default_params: Dict[str, Any] = {
-        'reference_hour':          7,
+        # CLOSE-time label of the reference hour (matches NinjaTrader RangeCloseHour):
+        # the hour the range COMPLETES on. 8 = the 07:00-08:00 range (best hour).
+        # Internally the range opens at (range_close_hour - 1).
+        'range_close_hour':        8,
         'entry_model':             'CloseBackInside',
         'z_zone_max':              4,
         'min_range_pts':           10.0,
@@ -98,7 +104,7 @@ class MagicHour(BaseStrategy):
     def param_grid(self) -> Dict[str, Any]:
         return {
             # 1. Reference hour / entry model
-            'reference_hour':          [6, 7, 8],
+            'range_close_hour':        [6, 7, 8, 9],   # close-time; 8 = best hour (07:00-08:00 range)
             'entry_model':             ['CloseBackInside'],
 
             # 2. Breakout filters
@@ -141,7 +147,7 @@ class MagicHour(BaseStrategy):
     @property
     def param_groups(self) -> Dict[str, List[str]]:
         return {
-            "1. Reference Hour": ['reference_hour', 'entry_model'],
+            "1. Reference Hour": ['range_close_hour', 'entry_model'],
             "2. Breakout Filters": ['z_zone_max', 'min_range_pts', 'max_breakout_delay_min'],
             "3. Stop/Target":    ['stop_mode', 'pr_ratio', 'stop_r_multiple', 'outcome_minutes'],
             "4. Size Filter":    ['use_size_filter', 'size_lookback_days', 'size_percentile'],
@@ -153,7 +159,7 @@ class MagicHour(BaseStrategy):
     @property
     def display_names(self) -> Dict[str, str]:
         return {
-            'reference_hour':         'Reference Hour (ET)',
+            'range_close_hour':       'Range Close Hour (ET)',
             'entry_model':            'Entry Model',
             'z_zone_max':             'Max Breakout Zone (1-5)',
             'min_range_pts':          'Min Range Size (pts)',
@@ -282,7 +288,10 @@ def _run_backtest_loop(
         return []
 
     # ---- Params
-    ref_hour     = int(params['reference_hour'])
+    # range_close_hour is the CLOSE-time label (NT convention); the range OPENS one hour
+    # earlier. ref_hour below is the internal OPEN hour used for all anchor arithmetic.
+    range_close_hour = int(params.get('range_close_hour', params.get('reference_hour', 8)))
+    ref_hour     = (range_close_hour - 1) % 24
     entry_model  = str(params['entry_model'])
     z_zone_max   = int(params['z_zone_max'])
     min_range    = float(params['min_range_pts'])
@@ -535,7 +544,8 @@ def _run_backtest_loop(
             'or_high':      range_high,
             'or_low':       range_low,
             'or_size_pts':  range_size,
-            'reference_hour':     ref_hour,
+            'range_close_hour':   range_close_hour,   # close-time label (NT convention)
+            'reference_hour':     ref_hour,           # internal open hour (= close - 1)
             'range_high':         range_high,
             'range_low':          range_low,
             'range_mid':          range_mid,
