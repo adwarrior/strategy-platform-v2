@@ -304,7 +304,10 @@ def run_pipeline(
                                       start=data_start, end=data_end, host=db_host)
         print(f"      {len(df_sample):,} tick bars (sample at {_sample_size}-tick, for date metadata)")
     elif is_1m_strategy:
-        df_sample = load_1m(symbol, start=data_start, end=data_end, host=db_host)
+        # Strategies that reason about ET clock hours set db_timezone='ET'; the 1M table
+        # is stored CT-naive, so pass to_et=True to shift +1h. Default (no attr) = CT.
+        _to_et = getattr(strategy, 'db_timezone', None) == 'ET'
+        df_sample = load_1m(symbol, start=data_start, end=data_end, host=db_host, to_et=_to_et)
     else:
         df_sample = load_5m(symbol, start=data_start, end=data_end, refresh=refresh, host=db_host)
 

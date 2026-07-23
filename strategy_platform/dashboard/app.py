@@ -4753,7 +4753,9 @@ with tab_bt:
                         data_source_label = f"NT CSV: {os.path.basename(nt_csv_path)} ({_csv_resample})"
                     elif bar_type == '1m':
                         from strategy_platform.data.loader import load_1m
-                        df_bt = load_1m(symbol, start=_bt_start_str, end=_bt_end_str, host=db_host)
+                        # 1M table is CT-naive; strategies with db_timezone='ET' need +1h shift.
+                        _to_et = getattr(strategy, 'db_timezone', None) == 'ET'
+                        df_bt = load_1m(symbol, start=_bt_start_str, end=_bt_end_str, host=db_host, to_et=_to_et)
                         if bar_minute_inc and bar_minute_inc > 1:
                             df_bt = df_bt.resample(f"{bar_minute_inc}min", label='right', closed='right').agg(
                                 {'open': 'first', 'high': 'max', 'low': 'min', 'close': 'last', 'volume': 'sum'}

@@ -242,8 +242,11 @@ def load_5m(
         df1 = load_1m(symbol, start=start, end=end, host=host)
         if df1.empty:
             return df1
-        # historical_data_1m is stored ET-naive (ingestion does UTC→ET→strip-tz before INSERT).
-        # No conversion needed — resample directly on ET-naive timestamps.
+        # NOTE: historical_data_1m is stored CENTRAL-TIME-naive (verified 2026-07-23),
+        # not ET as an earlier comment here wrongly claimed. This 5M-fallback path
+        # deliberately preserves that CT labelling (does NOT pass to_et) so existing
+        # time-bar strategies keep the exact clock they were tuned against. Strategies
+        # needing true ET hours should load via load_1m(..., to_et=True) themselves.
         df = df1.resample('5min', label='right', closed='right').agg(
             {'open': 'first', 'high': 'max', 'low': 'min', 'close': 'last', 'volume': 'sum'}
         ).dropna(subset=['open'])
@@ -280,6 +283,7 @@ def load_1m(
     start:   Optional[str] = None,
     end:     Optional[str] = None,
     host:    Optional[str] = None,
+    to_et:   bool = False,
 ) -> pd.DataFrame:
     """
     Return 1-minute OHLCV data for *symbol* from emini.historical_data_1m.
@@ -288,12 +292,25 @@ def load_1m(
     All other symbols only have the live feed from ~2026-03-29 onwards.
     No Parquet cache — the table is updated continuously by the live feed.
 
+    TIMEZONE — READ THIS (verified empirically 2026-07-23, MNQ/MES/MGC):
+        historical_data_1m is stored **Central Time (CT), naive** — NOT ET, NOT UTC,
+        despite older code comments that claimed ET. Proof anchors on a normal
+        trading day: the CME maintenance break (17:00–18:00 ET) shows as an empty
+        hour at **16:00** (= 16:00 CT), and the Globex reopen (18:00 ET) is the first
+        post-break bar at **17:00** (= 17:00 CT). So DB-hour + 1 = ET-hour.
+        Any strategy that reasons about clock hours (session windows, reference hours,
+        EOD) MUST convert to ET first — pass ``to_et=True`` — otherwise every hour
+        threshold is silently off by one. See memory ``feedback_db_1m_is_central_time``.
+
     Parameters
     ----------
     symbol : e.g. "MES", "MNQ", "MGC"
     start  : ISO date string for earliest bar, e.g. "2022-01-01"
     end    : ISO date string for latest bar
     host   : MySQL host override (default: DB_HOST from .env)
+    to_et  : if True, shift the naive CT index +1h so timestamps are ET-naive.
+             Default False to preserve the historical (CT-labelled) behaviour that
+             existing strategies were tuned against — do NOT flip the default.
     """
     print(f"  [{symbol}] querying MySQL 1M ({host or os.getenv('DB_HOST', '127.0.0.1')})...")
     engine = _engine(host)
@@ -312,7 +329,11 @@ def load_1m(
     df = df.set_index('datetime')
     df.index = pd.to_datetime(df.index)
     df = df[~df.index.duplicated(keep='first')]
-    print(f"  [{symbol}] {len(df):,} 1M bars loaded.")
+    if to_et:
+        # DB is CT-naive; +1h => ET-naive. (Fixed offset: CME futures observe US DST
+        # in both CT and ET simultaneously, so CT→ET is always exactly +1h.)
+        df.index = df.index + pd.Timedelta(hours=1)
+    print(f"  [{symbol}] {len(df):,} 1M bars loaded.{' [ET-shifted]' if to_et else ''}")
     return df
 
 

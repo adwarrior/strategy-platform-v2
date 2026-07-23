@@ -51,15 +51,23 @@ class MagicHour(BaseStrategy):
     """Premarket reference-hour mean reversion. 5m bars, ET timezone-naive."""
 
     name = "magichour"
-    bar_type            = 'time'
+    bar_type            = '1m'    # load 1m from historical_data_1m, resample to 5m internally
     supported_bar_types = ['1m', '5m', 'time']
+
+    # historical_data_1m is stored CENTRAL-TIME-naive. This strategy reasons about ET
+    # clock hours (reference_hour, EOD), so the loader must shift CT->ET (+1h). The
+    # pipeline/dashboard read this attribute and pass to_et=True to load_1m.
+    # See loader.load_1m docstring + memory feedback_db_1m_is_central_time.
+    db_timezone = 'ET'
 
     default_params: Dict[str, Any] = {
         'reference_hour':          7,
         'entry_model':             'CloseBackInside',
         'z_zone_max':              4,
         'min_range_pts':           10.0,
-        'max_breakout_delay_min':  20,
+        # Video's "first 20 min" early-breakout filter did NOT help on MNQ H1-2025
+        # (it discarded ~65% of trades and cut net P&L $3.7k->$1.3k). Default disabled.
+        'max_breakout_delay_min':  0,
         'stop_mode':               'PRRatio',
         'pr_ratio':                1.5,
         'stop_r_multiple':         0.5,
@@ -79,7 +87,7 @@ class MagicHour(BaseStrategy):
     tick_value    = 0.50      # $0.50 per 0.25-pt tick = $2 per point
     commission_rt = 0.74
 
-    symbol  = 'MNQ=F'
+    symbol  = 'MNQ'   # DB symbol key (NOT 'MNQ=F' — that returns 0 rows from historical_data_1m)
     db_host: Optional[str] = None
 
     # ------------------------------------------------------------------
