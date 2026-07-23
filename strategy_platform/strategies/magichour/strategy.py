@@ -306,39 +306,61 @@ def _run_backtest_loop(
     if entry_model != 'CloseBackInside':
         return []  # only entry model implemented in v1
 
-    # Range window: open_time in [ref_hour:00, ref_hour+1:00) <=>
-    # close-stamp in (ref_hour:00, ref_hour+1:00], i.e. stamps
-    # ref_hour:05 ... (ref_hour+1):00.
-    range_start_min = ref_hour * 60          # ref_hour:00 (exclusive lower bound on stamp)
-    range_end_min   = ref_hour * 60 + 60     # (ref_hour+1):00 (inclusive upper bound on stamp)
-    range_start_t = time_t(range_start_min // 60, range_start_min % 60)
-    range_end_t   = time_t((range_end_min // 60) % 24, range_end_min % 60)
+    # --- Anchor-relative session model (works for ALL reference hours, incl.
+    # evening hours 18:00-23:00 whose trades cross midnight) ---
+    #
+    # Each session is anchored at date + ref_hour:00 (ET-naive). We slice by
+    # ABSOLUTE timestamp, never time-of-day, so a range starting 22:00 and a fade
+    # resolving 01:30 the next calendar day is one contiguous session.
+    #
+    # Range window: close-stamps in (anchor, anchor+60min], i.e. bars whose OPEN
+    # falls in [ref_hour:00, ref_hour+1:00). Range locks at the anchor+60min bar.
+    # Breakout-watch window: (anchor+60min, anchor + watch_span_min].
+    #   watch_span_min = 60 (range) + WATCH_WINDOW_MIN so there is always enough
+    #   room after the range for a breakout + close-back-inside + outcome walk,
+    #   regardless of the daytime eod_exit_time (which is now only a *floor* cap
+    #   for daytime hours, applied as an absolute clamp below).
+    WATCH_WINDOW_MIN = 8 * 60  # up to 8h after range close to find breakout+entry+exit
 
-    # ---- Pre-compute per-day range sizes for the rolling percentile filter
-    range_sizes_by_date: Dict[Any, float] = {}
-    for d, day_bars in df.groupby(df.index.date):
-        rb = day_bars[(day_bars.index.time > range_start_t) & (day_bars.index.time <= range_end_t)]
+    range_span = pd.Timedelta(minutes=60)
+    watch_span = pd.Timedelta(minutes=60 + WATCH_WINDOW_MIN)
+
+    # Build one anchor per calendar date on which ref_hour bars exist.
+    # (Grouping by date to find candidate anchors is fine — the anchor timestamp
+    # itself, not the date group, drives all slicing.)
+    anchors: List[pd.Timestamp] = []
+    for d in sorted(set(df.index.normalize())):
+        anchor = d + pd.Timedelta(hours=ref_hour)
+        anchors.append(anchor)
+
+    # ---- Pre-compute per-anchor range sizes for the rolling percentile filter
+    range_sizes_by_anchor: Dict[pd.Timestamp, float] = {}
+    for anchor in anchors:
+        rb = df[(df.index > anchor) & (df.index <= anchor + range_span)]
         if len(rb) > 0:
-            range_sizes_by_date[d] = float(rb['high'].max() - rb['low'].min())
+            range_sizes_by_anchor[anchor] = float(rb['high'].max() - rb['low'].min())
 
-    sorted_dates = sorted(range_sizes_by_date)
+    sorted_anchors = sorted(range_sizes_by_anchor)
 
-    def _passes_size_filter(today: Any) -> bool:
+    def _passes_size_filter(anchor: pd.Timestamp) -> bool:
         if not use_filter:
             return True
-        idx = sorted_dates.index(today) if today in range_sizes_by_date else -1
-        past = sorted_dates[max(0, idx - lookback):idx]
+        idx = sorted_anchors.index(anchor) if anchor in range_sizes_by_anchor else -1
+        past = sorted_anchors[max(0, idx - lookback):idx]
         if len(past) < 20:
             return True
-        past_sizes = np.array([range_sizes_by_date[d] for d in past])
+        past_sizes = np.array([range_sizes_by_anchor[a] for a in past])
         threshold = float(np.quantile(past_sizes, pct))
-        return range_sizes_by_date[today] >= threshold
+        return range_sizes_by_anchor[anchor] >= threshold
 
-    # ---- Per-day loop
+    # ---- Per-anchor loop
     trades: List[Dict[str, Any]] = []
 
-    for d, day_bars in df.groupby(df.index.date):
-        rb = day_bars[(day_bars.index.time > range_start_t) & (day_bars.index.time <= range_end_t)]
+    for anchor in anchors:
+        d = anchor.date()
+        range_start_ts = anchor
+        range_end_ts   = anchor + range_span
+        rb = df[(df.index > range_start_ts) & (df.index <= range_end_ts)]
         if len(rb) == 0:
             continue
         range_high = float(rb['high'].max())
@@ -349,15 +371,15 @@ def _run_backtest_loop(
         if range_size < min_range:
             continue
 
-        if not _passes_size_filter(d):
+        if not _passes_size_filter(anchor):
             continue
 
         range_mid = (range_high + range_low) / 2.0
         range_close_ts = rb.index[-1]  # timestamp of the (ref_hour+1):00-stamped bar
 
-        # Bars strictly after the range window (breakout-watch bars, first eligible
-        # stamp = (ref_hour+1):05), up to EOD.
-        post = day_bars[(day_bars.index.time > range_end_t) & (day_bars.index.time < eod_t)]
+        # Breakout-watch bars: absolute window (range_end, anchor + watch_span].
+        session_end_ts = anchor + watch_span
+        post = df[(df.index > range_end_ts) & (df.index <= session_end_ts)]
         if len(post) == 0:
             continue
 
@@ -450,13 +472,14 @@ def _run_backtest_loop(
         # Walk bars from the close-back-inside bar forward for first-touch
         # resolution (the limit is assumed filled on/after this bar's close,
         # since the trigger to broadcast the order is that bar's close).
-        time_stop_min = (entry_sig_ts.hour * 60 + entry_sig_ts.minute) + outcome_m
-        time_stop = time_t(min(23, time_stop_min // 60), time_stop_min % 60)
-        if (time_stop.hour, time_stop.minute) > (eod_t.hour, eod_t.minute):
-            time_stop = eod_t
+        # Time-stop is ABSOLUTE (entry_time + outcome_minutes), so it crosses
+        # midnight cleanly. It is also clamped to the session watch window.
+        time_stop_ts = entry_sig_ts + pd.Timedelta(minutes=outcome_m)
+        if time_stop_ts > session_end_ts:
+            time_stop_ts = session_end_ts
 
         walk = after_break.iloc[entry_sig_idx + 1:]
-        walk = walk[walk.index.time <= time_stop]
+        walk = walk[walk.index <= time_stop_ts]
 
         exit_px:    Optional[float] = None
         exit_ts:    Optional[pd.Timestamp] = None
