@@ -92,6 +92,8 @@ class VwapDrift(BaseStrategy):
             'warmup_minutes':       [30, 60, 90],
             'slope_lookback_min':   [10, 15, 30],
             'hour_return_pct':      (0.05, 0.30, 0.05),
+            'max_vwap_distance':    (0.0, 3.0, 0.25),
+            'vwap_distance_mode':   ['ATR', 'Points'],
 
             # 2. Brackets
             'stop_points':          (40.0, 120.0, 20.0),
@@ -392,6 +394,31 @@ def _run_backtest_loop(
             if side is None:
                 continue
 
+            # ---- Proximity filter: did the pullback actually REACH the VWAP?
+            # The transcript's mechanics disclaim distance (line 346) but its
+            # narrative says "pullback towards the VWAP" — this tests that reading.
+            # Distance = the candle's closest approach to VWAP (low in a long,
+            # high in a short); 0 if the candle traded through VWAP entirely.
+            vwap_dist = np.nan
+            if max_dist > 0:
+                vw = vwap_v[i]
+                if not np.isfinite(vw):
+                    continue
+                if side == 'Long':
+                    dist = max(0.0, l5[i] - vw)
+                else:
+                    dist = max(0.0, vw - h5[i])
+                if dist_mode == 'ATR':
+                    a = atr_v[i]
+                    if not np.isfinite(a) or a <= 0:
+                        continue
+                    limit = max_dist * a
+                else:
+                    limit = max_dist
+                if dist > limit:
+                    continue
+                vwap_dist = float(dist)
+
             # ---- Fill at next 5m bar open == first 1m bar strictly after ts
             e_start = idx1.searchsorted(ts, side='right')
             if e_start >= len(idx1) or idx1[e_start] > eod_dt or idx1[e_start].normalize() != d:
@@ -454,6 +481,7 @@ def _run_backtest_loop(
                 'exit_reason':  exit_reason,
                 'commission':   commission * qty,
                 'vwap_at_entry': float(vwap_v[i]) if np.isfinite(vwap_v[i]) else np.nan,
+                'vwap_dist':     vwap_dist,
                 'hour_ret_pct':  float(hour_ret_v[i] * 100.0) if np.isfinite(hour_ret_v[i]) else np.nan,
             })
 
