@@ -122,11 +122,17 @@ class VwapDrift(BaseStrategy):
         'qty':      ('use_risk_sizing', False),
     }
 
+    # NOTE: param_dependencies takes (control_param, required_value) tuples, so it
+    # can't express "max_vwap_distance > 0". The mode is simply inert when the
+    # distance filter is off (0.0), which costs a duplicate combo per grid run —
+    # harmless, and the sweep script pins the mode explicitly.
+
     @property
     def param_groups(self) -> Dict[str, List[str]]:
         return {
             "1. VWAP / Trend": ['anchor_time', 'warmup_minutes', 'slope_lookback_min',
-                                'hour_return_pct'],
+                                'hour_return_pct', 'max_vwap_distance',
+                                'vwap_distance_mode'],
             "2. Brackets":     ['stop_points', 'target_long_points', 'target_short_points'],
             "3. Guardrails":   ['max_trades_day', 'max_losses_day', 'losses_consecutive',
                                 'first_pullback_only', 'entry_cutoff', 'eod_flat'],
@@ -141,6 +147,8 @@ class VwapDrift(BaseStrategy):
             'warmup_minutes':       'Warm-up (min, no trades)',
             'slope_lookback_min':   'Drift Lookback (min)',
             'hour_return_pct':      '1h Momentum Threshold (%)',
+            'max_vwap_distance':    'Max Pullback Distance to VWAP (0=off)',
+            'vwap_distance_mode':   'Distance Mode',
             'stop_points':          'Stop (pts)',
             'target_long_points':   'Target Long (pts)',
             'target_short_points':  'Target Short (pts)',
