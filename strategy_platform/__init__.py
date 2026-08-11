@@ -22,3 +22,4 @@ import strategy_platform.strategies.atr_candle_breakout.strategy  # noqa: F401
 import strategy_platform.strategies.aurora.strategy               # noqa: F401
 import strategy_platform.strategies.magichour.strategy            # noqa: F401
 import strategy_platform.strategies.sweepengulf.strategy          # noqa: F401
+import strategy_platform.strategies.vwapdrift.strategy            # noqa: F401
