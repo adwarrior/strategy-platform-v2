@@ -109,6 +109,27 @@ for v in [1, 2, 3]:
 for v in ["Long Only", "Short Only"]:
     add("direction", v, {"direction": v})
 
+# --- Distance-to-VWAP (added 2026-08-11 at user's reading of the video).
+# The transcript's MECHANICS disclaim distance ("doesn't matter how close it is
+# to the VWOP", line 346) but its NARRATIVE says "pullback towards the VWAP".
+# The source genuinely conflicts, so measure it rather than argue about it.
+# ATR-relative is the honest test: MNQ ran ~7,000 in 2020 and ~25,000 in 2026,
+# so a fixed point cap is a far tighter filter early in the sample than late.
+for v in [0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0]:
+    add("vwap_dist_atr", f"dist<={v}ATR",
+        {"max_vwap_distance": v, "vwap_distance_mode": "ATR"})
+
+for v in [5, 10, 15, 25, 50]:
+    add("vwap_dist_pts", f"dist<={v}pts",
+        {"max_vwap_distance": float(v), "vwap_distance_mode": "Points"})
+
+# The distance filter combined with the only lever that was positive in all
+# three periods (slower drift), in case they're complementary.
+for v in [0.5, 1.0, 2.0]:
+    add("dist_x_drift", f"dist<={v}ATR+drift60",
+        {"max_vwap_distance": v, "vwap_distance_mode": "ATR",
+         "slope_lookback_min": 60})
+
 
 def summarise(trades: pd.DataFrame) -> dict:
     """Per-period stats. PF and expectancy per trade are the decision metrics —
