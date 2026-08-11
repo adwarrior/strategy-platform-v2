@@ -46,6 +46,17 @@ class VwapDrift(BaseStrategy):
         'warmup_minutes':       60,
         'slope_lookback_min':   15,
         'hour_return_pct':      0.1,
+        # Max distance from VWAP the pullback candle must reach, in points.
+        # 0 = OFF = the transcript's literal mechanical rule ("doesn't matter how
+        # close it is to the VWOP", line 346) — any counter-colour candle triggers.
+        # >0 tests the video's NARRATIVE reading ("pullback towards the VWAP"),
+        # which conflicts with the mechanics; the source is genuinely ambiguous.
+        # Measured on the candle's closest approach: low in a long, high in a short.
+        'max_vwap_distance':    0.0,
+        # 'Points' = fixed points; 'ATR' = multiple of 14-bar 5m ATR. Prefer ATR:
+        # MNQ ran ~7,000 in 2020 and ~25,000 in 2026, so a fixed point distance
+        # is a much tighter filter early in the sample than late.
+        'vwap_distance_mode':   'ATR',
         'stop_points':          80.0,
         'target_long_points':   40.0,
         'target_short_points':  50.0,
@@ -242,6 +253,8 @@ def _run_backtest_loop(
     slope_min    = int(params['slope_lookback_min'])
     slope_bars   = max(1, slope_min // 5)
     thresh_pct   = float(params['hour_return_pct']) / 100.0
+    max_dist     = float(params.get('max_vwap_distance', 0.0))
+    dist_mode    = str(params.get('vwap_distance_mode', 'ATR'))
     stop_pts     = float(params['stop_points'])
     tp_long      = float(params['target_long_points'])
     tp_short     = float(params['target_short_points'])
