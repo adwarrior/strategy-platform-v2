@@ -297,6 +297,16 @@ def _run_backtest_loop(
     close_1h = df5['close'].groupby(grp).shift(12)
     hour_ret = df5['close'] / close_1h - 1.0
 
+    # 14-bar ATR on 5m bars, for the ATR-relative VWAP-distance filter. Shifted
+    # by 1 so the trigger bar's own range can't set its own threshold.
+    prev_close = df5['close'].shift(1)
+    tr = pd.concat([
+        df5['high'] - df5['low'],
+        (df5['high'] - prev_close).abs(),
+        (df5['low'] - prev_close).abs(),
+    ], axis=1).max(axis=1)
+    atr5 = tr.rolling(14, min_periods=14).mean().shift(1)
+
     o5 = df5['open'].values
     c5 = df5['close'].values
     idx5 = df5.index
@@ -311,6 +321,9 @@ def _run_backtest_loop(
     vwap_v      = vwap.values
     vwap_prev_v = vwap_prev.values
     hour_ret_v  = hour_ret.values
+    atr_v       = atr5.values
+    h5          = df5['high'].values
+    l5          = df5['low'].values
 
     # Per-day 5m bar positions
     day_positions: Dict[Any, List[int]] = {}
