@@ -88,7 +88,8 @@ def _query_month(symbol: str, month_start: pd.Timestamp, month_end: pd.Timestamp
     # MySQL FLOOR() returns Decimal via pymysql; cast to int64 before arithmetic
     # so `hb * 3600` stays numeric (not object dtype) for to_datetime(unit='s').
     hb_int = df['hb'].astype('int64')
-    df.index = pd.to_datetime(hb_int * 3600, unit='s', utc=True).tz_convert(None)
+    idx = pd.DatetimeIndex(pd.to_datetime(hb_int * 3600, unit='s', utc=True))
+    df.index = idx.tz_convert(None)
     df = df.drop(columns=['hb'])
     df['tick_volume'] = df['tick_volume'].astype(float)
     df['delta']       = df['delta'].astype(float)
