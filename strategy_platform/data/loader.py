@@ -242,11 +242,11 @@ def load_5m(
         df1 = load_1m(symbol, start=start, end=end, host=host)
         if df1.empty:
             return df1
-        # NOTE: historical_data_1m is stored CENTRAL-TIME-naive (verified 2026-07-23),
-        # not ET as an earlier comment here wrongly claimed. This 5M-fallback path
-        # deliberately preserves that CT labelling (does NOT pass to_et) so existing
-        # time-bar strategies keep the exact clock they were tuned against. Strategies
-        # needing true ET hours should load via load_1m(..., to_et=True) themselves.
+        # NOTE: historical_data_1m is Eastern-naive since the 2026-09-22 migration,
+        # so this 5M-fallback path inherits ET labelling with no conversion. Bars
+        # resampled here are ET, as are bars from the 5M table itself.
+        # Params tuned on this path BEFORE 2026-09-22 were tuned against CT labelling
+        # for pre-cutover ranges and need a re-run.
         df = df1.resample('5min', label='right', closed='right').agg(
             {'open': 'first', 'high': 'max', 'low': 'min', 'close': 'last', 'volume': 'sum'}
         ).dropna(subset=['open'])
@@ -292,15 +292,16 @@ def load_1m(
     All other symbols only have the live feed from ~2026-03-29 onwards.
     No Parquet cache — the table is updated continuously by the live feed.
 
-    TIMEZONE — READ THIS (verified empirically 2026-07-23, MNQ/MES/MGC):
-        historical_data_1m is stored **Central Time (CT), naive** — NOT ET, NOT UTC,
-        despite older code comments that claimed ET. Proof anchors on a normal
-        trading day: the CME maintenance break (17:00–18:00 ET) shows as an empty
-        hour at **16:00** (= 16:00 CT), and the Globex reopen (18:00 ET) is the first
-        post-break bar at **17:00** (= 17:00 CT). So DB-hour + 1 = ET-hour.
-        Any strategy that reasons about clock hours (session windows, reference hours,
-        EOD) MUST convert to ET first — pass ``to_et=True`` — otherwise every hour
-        threshold is silently off by one. See memory ``feedback_db_1m_is_central_time``.
+    TIMEZONE (migration committed 2026-09-22, verified):
+        historical_data_1m is stored **Eastern, naive** — uniformly, over its whole
+        history. Clock-based logic (session windows, reference hours, EOD) can read
+        the index directly; no conversion is needed.
+        It was Central-naive before ~2026-03-29 and Eastern-naive after, matching the
+        live-feed cutover. The migration shifted every pre-cutover MNQ/MES/MGC row +1h,
+        so that split is GONE — do not write era-detection or per-era shifts.
+        Consequence that outlives the fix: any result produced before 2026-09-22 from a
+        range crossing 2026-03-29 is untrustworthy on its time axis, tuned parameters
+        included. Re-run rather than trust.
 
     Parameters
     ----------
@@ -308,9 +309,8 @@ def load_1m(
     start  : ISO date string for earliest bar, e.g. "2022-01-01"
     end    : ISO date string for latest bar
     host   : MySQL host override (default: DB_HOST from .env)
-    to_et  : if True, shift the naive CT index +1h so timestamps are ET-naive.
-             Default False to preserve the historical (CT-labelled) behaviour that
-             existing strategies were tuned against — do NOT flip the default.
+    to_et  : NO-OP, retained for call-site compatibility. The table is already
+             ET-naive; nothing is shifted regardless of this value.
     """
     print(f"  [{symbol}] querying MySQL 1M ({host or os.getenv('DB_HOST', '127.0.0.1')})...")
     engine = _engine(host)
@@ -329,11 +329,12 @@ def load_1m(
     df = df.set_index('datetime')
     df.index = pd.to_datetime(df.index)
     df = df[~df.index.duplicated(keep='first')]
-    if to_et:
-        # DB is CT-naive; +1h => ET-naive. (Fixed offset: CME futures observe US DST
-        # in both CT and ET simultaneously, so CT→ET is always exactly +1h.)
-        df.index = df.index + pd.Timedelta(hours=1)
-    print(f"  [{symbol}] {len(df):,} 1M bars loaded.{' [ET-shifted]' if to_et else ''}")
+    # to_et is a NO-OP as of the 2026-09-22 migration: historical_data_1m is now
+    # uniformly Eastern-naive over its full history, so there is nothing to shift.
+    # The parameter is kept so the pipeline/dashboard call sites and the strategies'
+    # db_timezone='ET' declarations stay valid — they correctly state intent, and the
+    # table now satisfies it natively. Do NOT reintroduce a shift here.
+    print(f"  [{symbol}] {len(df):,} 1M bars loaded.")
     return df
 
 

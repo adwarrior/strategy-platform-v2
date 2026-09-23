@@ -254,7 +254,7 @@ def _run_backtest_loop(
     """
     Single-pass simulation mirroring ORB30Monti.cs OnBarUpdate.
 
-    DB timezone note: index is assumed UTC (historical_data_1m convention).
+    DB timezone note: index is ET-naive (historical_data_1m, since 2026-09-22).
     All session-hour comparisons use ET-converted timestamps.
 
     No look-ahead: range is accumulated and locked on bar-close; entries only

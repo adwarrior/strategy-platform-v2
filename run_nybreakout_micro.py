@@ -1,12 +1,16 @@
 """Full IS/MC/OOS optimization of NYBreakout on micro futures (MNQ, MGC).
 
-Micro 1-minute data lives in emini.historical_data_1m, stored in **UTC**.
-NYBreakout's anchor logic is defined in **ET** (9-10am NY). So we must:
-  1. load 1m (UTC, tz-naive),
-  2. tz_localize UTC -> tz_convert US/Eastern -> drop tz (keep ET wall-clock),
-  3. resample to 5m ET (label/closed='right' to match NT close-stamped bars),
+Micro 1-minute data lives in emini.historical_data_1m, which is **ET-naive**
+(uniformly, since the 2026-09-22 migration). NYBreakout's anchor logic is defined
+in **ET** (9-10am NY), so no timezone conversion is needed:
+  1. load 1m (ET-naive),
+  2. resample to 5m ET (label/closed='right' to match NT close-stamped bars),
 then hand the prepared 5m-ET frame to the platform's run_pipeline via a
 pre-prepared DataFrame so it does NOT re-load from MySQL.
+
+NOTE: this script previously localized the index to UTC and converted to US/Eastern,
+which moved every bar 4-5 hours. Any NYBreakout micro result produced before
+2026-09-23 is invalid on its time axis — re-run, do not trust.
 
 This mirrors openretest/strategy.py's prepare_data tz handling and the
 run_IS_*_focused.py runner pattern.
@@ -42,11 +46,9 @@ def load_5m_et(symbol: str, host: str | None) -> pd.DataFrame:
         raise SystemExit(f"No 1m data for {symbol}.")
     print(f"  {len(df1):,} 1m bars  ({df1.index[0]} -> {df1.index[-1]})", flush=True)
 
-    idx = df1.index
-    if idx.tz is None:
-        idx = idx.tz_localize("UTC")
+    # No tz conversion: historical_data_1m is already ET-naive, which is the clock
+    # NYBreakout's 9-10am anchor is defined in. Do NOT localize/convert here.
     df1 = df1.copy()
-    df1.index = idx.tz_convert("US/Eastern").tz_localize(None)
 
     df5 = (
         df1.resample("5min", label="right", closed="right")
